@@ -1,0 +1,7 @@
+name: serverFest
+version: '${version}'
+author: gaderman244
+
+main: at.gaderman.serverFest.ServerFest
+api-version: '26.1'
+load: POSTWORLD
