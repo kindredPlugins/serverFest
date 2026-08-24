@@ -80,6 +80,17 @@ public class WorldManager {
         return newHub;
     }
 
+    public World loadOrCreateFestWorld() {
+        NamespacedKey worldKey = new NamespacedKey(ServerFest.getPlugin(), "fest_world");
+        World existing = Bukkit.getWorld(worldKey);
+        if(existing != null) {
+            return existing;
+        }
+
+        long seed = Bukkit.getWorlds().getFirst().getSeed();
+        return WorldCreator.ofKey(worldKey).seed(seed).createWorld();
+    }
+
     /**
      * Builds a void world manager
      */
@@ -88,6 +99,10 @@ public class WorldManager {
                 .environment(World.Environment.NORMAL)
                 .type(WorldType.NORMAL)
                 .generator(new VoidChunkGenerator());
+    }
+
+    public WorldCreator createChallengeWorldCreator(NamespacedKey worldKey){
+        return WorldCreator.ofKey(worldKey);
     }
 
     private static final class VoidChunkGenerator extends ChunkGenerator {}

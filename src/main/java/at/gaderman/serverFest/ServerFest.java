@@ -1,13 +1,16 @@
 package at.gaderman.serverFest;
 
+import at.gaderman.serverFest.fests.schedule.FixedDateScheduled;
 import at.gaderman.serverFest.management.WorldManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
-import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class ServerFest extends JavaPlugin implements Listener {
+
+    public static final Component CHAT_PREFIX = Component.text("[ServerFest] ", NamedTextColor.GREEN);
 
     public static ServerFest getPlugin(){
         return getPlugin(ServerFest.class);
@@ -18,8 +21,11 @@ public final class ServerFest extends JavaPlugin implements Listener {
         // Plugin startup logic
 
         WorldManager.getInstance().setUpHub();
+        WorldManager.getInstance().loadOrCreateFestWorld();
 
         Bukkit.getPluginManager().registerEvents(this, this);
+
+        new FixedDateScheduled().schedule();
     }
 
     @Override
@@ -27,8 +33,8 @@ public final class ServerFest extends JavaPlugin implements Listener {
         // Plugin shutdown logic
     }
 
-    @EventHandler
-    public void onPlayerJoin(PlayerJoinEvent event){
-        event.getPlayer().teleport(WorldManager.getInstance().getHubWorld().getSpawnLocation());
-    }
+//    @EventHandler
+//    public void onPlayerJoin(PlayerJoinEvent event){
+//        event.getPlayer().teleport(WorldManager.getInstance().getHubWorld().getSpawnLocation());
+//    }
 }

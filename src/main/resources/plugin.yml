@@ -3,5 +3,5 @@ version: '${version}'
 author: gaderman244
 
 main: at.gaderman.serverFest.ServerFest
-api-version: '26.1'
+api-version: '26.2'
 load: POSTWORLD
