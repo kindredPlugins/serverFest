@@ -1,14 +1,15 @@
 package at.gaderman.serverFest.fests.game.implementations.race;
 
 import at.gaderman.serverFest.fests.Fest;
-import at.gaderman.serverFest.fests.game.FestGame;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
+import org.bukkit.Sound;
+import org.bukkit.entity.Player;
 
 import java.util.List;
 
-public class MountRace extends FestGame {
+public class MountRace extends RaceGame {
     public MountRace(Fest fest) {
         super(fest);
     }
@@ -19,8 +20,15 @@ public class MountRace extends FestGame {
     }
 
     @Override
-    public void onStart() {
+    protected void kickOff() {
 
+    }
+
+    @Override
+    protected void onPassCheckPoint(Player player, int checkPoint) {
+        player.sendMessage(Component.text("Passed checkpoint ", NamedTextColor.GRAY)
+                .append(Component.text(checkPoint, NamedTextColor.GOLD)));
+        player.playSound(player, Sound.ENTITY_PLAYER_LEVELUP, 1f, 2f);
     }
 
     @Override

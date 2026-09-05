@@ -3,15 +3,29 @@ package at.gaderman.serverFest.fests.game.implementations.race;
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.game.FestGame;
+import at.gaderman.serverFest.fests.game.implementations.race.data.CheckPoint;
+import at.gaderman.serverFest.fests.game.implementations.race.data.RaceGamePlayerData;
+import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.title.TitlePart;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.WorldBorder;
+import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.Vector;
+import org.jspecify.annotations.NonNull;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
 public abstract class RaceGame extends FestGame {
+
+    protected List<CheckPoint> checkPoints = new ArrayList<>();
+
     public RaceGame(Fest fest) {
         super(fest);
     }
@@ -43,6 +57,7 @@ public abstract class RaceGame extends FestGame {
                         participant.playSound(participant, Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 1f, 1f);
                         participant.sendTitlePart(TitlePart.TITLE, Component.text("Race!", NamedTextColor.GOLD));
                     });
+                    activateCheckPointDetection();
                     kickOff();
                 }
 
@@ -58,4 +73,83 @@ public abstract class RaceGame extends FestGame {
     }
 
     protected abstract void kickOff();
+
+    protected abstract void onPassCheckPoint(Player player, int checkPoint);
+
+    private void activateCheckPointDetection(){
+        fest.participants().forEach(participant -> {
+            participant.getScheduler().runAtFixedRate(ServerFest.getPlugin(), task -> {
+                //TODO: cancel check point detection once fest is over
+
+                RaceGamePlayerData playerData = (RaceGamePlayerData) getPlayerData(participant.getUniqueId());
+                int currentCheckPoint = playerData.currentCheckPoint();
+
+                if(currentCheckPoint + 1 >= checkPoints.size()){
+                    //TODO: player has won due to reaching all checkpoints
+                    return;
+                }
+
+                CheckPoint nextCheckPoint = checkPoints.get(currentCheckPoint + 1);
+                Location current = participant.getLocation();
+                Location previous = playerData.previousLocation();
+
+                if(previous != null && crossedCheckpoint(previous, current, nextCheckPoint)) {
+                    playerData.setCheckPoint(currentCheckPoint + 1);
+
+                    onPassCheckPoint(participant, currentCheckPoint + 1);
+                }
+
+                playerData.setPreviousLocation(current);
+            }, null, 1, 1);
+        });
+    }
+
+    private boolean crossedCheckpoint(Location previous, Location current, CheckPoint checkpoint) {
+        Location center = checkpoint.location();
+
+        Vector prev = toLocal(previous, center);
+        Vector curr = toLocal(current, center);
+
+        if ((prev.getZ() < 0 && curr.getZ() < 0) || (prev.getZ() > 0 && curr.getZ() > 0))
+            return false;
+
+        double dz = curr.getZ() - prev.getZ();
+
+        if (Math.abs(dz) < 1e-9)
+            return false;
+
+        double t = -prev.getZ() / dz;
+
+        if (t < 0.0 || t > 1.0)
+            return false;
+
+        double crossingX = prev.getX() + (curr.getX() - prev.getX()) * t;
+        double crossingY = prev.getY() + (curr.getY() - prev.getY()) * t;
+
+        double halfWidth = checkpoint.width() / 2.0;
+        double halfHeight = checkpoint.height() / 2.0;
+
+        return Math.abs(crossingX) <= halfWidth && Math.abs(crossingY) <= halfHeight;
+    }
+
+    private Vector toLocal(Location position, Location checkpoint) {
+        double dx = position.getX() - checkpoint.getX();
+        double dy = position.getY() - checkpoint.getY();
+        double dz = position.getZ() - checkpoint.getZ();
+
+        double radians = Math.toRadians(checkpoint.getYaw());
+
+        double sin = Math.sin(radians);
+        double cos = Math.cos(radians);
+
+        double localX = dx * cos + dz * sin;
+        double localZ = -dx * sin + dz * cos;
+
+        return new Vector(localX, dy, localZ);
+    }
+
+    @Override
+    protected @NonNull FestPlayerData createPlayerData(UUID uuid) {
+        return new RaceGamePlayerData();
+    }
 }

@@ -1,12 +1,16 @@
 package at.gaderman.serverFest.fests.game.implementations.race;
 
 import at.gaderman.serverFest.fests.Fest;
+import at.gaderman.serverFest.fests.game.implementations.race.data.CheckPoint;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.entity.BlockDisplay;
+import org.bukkit.entity.Firework;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
@@ -63,6 +67,17 @@ public class ElytraRace extends RaceGame {
         });
     }
 
+    @Override
+    protected void onPassCheckPoint(Player player, int checkPoint) {
+        Firework firework = player.launchProjectile(Firework.class);
+        firework.setAttachedTo(player);
+        player.sendMessage(Component.text("Passed checkpoint ", NamedTextColor.GRAY)
+                .append(Component.text(checkPoint, NamedTextColor.GOLD)));
+        player.playSound(player, Sound.ENTITY_PLAYER_LEVELUP, 1f, 2f);
+    }
+
+    //region Track
+
     private void createElytraTrack() {
         World world = fest.world();
 
@@ -74,11 +89,13 @@ public class ElytraRace extends RaceGame {
         double gateSize = 5.0;
         double thickness = 0.6;
 
+        checkPoints.add(new CheckPoint(origin, gateSize, gateSize));
+
         // How far the track moves left/right.
-        double waveAmplitude = 80;
+        double waveAmplitude = 100;
 
         // How quickly it oscillates.
-        double waveLength = 3;
+        double waveLength = 2;
 
         double lastZ = 0;
         for (int i = 1; i < gateCount; i++) {
@@ -89,9 +106,10 @@ public class ElytraRace extends RaceGame {
             double x = Math.sin(i / waveLength) * waveAmplitude;
 
             // Optional vertical movement.
-            double y = Math.sin(i / 10.0) * 40;
+            double y = Math.random() * 20 - 10;
 
             Location gateLocation = origin.clone().add(x, y, z);
+            checkPoints.add(new CheckPoint(gateLocation, gateSize, gateSize));
 
             createGate(gateLocation, gateSize, thickness);
         }
@@ -128,4 +146,6 @@ public class ElytraRace extends RaceGame {
             });
         });
     }
+
+    //endregion
 }
