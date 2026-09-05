@@ -1,47 +1,21 @@
 package at.gaderman.serverFest.fests.game.implementations.race;
 
 import at.gaderman.serverFest.fests.Fest;
-import at.gaderman.serverFest.fests.game.FestGame;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.entity.BlockDisplay;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
 
 import java.util.List;
 
-public class ElytraRace extends FestGame {
+public class ElytraRace extends RaceGame {
     public ElytraRace(Fest fest) {
         super(fest);
-    }
-
-    @Override
-    public void setUpWorld() {
-        World world = fest.world();
-
-        Location spawnPoint = new Location(world, fest.offset(), 125, 0);
-        while(world.getHighestBlockAt(spawnPoint).getY() > spawnPoint.getY() - 20) {
-            spawnPoint = new Location(world, spawnPoint.getX() + 300, spawnPoint.getY(), 0);
-        }
-
-        world.setSpawnLocation(spawnPoint.toCenterLocation());
-
-        for (int x = -1; x <= 1; x++) {
-            for (int z = -1; z <= 1; z++) {
-                spawnPoint.clone().add(x, -1, z).getBlock().setType(Material.BAMBOO_BLOCK);
-            }
-        }
-    }
-
-    @Override
-    public void onStart() {
-        fest.participants().forEach(participant -> {
-            participant.getEquipment().setChestplate(ItemStack.of(Material.ELYTRA));
-
-            participant.setVelocity(new Vector(0, 1, 0));
-        });
     }
 
     @Override
@@ -57,5 +31,101 @@ public class ElytraRace extends FestGame {
     @Override
     public List<Component> iconLore() {
         return List.of();
+    }
+
+    @Override
+    public void setUpWorld() {
+        World world = fest.world();
+
+        Location spawnPoint = new Location(world, fest.offset(), 125, 0).toCenterLocation();
+        while (world.getHighestBlockAt(spawnPoint).getY() > spawnPoint.getY() - 20) {
+            spawnPoint = new Location(world, spawnPoint.getX() + 300, spawnPoint.getY(), 0).toCenterLocation();
+        }
+
+        world.setSpawnLocation(spawnPoint.toCenterLocation());
+
+        for (int x = -1; x <= 1; x++) {
+            for (int z = -1; z <= 1; z++) {
+                spawnPoint.clone().add(x, -1, z).getBlock().setType(Material.BAMBOO_BLOCK);
+            }
+        }
+
+        createElytraTrack();
+    }
+
+    @Override
+    public void kickOff() {
+        fest.participants().forEach(participant -> {
+            participant.getEquipment().setChestplate(ItemStack.of(Material.ELYTRA));
+
+            participant.setGliding(true);
+            participant.setVelocity(new Vector(0, 1, 1));
+        });
+    }
+
+    private void createElytraTrack() {
+        World world = fest.world();
+
+        Location origin = world.getSpawnLocation();
+
+        int gateCount = 20;
+
+        double spacing = 50.0;
+        double gateSize = 5.0;
+        double thickness = 0.6;
+
+        // How far the track moves left/right.
+        double waveAmplitude = 80;
+
+        // How quickly it oscillates.
+        double waveLength = 3;
+
+        double lastZ = 0;
+        for (int i = 1; i < gateCount; i++) {
+            double z = lastZ + spacing + Math.random() * 35;
+            lastZ = z;
+
+            // Smooth left/right movement.
+            double x = Math.sin(i / waveLength) * waveAmplitude;
+
+            // Optional vertical movement.
+            double y = Math.sin(i / 10.0) * 40;
+
+            Location gateLocation = origin.clone().add(x, y, z);
+
+            createGate(gateLocation, gateSize, thickness);
+        }
+    }
+
+    private void createGate(Location center, double size, double thickness) {
+        double half = size / 2.0;
+
+        // Bottom-left corner of the entire gate.
+        Location origin = center.clone().add(-half, -half, 0);
+
+        // Bottom
+        spawnGlass(origin.clone(), size, thickness, thickness);
+
+        // Top
+        spawnGlass(origin.clone().add(0, size - thickness, 0), size, thickness, thickness);
+
+        // Left
+        spawnGlass(origin.clone(), thickness, size, thickness);
+
+        // Right
+        spawnGlass(origin.clone().add(size - thickness, 0, 0), thickness, size, thickness);
+    }
+
+    private void spawnGlass(Location location, double x, double y, double z) {
+        World world = location.getWorld();
+        world.getChunkAtAsync(location).thenAccept(chunk -> {
+            world.spawn(location, BlockDisplay.class, display -> {
+
+                display.setBlock(Material.YELLOW_STAINED_GLASS.createBlockData());
+                Transformation transformation = display.getTransformation();
+                transformation.getScale().set((float) x, (float) y, (float) z);
+                display.setTransformation(transformation);
+            });
+        });
     }
 }

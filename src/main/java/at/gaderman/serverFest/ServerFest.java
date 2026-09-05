@@ -1,6 +1,6 @@
 package at.gaderman.serverFest;
 
-import at.gaderman.serverFest.fests.schedule.FixedDateScheduled;
+import at.gaderman.serverFest.command.FestCommand;
 import at.gaderman.serverFest.management.WorldManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -23,9 +23,9 @@ public final class ServerFest extends JavaPlugin implements Listener {
         WorldManager.getInstance().setUpHub();
         WorldManager.getInstance().loadOrCreateFestWorld();
 
-        Bukkit.getPluginManager().registerEvents(this, this);
+        getCommand("fest").setExecutor(new FestCommand());
 
-        new FixedDateScheduled().schedule();
+        Bukkit.getPluginManager().registerEvents(this, this);
     }
 
     @Override

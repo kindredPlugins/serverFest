@@ -8,7 +8,7 @@ import java.time.temporal.ChronoUnit;
 
 public class FixedDateScheduled extends ScheduledFest{
 
-    private LocalDateTime timeStamp = LocalDateTime.now().plusSeconds(10);
+    private LocalDateTime timeStamp = LocalDateTime.now().plusSeconds(5);
     private long offsetMinutes = 10080; // 1 week
 
     @Override

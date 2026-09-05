@@ -5,3 +5,8 @@ author: gaderman244
 main: at.gaderman.serverFest.ServerFest
 api-version: '26.2'
 load: POSTWORLD
+
+commands:
+  fest:
+    description: Manage or start a new fest
+    permission: serverFest.fest.manage
