@@ -1,13 +1,12 @@
 package at.gaderman.serverFest.fests.game.implementations.race;
 
+import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.game.implementations.race.data.CheckPoint;
+import at.gaderman.serverFest.fests.game.implementations.race.data.RaceGamePlayerData;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.Sound;
-import org.bukkit.World;
+import org.bukkit.*;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
@@ -15,6 +14,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class ElytraRace extends RaceGame {
@@ -60,7 +60,8 @@ public class ElytraRace extends RaceGame {
     }
 
     @Override
-    protected void onStop() {}
+    protected void onStop() {
+    }
 
     @Override
     public void kickOff() {
@@ -70,6 +71,16 @@ public class ElytraRace extends RaceGame {
             participant.setJumping(true);
             participant.setVelocity(new Vector(0, 1, 1));
             participant.setGliding(true);
+
+            participant.getScheduler().runAtFixedRate(ServerFest.getPlugin(), task -> {
+                if (!fest.game().isRunning()) {
+                    task.cancel();
+                    return;
+                }
+
+                RaceGamePlayerData playerData = (RaceGamePlayerData) getOrCreatePlayerData(participant.getUniqueId());
+                renderGuideParticles(participant, playerData.currentCheckPoint());
+            }, null, 4, 4);
         });
     }
 
@@ -116,11 +127,15 @@ public class ElytraRace extends RaceGame {
             // Optional vertical movement.
             double y = Math.random() * 20 - 10;
 
+            //TODO: check if gate is not obstructed, needs to be accessible from all sides, maybe explosions could help?
+
             Location gateLocation = origin.clone().add(x, y, z);
             checkPoints.add(new CheckPoint(gateLocation, gateSize, gateSize));
 
             createGate(gateLocation, gateSize, thickness, i == gateCount - 1);
         }
+
+        buildTrackSpline();
     }
 
     private void createGate(Location center, double size, double thickness, boolean finish) {
@@ -154,6 +169,81 @@ public class ElytraRace extends RaceGame {
                 display.setTransformation(transformation);
             });
         });
+    }
+
+    //endregion
+
+    //region Spline Border
+
+    private final List<Vector> trackSamples = new ArrayList<>();
+    private final List<Integer> segmentStartIndex = new ArrayList<>();
+
+    private static final int SAMPLES_PER_SEGMENT = 32;
+
+    private void buildTrackSpline() {
+        trackSamples.clear();
+        segmentStartIndex.clear();
+
+        List<Vector> checkPoints = this.checkPoints.stream()
+                .map(cp -> cp.location().toVector())
+                .toList();
+
+        int n = checkPoints.size();
+        for (int i = 0; i < n - 1; i++) {
+            segmentStartIndex.add(trackSamples.size());
+
+            Vector p0 = checkPoints.get(Math.max(i - 1, 0));
+            Vector p1 = checkPoints.get(i);
+            Vector p2 = checkPoints.get(i + 1);
+            Vector p3 = checkPoints.get(Math.min(i + 2, n - 1));
+
+            for (int s = 0; s < SAMPLES_PER_SEGMENT; s++) {
+                trackSamples.add(catmullRom(p0, p1, p2, p3, s / (double) SAMPLES_PER_SEGMENT));
+            }
+        }
+        trackSamples.add(checkPoints.get(n - 1));
+        segmentStartIndex.add(trackSamples.size() - 1);
+    }
+
+    private Vector catmullRom(Vector p0, Vector p1, Vector p2, Vector p3, double t) {
+        double t2 = t * t, t3 = t2 * t;
+        double x = 0.5 * ((2 * p1.getX()) + (-p0.getX() + p2.getX()) * t + (2 * p0.getX() - 5 * p1.getX() + 4 * p2.getX() - p3.getX()) * t2 + (-p0.getX() + 3 * p1.getX() - 3 * p2.getX() + p3.getX()) * t3);
+        double y = 0.5 * ((2 * p1.getY()) + (-p0.getY() + p2.getY()) * t + (2 * p0.getY() - 5 * p1.getY() + 4 * p2.getY() - p3.getY()) * t2 + (-p0.getY() + 3 * p1.getY() - 3 * p2.getY() + p3.getY()) * t3);
+        double z = 0.5 * ((2 * p1.getZ()) + (-p0.getZ() + p2.getZ()) * t + (2 * p0.getZ() - 5 * p1.getZ() + 4 * p2.getZ() - p3.getZ()) * t2 + (-p0.getZ() + 3 * p1.getZ() - 3 * p2.getZ() + p3.getZ()) * t3);
+        return new Vector(x, y, z);
+    }
+
+    private static final double TRACK_HALF_WIDTH = 6.0;
+    private static final int RENDER_WINDOW = 40;
+
+    private void renderGuideParticles(Player participant, int currentCheckPointIndex) {
+        int startSample = segmentStartIndex.get(Math.min(currentCheckPointIndex, segmentStartIndex.size() - 1));
+        int endSample = Math.min(startSample + RENDER_WINDOW, trackSamples.size() - 1);
+
+        Particle.DustOptions dust = new Particle.DustOptions(Color.fromRGB(255, 220, 130), 1.0f);
+
+        for (int i = startSample; i < endSample; i += 2) {
+            Vector point = trackSamples.get(i);
+            Vector next = trackSamples.get(Math.min(i + 1, trackSamples.size() - 1));
+
+            Vector forward = next.clone().subtract(point);
+            if (forward.lengthSquared() < 1e-6) continue;
+            forward.normalize();
+
+            Vector right = forward.clone().crossProduct(new Vector(0, 1, 0));
+            if (right.lengthSquared() < 1e-6) continue;
+            right.normalize();
+
+            // sparser the further ahead — draws the eye forward instead of a flat wall of dots
+            double closeness = 1.0 - ((double) (i - startSample) / RENDER_WINDOW);
+            if (Math.random() > closeness * 0.8 + 0.2) continue;
+
+            Vector left = point.clone().add(right.clone().multiply(TRACK_HALF_WIDTH));
+            Vector rightSide = point.clone().subtract(right.clone().multiply(TRACK_HALF_WIDTH));
+
+            participant.spawnParticle(Particle.DUST, left.getX(), left.getY(), left.getZ(), 1, 0, 0, 0, 0, dust);
+            participant.spawnParticle(Particle.DUST, rightSide.getX(), rightSide.getY(), rightSide.getZ(), 1, 0, 0, 0, 0, dust);
+        }
     }
 
     //endregion

@@ -6,6 +6,7 @@ import at.gaderman.serverFest.fests.game.FestGame;
 import at.gaderman.serverFest.fests.game.implementations.race.data.CheckPoint;
 import at.gaderman.serverFest.fests.game.implementations.race.data.RaceGamePlayerData;
 import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
+import com.destroystokyo.paper.ParticleBuilder;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -103,7 +104,7 @@ public abstract class RaceGame extends FestGame {
                 participant.playSound(participant, Sound.ENTITY_WITHER_DEATH, 1f, 1.3f);
             }
 
-            participant.sendTitlePart(TitlePart.SUBTITLE, MiniMessage.miniMessage().deserialize("<head:" + singleWinner.getUniqueId() + "> ")
+            participant.sendTitlePart(TitlePart.SUBTITLE, MiniMessage.miniMessage().deserialize("<head:" + singleWinner.getUniqueId() + ":false> ")
                     .append(singleWinner.name().color(NamedTextColor.GOLD))
                     .append(Component.text(" has won!", NamedTextColor.GREEN)));
         });
