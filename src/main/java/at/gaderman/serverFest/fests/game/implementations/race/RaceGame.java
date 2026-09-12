@@ -8,6 +8,7 @@ import at.gaderman.serverFest.fests.game.implementations.race.data.RaceGamePlaye
 import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.title.TitlePart;
 import org.bukkit.*;
 import org.bukkit.entity.Firework;
@@ -75,6 +76,8 @@ public abstract class RaceGame extends FestGame {
 
     @Override
     protected void onWinner(List<Player> winner) {
+        Player singleWinner = winner.getFirst();
+
         fest.participants().forEach(participant -> {
             boolean isWinner = winner.contains(participant);
 
@@ -96,9 +99,13 @@ public abstract class RaceGame extends FestGame {
                 });
             } else {
                 participant.sendTitlePart(TitlePart.TITLE, winner.getFirst().displayName().color(NamedTextColor.AQUA)
-                        .append(Component.text(" has won!", NamedTextColor.GOLD)));
+                        .append(Component.text(" has won!", NamedTextColor.GREEN)));
                 participant.playSound(participant, Sound.ENTITY_WITHER_DEATH, 1f, 1.3f);
             }
+
+            participant.sendTitlePart(TitlePart.SUBTITLE, MiniMessage.miniMessage().deserialize("<head:" + singleWinner.getUniqueId() + "> ")
+                    .append(singleWinner.name().color(NamedTextColor.GOLD))
+                    .append(Component.text(" has won!", NamedTextColor.GREEN)));
         });
 
         Bukkit.getServer().getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {

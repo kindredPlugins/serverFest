@@ -85,10 +85,15 @@ public class Fest {
         game.setUpWorld();
 
         participants().forEach(player -> {
+            SaveStateManagement.savePlayerState(player);
             player.teleport(world.getSpawnLocation());
         });
 
         game.start();
+    }
+
+    public void stop() {
+        participants().forEach(SaveStateManagement::restorePlayerState);
     }
 
     //endregion

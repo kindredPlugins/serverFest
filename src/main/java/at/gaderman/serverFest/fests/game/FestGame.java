@@ -60,6 +60,7 @@ public abstract class FestGame implements BasicGUIElement {
     public void stop(){
         running = false;
         onStop();
+        fest.stop();
         //TODO: send everyone back to their world + allow winner to pick reward
     }
 

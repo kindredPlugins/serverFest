@@ -67,8 +67,9 @@ public class ElytraRace extends RaceGame {
         fest.participants().forEach(participant -> {
             participant.getEquipment().setChestplate(ItemStack.of(Material.ELYTRA));
 
-            participant.setGliding(true);
+            participant.setJumping(true);
             participant.setVelocity(new Vector(0, 1, 1));
+            participant.setGliding(true);
         });
     }
 
