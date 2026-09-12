@@ -37,6 +37,8 @@ public class ElytraRace extends RaceGame {
         return List.of();
     }
 
+    //region Overrides
+
     @Override
     public void setUpWorld() {
         World world = fest.world();
@@ -58,6 +60,9 @@ public class ElytraRace extends RaceGame {
     }
 
     @Override
+    protected void onStop() {}
+
+    @Override
     public void kickOff() {
         fest.participants().forEach(participant -> {
             participant.getEquipment().setChestplate(ItemStack.of(Material.ELYTRA));
@@ -75,6 +80,8 @@ public class ElytraRace extends RaceGame {
                 .append(Component.text(checkPoint, NamedTextColor.GOLD)));
         player.playSound(player, Sound.ENTITY_PLAYER_LEVELUP, 1f, 2f);
     }
+
+    //endregion
 
     //region Track
 
@@ -111,35 +118,36 @@ public class ElytraRace extends RaceGame {
             Location gateLocation = origin.clone().add(x, y, z);
             checkPoints.add(new CheckPoint(gateLocation, gateSize, gateSize));
 
-            createGate(gateLocation, gateSize, thickness);
+            createGate(gateLocation, gateSize, thickness, i == gateCount - 1);
         }
     }
 
-    private void createGate(Location center, double size, double thickness) {
+    private void createGate(Location center, double size, double thickness, boolean finish) {
         double half = size / 2.0;
 
         // Bottom-left corner of the entire gate.
         Location origin = center.clone().add(-half, -half, 0);
 
         // Bottom
-        spawnGlass(origin.clone(), size, thickness, thickness);
+        spawnGlass(origin.clone(), size, thickness, thickness, finish);
 
         // Top
-        spawnGlass(origin.clone().add(0, size - thickness, 0), size, thickness, thickness);
+        spawnGlass(origin.clone().add(0, size - thickness, 0), size, thickness, thickness, finish);
 
         // Left
-        spawnGlass(origin.clone(), thickness, size, thickness);
+        spawnGlass(origin.clone(), thickness, size, thickness, finish);
 
         // Right
-        spawnGlass(origin.clone().add(size - thickness, 0, 0), thickness, size, thickness);
+        spawnGlass(origin.clone().add(size - thickness, 0, 0), thickness, size, thickness, finish);
     }
 
-    private void spawnGlass(Location location, double x, double y, double z) {
+    private void spawnGlass(Location location, double x, double y, double z, boolean finish) {
         World world = location.getWorld();
-        world.getChunkAtAsync(location).thenAccept(chunk -> {
+        world.getChunkAtAsync(location).thenAccept(_ -> {
             world.spawn(location, BlockDisplay.class, display -> {
 
-                display.setBlock(Material.YELLOW_STAINED_GLASS.createBlockData());
+                display.setBlock((finish ? Material.DIAMOND_BLOCK : Material.YELLOW_STAINED_GLASS)
+                        .createBlockData());
                 Transformation transformation = display.getTransformation();
                 transformation.getScale().set((float) x, (float) y, (float) z);
                 display.setTransformation(transformation);

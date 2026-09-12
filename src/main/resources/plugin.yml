@@ -5,6 +5,7 @@ author: gaderman244
 main: at.gaderman.serverFest.ServerFest
 api-version: '26.2'
 load: POSTWORLD
+folia-supported: true
 
 description: Introduces fests to the server which are server-side events of minigames which do not influence the main world
 
@@ -12,3 +13,8 @@ commands:
   fest:
     description: Manage or start a new fest
     permission: serverFest.fest.manage
+
+permissions:
+  serverFest.fest.manage:
+    description: Manage or start a new fest
+    default: op

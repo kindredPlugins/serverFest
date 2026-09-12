@@ -9,11 +9,10 @@ import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.title.TitlePart;
-import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.Sound;
-import org.bukkit.WorldBorder;
+import org.bukkit.*;
+import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.meta.FireworkMeta;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 import org.jspecify.annotations.NonNull;
@@ -31,7 +30,7 @@ public abstract class RaceGame extends FestGame {
     }
 
     @Override
-    public void onStart() {
+    protected void onStart() {
         WorldBorder startBorder = Bukkit.createWorldBorder();
         startBorder.setSize(1.5);
         startBorder.setCenter(fest.world().getSpawnLocation());
@@ -46,7 +45,7 @@ public abstract class RaceGame extends FestGame {
             public void run() {
                 timeLeft[0]--;
 
-                if(timeLeft[0] <= 5)
+                if (timeLeft[0] <= 5)
                     sendTitle(timeLeft[0]);
 
                 if (timeLeft[0] <= 0) {
@@ -74,18 +73,54 @@ public abstract class RaceGame extends FestGame {
 
     protected abstract void kickOff();
 
+    @Override
+    protected void onWinner(List<Player> winner) {
+        fest.participants().forEach(participant -> {
+            boolean isWinner = winner.contains(participant);
+
+            if (isWinner) {
+                participant.sendTitlePart(TitlePart.TITLE, Component.text("Winner!", NamedTextColor.GOLD));
+                participant.getWorld().playSound(participant, Sound.MUSIC_DISC_PIGSTEP, 1f, 1.3f);
+
+                participant.getWorld().spawn(participant.getLocation(), Firework.class, firework -> {
+                    FireworkMeta meta = firework.getFireworkMeta();
+                    meta.addEffect(FireworkEffect.builder()
+                            .withColor(Color.GREEN)
+                            .with(FireworkEffect.Type.CREEPER)
+                            .withFlicker()
+                            .withTrail()
+                            .withFade(Color.LIME)
+                            .build());
+
+                    firework.setFireworkMeta(meta);
+                });
+            } else {
+                participant.sendTitlePart(TitlePart.TITLE, winner.getFirst().displayName().color(NamedTextColor.AQUA)
+                        .append(Component.text(" has won!", NamedTextColor.GOLD)));
+                participant.playSound(participant, Sound.ENTITY_WITHER_DEATH, 1f, 1.3f);
+            }
+        });
+
+        Bukkit.getServer().getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
+            stop();
+        }, 200);
+    }
+
     protected abstract void onPassCheckPoint(Player player, int checkPoint);
 
-    private void activateCheckPointDetection(){
+    private void activateCheckPointDetection() {
         fest.participants().forEach(participant -> {
             participant.getScheduler().runAtFixedRate(ServerFest.getPlugin(), task -> {
-                //TODO: cancel check point detection once fest is over
+                if (!fest.game().isRunning()) {
+                    task.cancel();
+                    return;
+                }
 
-                RaceGamePlayerData playerData = (RaceGamePlayerData) getPlayerData(participant.getUniqueId());
+                RaceGamePlayerData playerData = (RaceGamePlayerData) getOrCreatePlayerData(participant.getUniqueId());
                 int currentCheckPoint = playerData.currentCheckPoint();
 
-                if(currentCheckPoint + 1 >= checkPoints.size()){
-                    //TODO: player has won due to reaching all checkpoints
+                if (currentCheckPoint + 1 >= checkPoints.size()) {
+                    declareWinner(List.of(participant));
                     return;
                 }
 
@@ -93,7 +128,7 @@ public abstract class RaceGame extends FestGame {
                 Location current = participant.getLocation();
                 Location previous = playerData.previousLocation();
 
-                if(previous != null && crossedCheckpoint(previous, current, nextCheckPoint)) {
+                if (previous != null && crossedCheckpoint(previous, current, nextCheckPoint)) {
                     playerData.setCheckPoint(currentCheckPoint + 1);
 
                     onPassCheckPoint(participant, currentCheckPoint + 1);

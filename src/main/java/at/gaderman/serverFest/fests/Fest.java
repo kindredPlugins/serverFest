@@ -88,7 +88,7 @@ public class Fest {
             player.teleport(world.getSpawnLocation());
         });
 
-        game.onStart();
+        game.start();
     }
 
     //endregion

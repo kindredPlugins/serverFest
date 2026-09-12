@@ -20,6 +20,11 @@ public class MountRace extends RaceGame {
     }
 
     @Override
+    protected void onStop() {
+
+    }
+
+    @Override
     protected void kickOff() {
 
     }
