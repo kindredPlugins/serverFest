@@ -3,7 +3,10 @@ package at.gaderman.serverFest.fests;
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.game.FestGame;
 import at.gaderman.serverFest.fests.game.GameType;
+import at.gaderman.serverFest.fests.game.triggers.TriggerListener;
 import at.gaderman.serverFest.management.WorldManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.GameRules;
 import org.bukkit.NamespacedKey;
@@ -12,9 +15,11 @@ import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class Fest {
 
@@ -30,11 +35,17 @@ public class Fest {
     private World world;
     private long offset;
 
+    private final TriggerListener triggerListener;
+
     public Fest(GameType gameType) {
         this.uuid = UUID.randomUUID();
         //TODO: change this later to give players actual choice of participation
-        this.participantUUIDs = Bukkit.getOnlinePlayers().stream().map(Player::getUniqueId).toList();
+        this.participantUUIDs = Bukkit.getOnlinePlayers().stream().map(Player::getUniqueId).collect(Collectors.toList());
         this.game = gameType.createNewInstance(this);
+
+        this.triggerListener = new TriggerListener(this);
+
+        FestManager.getInstance().registerFest(this);
     }
 
     //endregion
@@ -55,6 +66,10 @@ public class Fest {
 
     public long offset() {
         return offset;
+    }
+
+    public List<UUID> participantUUIDs() {
+        return new ArrayList<>(participantUUIDs);
     }
 
     public List<Player> participants() {
@@ -94,6 +109,20 @@ public class Fest {
 
     public void stop() {
         participants().forEach(SaveStateManagement::restorePlayerState);
+        triggerListener.unregister();
+        FestManager.getInstance().unregisterFest(this);
+    }
+
+    public void onLeave(Player player) {
+        participantUUIDs.remove(player.getUniqueId());
+
+        participants().forEach(participant -> participant.sendMessage(
+                player.name().color(NamedTextColor.RED)
+                                .append(Component.text(" has left the fest", NamedTextColor.GRAY))
+                )
+        );
+
+        SaveStateManagement.restorePlayerState(player);
     }
 
     //endregion

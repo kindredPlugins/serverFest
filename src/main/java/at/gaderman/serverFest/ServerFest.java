@@ -1,6 +1,8 @@
 package at.gaderman.serverFest;
 
 import at.gaderman.serverFest.command.FestCommand;
+import at.gaderman.serverFest.fests.Fest;
+import at.gaderman.serverFest.fests.FestManager;
 import at.gaderman.serverFest.management.WorldManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -31,6 +33,8 @@ public final class ServerFest extends JavaPlugin implements Listener {
     @Override
     public void onDisable() {
         // Plugin shutdown logic
+        getLogger().info("Stopping all ongoing fests...");
+        FestManager.getInstance().getFests().forEach(Fest::stop);
     }
 
 //    @EventHandler

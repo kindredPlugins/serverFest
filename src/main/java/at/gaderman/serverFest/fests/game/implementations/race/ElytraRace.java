@@ -112,7 +112,6 @@ public class ElytraRace extends RaceGame {
 
         // How far the track moves left/right.
         double waveAmplitude = 100;
-
         // How quickly it oscillates.
         double waveLength = 2;
 
