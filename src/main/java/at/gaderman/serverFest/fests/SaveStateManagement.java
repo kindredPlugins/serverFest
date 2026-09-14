@@ -18,6 +18,7 @@ import java.util.UUID;
 
 public class SaveStateManagement {
 
+    public static final NamespacedKey SAVED_STATE = new NamespacedKey(ServerFest.getPlugin(), "saved_state");
     public static final NamespacedKey SAVE_LOCATION = new NamespacedKey(ServerFest.getPlugin(), "saveLocation");
 
     /**
@@ -52,6 +53,8 @@ public class SaveStateManagement {
         player.getInventory().clear();
 
         PersistentDataContainer pdc = player.getPersistentDataContainer();
+        pdc.set(SAVED_STATE, PersistentDataType.STRING, ServerFest.getPlugin().getPluginMeta().getVersion());
+
         pdc.set(SAVE_LOCATION, PersistentDataType.STRING, serializeLocation(player.getLocation()));
     }
 
@@ -82,6 +85,8 @@ public class SaveStateManagement {
             if(saveLoc != null)
                 player.teleport(saveLoc);
         }
+
+        pdc.remove(SAVED_STATE);
     }
 
     private static ItemStack transferToContainer(ItemStack[] contents) {

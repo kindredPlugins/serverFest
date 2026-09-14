@@ -4,12 +4,16 @@ import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.game.implementations.race.data.CheckPoint;
 import at.gaderman.serverFest.fests.game.implementations.race.data.RaceGamePlayerData;
+import at.gaderman.serverFest.fests.game.triggers.action.PlayerToggleGlideTrigger;
+import at.gaderman.serverFest.fests.game.triggers.damage.PlayerDamageTrigger;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.*;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityToggleGlideEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
@@ -17,7 +21,8 @@ import org.bukkit.util.Vector;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ElytraRace extends RaceGame {
+public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, PlayerDamageTrigger {
+
     public ElytraRace(Fest fest) {
         super(fest);
     }
@@ -65,12 +70,22 @@ public class ElytraRace extends RaceGame {
 
     @Override
     public void kickOff() {
+        Location startPoint = checkPoints.getFirst().location();
+
         fest.participants().forEach(participant -> {
             participant.getEquipment().setChestplate(ItemStack.of(Material.ELYTRA));
 
-            participant.setJumping(true);
-            participant.setVelocity(new Vector(0, 1, 1));
-            participant.setGliding(true);
+            participant.setVelocity(new Vector(0, 1, 0));
+
+            participant.getScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
+                participant.setGliding(true);
+                participant.getWorld().spawn(participant.getLocation(), Firework.class, firework -> firework.setAttachedTo(participant));
+            }, null, 5);
+
+            WorldBorder border = Bukkit.createWorldBorder();
+            border.setCenter(participant.getLocation());
+            border.setSize(WAVE_AMPLITUDE * 1.2 * 2);
+            participant.setWorldBorder(border);
 
             participant.getScheduler().runAtFixedRate(ServerFest.getPlugin(), task -> {
                 if (!fest.game().isRunning()) {
@@ -80,6 +95,12 @@ public class ElytraRace extends RaceGame {
 
                 RaceGamePlayerData playerData = (RaceGamePlayerData) getOrCreatePlayerData(participant.getUniqueId());
                 renderGuideParticles(participant, playerData.currentCheckPoint());
+
+                if(participant.isInWater())
+                    resetPlayerToLastCheckPoint(participant);
+
+                border.setCenter(startPoint.x(), participant.getZ());
+                participant.setWorldBorder(border);
             }, null, 4, 4);
         });
     }
@@ -95,7 +116,45 @@ public class ElytraRace extends RaceGame {
 
     //endregion
 
+    //region Players
+
+    private void resetPlayerToLastCheckPoint(Player player) {
+        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 1, 1);
+        player.playSound(player, Sound.ENTITY_GENERIC_EXPLODE, 1, 1);
+        Particle.EXPLOSION_EMITTER.builder()
+                .location(player.getLocation())
+                .receivers(32)
+                .spawn();
+
+        RaceGamePlayerData playerData = (RaceGamePlayerData) getOrCreatePlayerData(player.getUniqueId());
+        Location lastCheckPoint = checkPoints.get(playerData.currentCheckPoint()).location();
+
+        player.getNearbyEntities(1, 1, 1).forEach(entity -> {
+            if (entity instanceof Firework firework && firework.getAttachedTo() != null && firework.getAttachedTo().equals(player))
+                firework.remove();
+        });
+
+        player.setVelocity(new Vector());
+        player.teleport(lastCheckPoint.clone().add(lastCheckPoint.getDirection().clone().multiply(-2)).add(0, 1, 0));
+
+        player.setGliding(true);
+
+        player.getScheduler().runDelayed(ServerFest.getPlugin(), task -> {
+            if (!fest.game().isRunning()) {
+                task.cancel();
+                return;
+            }
+
+            player.getWorld().spawn(player.getLocation(), Firework.class, firework -> firework.setAttachedTo(player));
+        }, null, 10);
+    }
+
+    //endregion
+
     //region Track
+
+    // How far the track moves left/right.
+    private static final double WAVE_AMPLITUDE = 100;
 
     private void createElytraTrack() {
         World world = fest.world();
@@ -110,8 +169,6 @@ public class ElytraRace extends RaceGame {
 
         checkPoints.add(new CheckPoint(origin, gateSize, gateSize));
 
-        // How far the track moves left/right.
-        double waveAmplitude = 100;
         // How quickly it oscillates.
         double waveLength = 2;
 
@@ -121,7 +178,7 @@ public class ElytraRace extends RaceGame {
             lastZ = z;
 
             // Smooth left/right movement.
-            double x = Math.sin(i / waveLength) * waveAmplitude;
+            double x = Math.sin(i / waveLength) * WAVE_AMPLITUDE;
 
             // Optional vertical movement.
             double y = Math.random() * 20 - 10;
@@ -243,6 +300,28 @@ public class ElytraRace extends RaceGame {
             participant.spawnParticle(Particle.DUST, left.getX(), left.getY(), left.getZ(), 1, 0, 0, 0, 0, dust);
             participant.spawnParticle(Particle.DUST, rightSide.getX(), rightSide.getY(), rightSide.getZ(), 1, 0, 0, 0, 0, dust);
         }
+    }
+
+    //endregion
+
+    //region Event Handling
+
+
+    @Override
+    public void onToggleGlide(EntityToggleGlideEvent event, Player player) {
+        if(!event.isGliding())
+            resetPlayerToLastCheckPoint(player);
+    }
+
+    @Override
+    public void onPlayerDamage(EntityDamageEvent event, Player player) {
+        if (event.getCause() == EntityDamageEvent.DamageCause.FLY_INTO_WALL || event.getCause() == EntityDamageEvent.DamageCause.FALL) {
+            event.setDamage(0);
+            resetPlayerToLastCheckPoint(player);
+            return;
+        }
+
+        event.setCancelled(true);
     }
 
     //endregion
