@@ -17,7 +17,7 @@ public abstract class FestGame implements BasicGUIElement {
 
     private final Map<UUID, FestPlayerData> playerDataMap = new HashMap<>();
 
-    public FestGame(Fest fest){
+    public FestGame(Fest fest) {
         this.fest = fest;
     }
 
@@ -29,7 +29,7 @@ public abstract class FestGame implements BasicGUIElement {
     /**
      * Start the game, setting its status to running and calling the implementing games {@link #onStart()}
      */
-    public final void start(){
+    public final void start() {
         running = true;
         onStart();
     }
@@ -42,7 +42,7 @@ public abstract class FestGame implements BasicGUIElement {
     /**
      * Called by the underlying fest game when it declares one or multiple winner, will then trigger {@link #onWinner(List)}
      */
-    protected final void declareWinner(List<Player> winners){
+    protected final void declareWinner(List<Player> winners) {
         this.winners.addAll(winners);
         running = false;
         onWinner(winners);
@@ -57,21 +57,27 @@ public abstract class FestGame implements BasicGUIElement {
     /**
      * Stop the game either forcefully or because the underlying fest has completed
      */
-    public void stop(){
+    public void stop() {
         running = false;
         onStop();
+
+        fest.participants().forEach(participant -> {
+            FestPlayerData festPlayerData = playerDataMap.get(participant.getUniqueId());
+            festPlayerData.reset();
+        });
         fest.stop();
-        //TODO: send everyone back to their world + allow winner to pick reward
+        //TODO: allow winner to pick reward
     }
 
     protected abstract void onStop();
 
     /**
      * Gets or creates player data for this fest for the given UUID
+     *
      * @return A fresh FestPlayerData if none existed or the ongoing data of the player participant
      */
-    public FestPlayerData getOrCreatePlayerData(UUID uuid){
-        if(playerDataMap.containsKey(uuid))
+    public FestPlayerData getOrCreatePlayerData(UUID uuid) {
+        if (playerDataMap.containsKey(uuid))
             return playerDataMap.get(uuid);
 
         FestPlayerData playerData = createPlayerData(uuid);
@@ -81,7 +87,7 @@ public abstract class FestGame implements BasicGUIElement {
 
     protected abstract @NonNull FestPlayerData createPlayerData(UUID uuid);
 
-    public boolean isRunning(){
+    public boolean isRunning() {
         return running;
     }
 }

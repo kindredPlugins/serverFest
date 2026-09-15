@@ -6,7 +6,7 @@ import at.gaderman.serverFest.fests.game.FestGame;
 import at.gaderman.serverFest.fests.game.implementations.race.data.CheckPoint;
 import at.gaderman.serverFest.fests.game.implementations.race.data.RaceGamePlayerData;
 import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
-import com.destroystokyo.paper.ParticleBuilder;
+import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -57,6 +57,8 @@ public abstract class RaceGame extends FestGame {
                         participant.setWorldBorder(fest.world().getWorldBorder());
                         participant.playSound(participant, Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 1f, 1f);
                         participant.sendTitlePart(TitlePart.TITLE, Component.text("Race!", NamedTextColor.GOLD));
+
+                        updateBossbar(participant);
                     });
                     activateCheckPointDetection();
                     kickOff();
@@ -116,6 +118,8 @@ public abstract class RaceGame extends FestGame {
 
     protected abstract void onPassCheckPoint(Player player, int checkPoint);
 
+    //region Checkpoint Logic
+
     private void activateCheckPointDetection() {
         fest.participants().forEach(participant -> {
             participant.getScheduler().runAtFixedRate(ServerFest.getPlugin(), task -> {
@@ -139,6 +143,7 @@ public abstract class RaceGame extends FestGame {
                 if (previous != null && crossedCheckpoint(previous, current, nextCheckPoint)) {
                     playerData.setCheckPoint(currentCheckPoint + 1);
 
+                    updateBossbar(participant);
                     onPassCheckPoint(participant, currentCheckPoint + 1);
                 }
 
@@ -191,8 +196,33 @@ public abstract class RaceGame extends FestGame {
         return new Vector(localX, dy, localZ);
     }
 
+    //endregion
+
+    //region Visuals
+
+    private void updateBossbar(Player participant) {
+        RaceGamePlayerData playerData = (RaceGamePlayerData) getOrCreatePlayerData(participant.getUniqueId());
+
+        if (playerData.bossBar() == null) {
+            BossBar bossBar = BossBar.bossBar(Component.text(""), 0.0f, BossBar.Color.GREEN, BossBar.Overlay.PROGRESS);
+            bossBar.addViewer(participant);
+            playerData.setBossBar(bossBar);
+        }
+
+        BossBar bossBar = playerData.bossBar();
+        bossBar.name(Component.text("Checkpoint ", NamedTextColor.GREEN)
+                .append(Component.text(playerData.currentCheckPoint(), NamedTextColor.GOLD))
+                .append(Component.text("/" + (checkPoints.size() - 1), NamedTextColor.GRAY))
+        );
+
+        float progress = 1.0f * playerData.currentCheckPoint() / (checkPoints.size() - 1);
+        bossBar.progress(Math.clamp(progress, 0, 1));
+    }
+
+    //endregion
+
     @Override
     protected @NonNull FestPlayerData createPlayerData(UUID uuid) {
-        return new RaceGamePlayerData();
+        return new RaceGamePlayerData(uuid);
     }
 }
