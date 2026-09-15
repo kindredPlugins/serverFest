@@ -6,6 +6,8 @@ import at.gaderman.serverFest.fests.game.FestGame;
 import at.gaderman.serverFest.fests.game.implementations.race.data.CheckPoint;
 import at.gaderman.serverFest.fests.game.implementations.race.data.RaceGamePlayerData;
 import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
+import at.gaderman.serverFest.fests.game.triggers.inventory.PlayerInventoryClickTrigger;
+import at.gaderman.serverFest.fests.game.triggers.prefabs.NoBlockManipulationPrefab;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -14,6 +16,7 @@ import net.kyori.adventure.title.TitlePart;
 import org.bukkit.*;
 import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.meta.FireworkMeta;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
@@ -23,7 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-public abstract class RaceGame extends FestGame {
+public abstract class RaceGame extends FestGame implements NoBlockManipulationPrefab, PlayerInventoryClickTrigger {
 
     protected List<CheckPoint> checkPoints = new ArrayList<>();
 
@@ -220,6 +223,12 @@ public abstract class RaceGame extends FestGame {
     }
 
     //endregion
+
+
+    @Override
+    public void onInventoryClick(InventoryClickEvent event, Player player) {
+        event.setCancelled(true);
+    }
 
     @Override
     protected @NonNull FestPlayerData createPlayerData(UUID uuid) {

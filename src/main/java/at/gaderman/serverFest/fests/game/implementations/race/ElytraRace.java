@@ -72,8 +72,10 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
     public void kickOff() {
         Location startPoint = checkPoints.getFirst().location();
 
+        ItemStack elytra = ItemStack.of(Material.ELYTRA);
+        elytra.editMeta(meta -> meta.setUnbreakable(true));
         fest.participants().forEach(participant -> {
-            participant.getEquipment().setChestplate(ItemStack.of(Material.ELYTRA));
+            participant.getEquipment().setChestplate(elytra);
 
             participant.setVelocity(new Vector(0, 1, 0));
 
