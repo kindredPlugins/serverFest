@@ -8,6 +8,7 @@ import at.gaderman.serverFest.fests.game.triggers.action.PlayerToggleGlideTrigge
 import at.gaderman.serverFest.fests.game.triggers.damage.PlayerDamageTrigger;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.apache.commons.lang3.time.StopWatch;
 import org.bukkit.*;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Firework;
@@ -48,10 +49,13 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
     public void setUpWorld() {
         World world = fest.world();
 
-        Location spawnPoint = new Location(world, fest.offset(), 125, 0).toCenterLocation();
-        while (world.getHighestBlockAt(spawnPoint).getY() > spawnPoint.getY() - 20) {
+        int tries = 1;
+        Location spawnPoint = new Location(world, fest.offset(), 100, 0).toCenterLocation();
+        while (world.getHighestBlockAt(spawnPoint).getY() > spawnPoint.getY() - 10) {
             spawnPoint = new Location(world, spawnPoint.getX() + 300, spawnPoint.getY(), 0).toCenterLocation();
+            tries++;
         }
+        ServerFest.getPlugin().getLogger().info("Found ElytraRace start after " + tries + " tries");
 
         world.setSpawnLocation(spawnPoint.toCenterLocation());
 
@@ -98,7 +102,7 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
                 RaceGamePlayerData playerData = (RaceGamePlayerData) getOrCreatePlayerData(participant.getUniqueId());
                 renderGuideParticles(participant, playerData.currentCheckPoint());
 
-                if(participant.isInWater())
+                if (participant.isInWater())
                     resetPlayerToLastCheckPoint(participant);
 
                 border.setCenter(startPoint.x(), participant.getZ());
@@ -140,6 +144,10 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
         player.teleport(lastCheckPoint.clone().add(lastCheckPoint.getDirection().clone().multiply(-2)).add(0, 1, 0));
 
         player.setGliding(true);
+
+        player.getScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
+            if(fest.game().isRunning()) player.setGliding(true);
+        }, null, 1);
 
         player.getScheduler().runDelayed(ServerFest.getPlugin(), task -> {
             if (!fest.game().isRunning()) {
@@ -185,15 +193,58 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
             // Optional vertical movement.
             double y = Math.random() * 20 - 10;
 
-            //TODO: check if gate is not obstructed, needs to be accessible from all sides, maybe explosions could help?
-
             Location gateLocation = origin.clone().add(x, y, z);
+            //TODO: check if gate is not obstructed, needs to be accessible from all sides, maybe explosions could help?
+            adjustGateLocation(gateLocation);
             checkPoints.add(new CheckPoint(gateLocation, gateSize, gateSize));
 
             createGate(gateLocation, gateSize, thickness, i == gateCount - 1);
         }
 
         buildTrackSpline();
+    }
+
+    //TODO: checking blocks requires chunks to be loaded, loading chunks requires large cost, makes fest load unbearable, compared to short load from without
+    /**
+     * Checks if gate has enough unobstructed room, shifting it upwards or clearing the space if necessary
+     */
+    private void adjustGateLocation(Location location) {
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
+
+        World world = location.getWorld();
+
+        int minY = location.getBlockY();
+        int maxY = minY + 30;
+
+        for (int y = minY; y <= maxY; y++) {
+            boolean clear = true;
+
+            for (int x = -5; x <= 5 && clear; x++) {
+                for (int z = -5; z <= 5 && clear; z++) {
+                    for (int offsetY = 0; offsetY <= 5; offsetY++) {
+                        if (!world.getBlockAt(location.getBlockX() + x, y + offsetY, location.getBlockZ() + z).isPassable()) {
+                            clear = false;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (clear) {
+                location.setY(y == minY ? y : y + Math.random() * 10);
+                stopWatch.stop();
+                ServerFest.getPlugin().getLogger().info("Found a location after " + (y - minY) + " tries (" + stopWatch.getTime() + "ms)");
+                return;
+            }
+        }
+
+        int newY = location.getWorld().getHighestBlockAt(location).getY() + 10;
+        location.setY(newY);
+
+        location.getWorld().createExplosion(location, 6);
+        stopWatch.stop();
+        ServerFest.getPlugin().getLogger().info("Needed extra solution for checkpoint (" +  stopWatch.getTime() + "ms)");
     }
 
     private void createGate(Location center, double size, double thickness, boolean finish) {
@@ -311,7 +362,7 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
 
     @Override
     public void onToggleGlide(EntityToggleGlideEvent event, Player player) {
-        if(!event.isGliding())
+        if (!event.isGliding())
             resetPlayerToLastCheckPoint(player);
     }
 
