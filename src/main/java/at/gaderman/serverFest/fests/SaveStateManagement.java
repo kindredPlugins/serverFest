@@ -1,6 +1,7 @@
 package at.gaderman.serverFest.fests;
 
 import at.gaderman.serverFest.ServerFest;
+import at.gaderman.serverFest.fests.game.data.PlayerMetaData;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.*;
@@ -52,6 +53,9 @@ public class SaveStateManagement {
 
         player.getInventory().clear();
 
+        enderChest.setItem(3, PlayerMetaData.createPlayerDataItem(player));
+        PlayerMetaData.resetPlayer(player);
+
         PersistentDataContainer pdc = player.getPersistentDataContainer();
         pdc.set(SAVED_STATE, PersistentDataType.STRING, ServerFest.getPlugin().getPluginMeta().getVersion());
 
@@ -75,6 +79,11 @@ public class SaveStateManagement {
 
         player.getInventory().setContents(invContents);
 
+        ItemStack metaDataItem = enderChest.getItem(3);
+        if (metaDataItem != null) {
+            PlayerMetaData.applyToPlayer(player, metaDataItem);
+        }
+
         ItemStack enderContainer = enderChest.getItem(0);
         player.getEnderChest().setContents(retrieveContentsFromContainer(enderContainer));
 
@@ -82,7 +91,7 @@ public class SaveStateManagement {
         if (pdc.has(SAVE_LOCATION, PersistentDataType.STRING)) {
             Location saveLoc = deserializeLocation(pdc.get(SAVE_LOCATION, PersistentDataType.STRING));
 
-            if(saveLoc != null)
+            if (saveLoc != null)
                 player.teleport(saveLoc);
         }
 
