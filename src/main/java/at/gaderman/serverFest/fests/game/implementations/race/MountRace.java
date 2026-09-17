@@ -11,14 +11,13 @@ import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.block.Block;
-import org.bukkit.block.data.Waterlogged;
-import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Horse;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.util.Transformation;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
@@ -76,6 +75,8 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger {
                 horse.getAttribute(Attribute.MOVEMENT_SPEED).setBaseValue(0.3f);
                 horse.getAttribute(Attribute.JUMP_STRENGTH).setBaseValue(0.7f);
             });
+
+            player.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION, PotionEffect.INFINITE_DURATION, 0, false, false));
         });
     }
 
@@ -96,44 +97,53 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger {
         int checkPointCount = 10;
         double gateSize = trackDiameter * 2 + 1;
 
-        Location lastLocation = origin;
-        for (int i = 0; i < checkPointCount; i++) {
-            double newX = lastLocation.getX() + (Math.random() - 0.5) * 30;
-            double newZ = lastLocation.getZ() + Math.random() * 15 + 30;
-
-            Location newLocation = new Location(world, newX, origin.getY(), newZ);
-            checkPoints.add(new CheckPoint(newLocation, gateSize, gateSize));
-
-            List<BlockPos> path = createPath(lastLocation, newLocation, trackDiameter);
-            Set<ChunkPos> chunks = getRequiredChunks(path);
-
-            int finalI = i;
-            loadChunks(world, chunks, () -> {
-                path.forEach(pos -> {
-                    Location location = new Location(world, pos.x, pos.y, pos.z);
-
-                    Block block = location.getBlock();
-                    if(block.isLiquid())
-                        location.add(0, 1, 0);
-
-                    for (int y = 0; y < 5; y++) {
-                        location.clone().add(0, y + 1, 0).getBlock().setType(Material.AIR);
-                    }
-
-                    block = location.getBlock();
-                    block.setType(Material.SPRUCE_SLAB);
-                });
-
-                if (finalI != 0)
-                    createGate(newLocation.clone().add(0, gateSize / 2 * 0.8, 0), gateSize, 0.6, finalI == checkPointCount - 1);
-            });
-
-            lastLocation = newLocation;
-        }
-
+        buildTrackSection(world, origin, trackDiameter, gateSize, checkPointCount, 0);
     }
 
-    //TODO: stationary y-axis path is boring, we either need y variation or just adjust to terrain and give players more options to make it feel more like a race
+    //TODO: y generation is too considerate, since each pos works on its own there are especially big disparities for things like trees
+    private void buildTrackSection(World world, Location lastLocation, int trackDiameter,
+                                   double gateSize, int checkPointCount, int index) {
+        if(index >= checkPointCount)
+            return;
+
+        double newX = lastLocation.getX() + (Math.random() - 0.5) * 30;
+        double newZ = lastLocation.getZ() + Math.random() * 15 + 30;
+
+        Location newLocation = new Location(world, newX, lastLocation.getY(), newZ);
+
+        List<BlockPos> initialPath = createPath(lastLocation, newLocation, trackDiameter);
+        Set<ChunkPos> chunks = getRequiredChunks(initialPath);
+
+        loadChunks(world, chunks, () -> {
+            int highestY = world.getHighestBlockYAt(newLocation);
+            newLocation.setY(highestY + 1);
+
+            checkPoints.add(new CheckPoint(newLocation, gateSize, gateSize));
+
+            createPath(lastLocation, newLocation, trackDiameter).forEach(pos -> {
+                Location location = new Location(world, pos.x, pos.y, pos.z);
+                int maxY = world.getHighestBlockYAt(location);
+                if(location.getY() > maxY)
+                    location.setY(maxY);
+
+                Block block = location.getBlock();
+                if(block.isLiquid())
+                    location.add(0, 1, 0);
+
+                for(int y = 0; y < 5; y++)
+                    location.clone().add(0, y + 1, 0).getBlock().setType(Material.AIR);
+
+                location.getBlock().setType(Material.SPRUCE_SLAB);
+            });
+
+            if(index != 0)
+                createGate(newLocation.clone().add(0, gateSize / 2 * 0.8, 0),
+                        gateSize, 0.6, index == checkPointCount - 1);
+
+            buildTrackSection(world, newLocation, trackDiameter, gateSize, checkPointCount, index + 1);
+        });
+    }
+
     private List<BlockPos> createPath(Location from, Location to, int trackDiameter) {
         List<BlockPos> blocks = new ArrayList<>();
 
@@ -150,20 +160,25 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger {
         Vector start = from.toVector();
         Vector end = to.toVector();
         Vector line = end.clone().subtract(start);
-        double lengthSquared = line.lengthSquared();
+
+        Vector startXZ = start.clone().setY(0);
+        Vector lineXZ = line.clone().setY(0);
+        double lengthSquared = lineXZ.lengthSquared();
 
         for (int x = startX; x <= endX; x++) {
             for (int z = startZ; z <= endZ; z++) {
-                Vector point = new Vector(x + 0.5, from.getY(), z + 0.5);
-                Vector relative = point.clone().subtract(start);
+                Vector point = new Vector(x + 0.5, 0, z + 0.5);
+                Vector relative = point.clone().subtract(startXZ);
 
-                double t = Math.max(0, Math.min(1, relative.dot(line) / lengthSquared));
-                Vector closest = start.clone().add(line.clone().multiply(t));
+                double t = Math.max(0, Math.min(1, relative.dot(lineXZ) / lengthSquared));
+                Vector closest = startXZ.clone().add(lineXZ.clone().multiply(t));
 
-                double distance = point.clone().subtract(closest).setY(0).length();
+                double distance = point.distance(closest);
 
-                if (distance <= trackDiameter)
-                    blocks.add(new BlockPos(x, Location.locToBlock(from.getY()), z));
+                if (distance <= trackDiameter) {
+                    int y = Location.locToBlock(from.getY() + (to.getY() - from.getY()) * t);
+                    blocks.add(new BlockPos(x, y, z));
+                }
             }
         }
 
