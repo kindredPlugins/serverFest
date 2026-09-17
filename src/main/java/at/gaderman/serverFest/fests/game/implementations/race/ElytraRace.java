@@ -194,7 +194,6 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
             double y = Math.random() * 20 - 10;
 
             Location gateLocation = origin.clone().add(x, y, z);
-            //TODO: check if gate is not obstructed, needs to be accessible from all sides, maybe explosions could help?
             adjustGateLocation(gateLocation);
             checkPoints.add(new CheckPoint(gateLocation, gateSize, gateSize));
 
@@ -245,39 +244,6 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
         location.getWorld().createExplosion(location, 6);
         stopWatch.stop();
         ServerFest.getPlugin().getLogger().info("Needed extra solution for checkpoint (" +  stopWatch.getTime() + "ms)");
-    }
-
-    private void createGate(Location center, double size, double thickness, boolean finish) {
-        double half = size / 2.0;
-
-        // Bottom-left corner of the entire gate.
-        Location origin = center.clone().add(-half, -half, 0);
-
-        // Bottom
-        spawnGlass(origin.clone(), size, thickness, thickness, finish);
-
-        // Top
-        spawnGlass(origin.clone().add(0, size - thickness, 0), size, thickness, thickness, finish);
-
-        // Left
-        spawnGlass(origin.clone(), thickness, size, thickness, finish);
-
-        // Right
-        spawnGlass(origin.clone().add(size - thickness, 0, 0), thickness, size, thickness, finish);
-    }
-
-    private void spawnGlass(Location location, double x, double y, double z, boolean finish) {
-        World world = location.getWorld();
-        world.getChunkAtAsync(location).thenAccept(_ -> {
-            world.spawn(location, BlockDisplay.class, display -> {
-
-                display.setBlock((finish ? Material.DIAMOND_BLOCK : Material.YELLOW_STAINED_GLASS)
-                        .createBlockData());
-                Transformation transformation = display.getTransformation();
-                transformation.getScale().set((float) x, (float) y, (float) z);
-                display.setTransformation(transformation);
-            });
-        });
     }
 
     //endregion

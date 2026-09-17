@@ -15,11 +15,13 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.title.Title;
 import net.kyori.adventure.title.TitlePart;
 import org.bukkit.*;
+import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.meta.FireworkMeta;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
 import org.jspecify.annotations.NonNull;
 
@@ -231,6 +233,39 @@ public abstract class RaceGame extends FestGame implements NoBlockManipulationPr
 
         float progress = 1.0f * playerData.currentCheckPoint() / (checkPoints.size() - 1);
         bossBar.progress(Math.clamp(progress, 0, 1));
+    }
+
+    protected void createGate(Location center, double size, double thickness, boolean finish) {
+        double half = size / 2.0;
+
+        // Bottom-left corner of the entire gate.
+        Location origin = center.clone().add(-half, -half, 0);
+
+        // Bottom
+        spawnGlass(origin.clone(), size, thickness, thickness, finish);
+
+        // Top
+        spawnGlass(origin.clone().add(0, size - thickness, 0), size, thickness, thickness, finish);
+
+        // Left
+        spawnGlass(origin.clone(), thickness, size, thickness, finish);
+
+        // Right
+        spawnGlass(origin.clone().add(size - thickness, 0, 0), thickness, size, thickness, finish);
+    }
+
+    private void spawnGlass(Location location, double x, double y, double z, boolean finish) {
+        World world = location.getWorld();
+        world.getChunkAtAsync(location).thenAccept(_ -> {
+            world.spawn(location, BlockDisplay.class, display -> {
+
+                display.setBlock((finish ? Material.DIAMOND_BLOCK : Material.YELLOW_STAINED_GLASS)
+                        .createBlockData());
+                Transformation transformation = display.getTransformation();
+                transformation.getScale().set((float) x, (float) y, (float) z);
+                display.setTransformation(transformation);
+            });
+        });
     }
 
     //endregion
