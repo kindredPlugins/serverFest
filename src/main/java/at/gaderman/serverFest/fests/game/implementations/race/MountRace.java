@@ -1,18 +1,18 @@
 package at.gaderman.serverFest.fests.game.implementations.race;
 
+import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.game.implementations.race.data.CheckPoint;
 import at.gaderman.serverFest.fests.game.triggers.damage.PlayerDamageTrigger;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.Sound;
-import org.bukkit.World;
+import org.bukkit.*;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Horse;
+import org.bukkit.entity.Nautilus;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Vehicle;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -65,16 +65,7 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger {
     @Override
     protected void kickOff() {
         fest.participants().forEach(player -> {
-            player.getWorld().spawn(player.getLocation(), Horse.class, horse -> {
-                horse.setAdult();
-
-                horse.setTamed(true);
-                horse.getEquipment().setItem(EquipmentSlot.SADDLE, ItemStack.of(Material.SADDLE));
-                horse.addPassenger(player);
-
-                horse.getAttribute(Attribute.MOVEMENT_SPEED).setBaseValue(0.3f);
-                horse.getAttribute(Attribute.JUMP_STRENGTH).setBaseValue(0.7f);
-            });
+            spawnHorseFor(player);
 
             player.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION, PotionEffect.INFINITE_DURATION, 0, false, false));
         });
@@ -86,6 +77,63 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger {
                 .append(Component.text(checkPoint, NamedTextColor.GOLD)));
         player.playSound(player, Sound.ENTITY_PLAYER_LEVELUP, 1f, 2f);
     }
+
+    //region Player
+
+    private void scheduleMountSwitcher(Player player, Vehicle vehicle) {
+        boolean isHorse = vehicle instanceof Horse;
+        vehicle.getScheduler().runAtFixedRate(ServerFest.getPlugin(), task -> {
+            if(!fest.game().isRunning() || !player.isValid()) {
+                task.cancel();
+                return;
+            }
+
+            if(isHorse && vehicle.isInWater()){
+                player.spawnParticle(Particle.WHITE_SMOKE, vehicle.getLocation(), 50);
+                player.playSound(vehicle.getLocation(), Sound.ENTITY_ZOMBIE_VILLAGER_CONVERTED, 1f, 2f);
+
+                vehicle.remove();
+                spawnNautilusFor(player);
+            }
+
+            if(!isHorse && vehicle.isOnGround() && !vehicle.isInWater()) {
+                player.spawnParticle(Particle.WHITE_SMOKE, vehicle.getLocation(), 50);
+                player.playSound(vehicle.getLocation(), Sound.ENTITY_ZOMBIE_VILLAGER_CONVERTED, 1f, 2f);
+
+                vehicle.remove();
+                spawnHorseFor(player);
+            }
+        }, null, 1, 1);
+    }
+
+    private void spawnHorseFor(Player player){
+        player.getWorld().spawn(player.getLocation(), Horse.class, horse -> {
+            horse.setAdult();
+
+            horse.setTamed(true);
+            horse.getEquipment().setItem(EquipmentSlot.SADDLE, ItemStack.of(Material.SADDLE));
+            horse.addPassenger(player);
+
+            horse.getAttribute(Attribute.MOVEMENT_SPEED).setBaseValue(0.3f);
+            horse.getAttribute(Attribute.JUMP_STRENGTH).setBaseValue(0.7f);
+
+            scheduleMountSwitcher(player, horse);
+        });
+    }
+
+    private void spawnNautilusFor(Player player){
+        player.getWorld().spawn(player.getLocation(), Nautilus.class, nautilus -> {
+            nautilus.setAdult();
+
+            nautilus.setTamed(true);
+            nautilus.getEquipment().setItem(EquipmentSlot.SADDLE, ItemStack.of(Material.SADDLE));
+            nautilus.addPassenger(player);
+
+            scheduleMountSwitcher(player, nautilus);
+        });
+    }
+
+    //endregion
 
     //region Track
 
@@ -103,10 +151,10 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger {
     //TODO: y generation is too considerate, since each pos works on its own there are especially big disparities for things like trees
     private void buildTrackSection(World world, Location lastLocation, int trackDiameter,
                                    double gateSize, int checkPointCount, int index) {
-        if(index >= checkPointCount)
+        if (index >= checkPointCount)
             return;
 
-        double newX = lastLocation.getX() + (Math.random() - 0.5) * 30;
+        double newX = lastLocation.getX() + (Math.random() - 0.5) * 45;
         double newZ = lastLocation.getZ() + Math.random() * 15 + 30;
 
         Location newLocation = new Location(world, newX, lastLocation.getY(), newZ);
@@ -118,25 +166,44 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger {
             int highestY = world.getHighestBlockYAt(newLocation);
             newLocation.setY(highestY + 1);
 
+            while ((newLocation.getBlock().isPassable() && !newLocation.getBlock().isLiquid()) || newLocation.getBlock().getType().toString().contains("LEAVES"))
+                newLocation.setY(newLocation.getY() - 1);
+
             checkPoints.add(new CheckPoint(newLocation, gateSize, gateSize));
 
             createPath(lastLocation, newLocation, trackDiameter).forEach(pos -> {
                 Location location = new Location(world, pos.x, pos.y, pos.z);
                 int maxY = world.getHighestBlockYAt(location);
-                if(location.getY() > maxY)
+                if (location.getY() > maxY)
                     location.setY(maxY);
 
-                Block block = location.getBlock();
-                if(block.isLiquid())
-                    location.add(0, 1, 0);
+                while (location.getBlock().isPassable() && !location.getBlock().isLiquid()) {
+                    location.setY(location.getY() - 1);
+                }
 
-                for(int y = 0; y < 5; y++)
+                Block block = location.getBlock();
+                if (block.isLiquid()) {
+                    boolean isDeepWater = true;
+                    for(int y = 0; y < 5; y++){
+                        if(location.clone().add(0, -y - 1, 0).getBlock().getType() != Material.WATER) {
+                            isDeepWater = false;
+                            break;
+                        }
+                    }
+
+                    if(isDeepWater){
+                        return;
+                    }
+                    else location.add(0, 1, 0);
+                }
+
+                for (int y = 0; y < 25; y++)
                     location.clone().add(0, y + 1, 0).getBlock().setType(Material.AIR);
 
                 location.getBlock().setType(Material.SPRUCE_SLAB);
             });
 
-            if(index != 0)
+            if (index != 0)
                 createGate(newLocation.clone().add(0, gateSize / 2 * 0.8, 0),
                         gateSize, 0.6, index == checkPointCount - 1);
 
