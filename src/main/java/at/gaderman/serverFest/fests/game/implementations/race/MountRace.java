@@ -143,12 +143,11 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger {
 
         int trackDiameter = 2;
         int checkPointCount = 10;
-        double gateSize = trackDiameter * 2 + 1;
+        double gateSize = trackDiameter * 2 + 3;
 
         buildTrackSection(world, origin, trackDiameter, gateSize, checkPointCount, 0);
     }
 
-    //TODO: y generation is too considerate, since each pos works on its own there are especially big disparities for things like trees
     private void buildTrackSection(World world, Location lastLocation, int trackDiameter,
                                    double gateSize, int checkPointCount, int index) {
         if (index >= checkPointCount)
@@ -159,48 +158,55 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger {
 
         Location newLocation = new Location(world, newX, lastLocation.getY(), newZ);
 
-        List<BlockPos> initialPath = createPath(lastLocation, newLocation, trackDiameter);
+        List<TrackPoint> initialPath = createPath(lastLocation, newLocation, trackDiameter);
         Set<ChunkPos> chunks = getRequiredChunks(initialPath);
 
         loadChunks(world, chunks, () -> {
             int highestY = world.getHighestBlockYAt(newLocation);
             newLocation.setY(highestY + 1);
 
-            while ((newLocation.getBlock().isPassable() && !newLocation.getBlock().isLiquid()) || newLocation.getBlock().getType().toString().contains("LEAVES"))
+            while ((newLocation.getBlock().isPassable() && !newLocation.getBlock().isLiquid()) ||
+                    newLocation.getBlock().getType().toString().contains("LEAVES"))
                 newLocation.setY(newLocation.getY() - 1);
 
-            checkPoints.add(new CheckPoint(newLocation, gateSize, gateSize));
+            checkPoints.add(new CheckPoint(newLocation.toCenterLocation(), gateSize, gateSize));
 
-            createPath(lastLocation, newLocation, trackDiameter).forEach(pos -> {
-                Location location = new Location(world, pos.x, pos.y, pos.z);
-                int maxY = world.getHighestBlockYAt(location);
-                if (location.getY() > maxY)
-                    location.setY(maxY);
+            createPath(lastLocation, newLocation, trackDiameter).forEach(path -> {
+                BlockPos center = path.center();
 
-                while (location.getBlock().isPassable() && !location.getBlock().isLiquid()) {
-                    location.setY(location.getY() - 1);
-                }
+                Location centerLocation = new Location(world, center.x(), center.y(), center.z());
+                Block centerBlock = centerLocation.getBlock();
 
-                Block block = location.getBlock();
-                if (block.isLiquid()) {
+                if (centerBlock.isLiquid()) {
                     boolean isDeepWater = true;
-                    for(int y = 0; y < 5; y++){
-                        if(location.clone().add(0, -y - 1, 0).getBlock().getType() != Material.WATER) {
+
+                    for (int y = 0; y < 5; y++) {
+                        Block beneath = centerLocation.clone().add(0, -y - 1, 0).getBlock();
+                        if (beneath.getType() != Material.WATER &&
+                                beneath.getType() != Material.KELP_PLANT &&
+                                beneath.getType() != Material.SEAGRASS &&
+                                beneath.getType() != Material.TALL_SEAGRASS) {
                             isDeepWater = false;
                             break;
                         }
                     }
 
-                    if(isDeepWater){
+                    if (isDeepWater)
                         return;
-                    }
-                    else location.add(0, 1, 0);
                 }
 
-                for (int y = 0; y < 25; y++)
-                    location.clone().add(0, y + 1, 0).getBlock().setType(Material.AIR);
+                List<BlockPos> blocks = new ArrayList<>();
+                blocks.add(center);
+                blocks.addAll(path.sides());
 
-                location.getBlock().setType(Material.SPRUCE_SLAB);
+                for (BlockPos pos : blocks) {
+                    Location location = new Location(world, pos.x(), center.y(), pos.z());
+
+                    for (int y = 0; y < 25; y++)
+                        location.clone().add(0, y + 1, 0).getBlock().setType(Material.AIR);
+
+                    location.getBlock().setType(Material.SPRUCE_SLAB);
+                }
             });
 
             if (index != 0)
@@ -211,49 +217,65 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger {
         });
     }
 
-    private List<BlockPos> createPath(Location from, Location to, int trackDiameter) {
-        List<BlockPos> blocks = new ArrayList<>();
-
-        double minX = Math.min(from.getX(), to.getX()) - trackDiameter;
-        double maxX = Math.max(from.getX(), to.getX()) + trackDiameter;
-        double minZ = Math.min(from.getZ(), to.getZ()) - trackDiameter;
-        double maxZ = Math.max(from.getZ(), to.getZ()) + trackDiameter;
-
-        int startX = Location.locToBlock(minX);
-        int endX = Location.locToBlock(maxX);
-        int startZ = Location.locToBlock(minZ);
-        int endZ = Location.locToBlock(maxZ);
+    private List<TrackPoint> createPath(Location from, Location to, int trackDiameter) {
+        List<TrackPoint> points = new ArrayList<>();
 
         Vector start = from.toVector();
         Vector end = to.toVector();
         Vector line = end.clone().subtract(start);
 
-        Vector startXZ = start.clone().setY(0);
         Vector lineXZ = line.clone().setY(0);
-        double lengthSquared = lineXZ.lengthSquared();
+        double length = lineXZ.length();
 
-        for (int x = startX; x <= endX; x++) {
-            for (int z = startZ; z <= endZ; z++) {
-                Vector point = new Vector(x + 0.5, 0, z + 0.5);
-                Vector relative = point.clone().subtract(startXZ);
+        if (length == 0)
+            return points;
 
-                double t = Math.max(0, Math.min(1, relative.dot(lineXZ) / lengthSquared));
-                Vector closest = startXZ.clone().add(lineXZ.clone().multiply(t));
+        int steps = Math.max(1, (int) Math.ceil(length));
 
-                double distance = point.distance(closest);
+        for (int i = 0; i <= steps; i++) {
+            double t = Math.min(1, i / (double) steps);
 
-                if (distance <= trackDiameter) {
-                    int y = Location.locToBlock(from.getY() + (to.getY() - from.getY()) * t);
-                    blocks.add(new BlockPos(x, y, z));
+            double x = from.getX() + (to.getX() - from.getX()) * t;
+            double z = from.getZ() + (to.getZ() - from.getZ()) * t;
+            int y = Location.locToBlock(from.getY() + (to.getY() - from.getY()) * t);
+
+            int centerX = Location.locToBlock(x);
+            int centerZ = Location.locToBlock(z);
+
+            BlockPos center = new BlockPos(centerX, y, centerZ);
+            List<BlockPos> sides = new ArrayList<>();
+
+            for (int offsetX = -trackDiameter; offsetX <= trackDiameter; offsetX++) {
+                for (int offsetZ = -trackDiameter; offsetZ <= trackDiameter; offsetZ++) {
+                    if (offsetX == 0 && offsetZ == 0)
+                        continue;
+
+                    double distance = Math.sqrt(offsetX * offsetX + offsetZ * offsetZ);
+                    if (distance > trackDiameter)
+                        continue;
+
+                    sides.add(new BlockPos(
+                            centerX + offsetX,
+                            y,
+                            centerZ + offsetZ
+                    ));
                 }
             }
+
+            points.add(new TrackPoint(center, sides));
         }
 
-        return blocks;
+        return points;
     }
 
-    private Set<ChunkPos> getRequiredChunks(List<BlockPos> blocks) {
-        return blocks.stream()
+    private Set<ChunkPos> getRequiredChunks(List<TrackPoint> points) {
+        return points.stream()
+                .flatMap(point -> {
+                    List<BlockPos> blocks = new ArrayList<>();
+                    blocks.add(point.center());
+                    blocks.addAll(point.sides());
+                    return blocks.stream();
+                })
                 .map(block -> new ChunkPos(block.x() >> 4, block.z() >> 4))
                 .collect(Collectors.toSet());
     }
@@ -285,6 +307,9 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger {
 
 
     //endregion
+
+    private record TrackPoint(BlockPos center, List<BlockPos> sides) {
+    }
 
     private record BlockPos(int x, int y, int z) {
     }
