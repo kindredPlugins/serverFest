@@ -3,6 +3,7 @@ package at.gaderman.serverFest.fests.game.triggers;
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.game.triggers.action.PlayerToggleGlideTrigger;
+import at.gaderman.serverFest.fests.game.triggers.action.PlayerVehicleExitTrigger;
 import at.gaderman.serverFest.fests.game.triggers.damage.PlayerDamageTrigger;
 import at.gaderman.serverFest.fests.game.triggers.interact.PlayerBlockBreakTrigger;
 import at.gaderman.serverFest.fests.game.triggers.interact.PlayerBlockPlaceTrigger;
@@ -20,6 +21,7 @@ import org.bukkit.event.entity.EntityToggleGlideEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.vehicle.VehicleExitEvent;
 
 public class TriggerListener implements Listener {
 
@@ -59,6 +61,20 @@ public class TriggerListener implements Listener {
             return;
 
         toggleGlideTrigger.onToggleGlide(event, player);
+    }
+
+    @EventHandler
+    public void onPlayerExitVehicle(VehicleExitEvent event){
+        if(!(fest.game() instanceof PlayerVehicleExitTrigger playerVehicleExitTrigger))
+            return;
+
+        if(!(event.getExited() instanceof Player player))
+            return;
+
+        if(!fest.participantUUIDs().contains(player.getUniqueId()))
+            return;
+
+        playerVehicleExitTrigger.onVehicleExit(event, player, event.getVehicle());
     }
 
     //endregion

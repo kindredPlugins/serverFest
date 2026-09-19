@@ -3,17 +3,16 @@ package at.gaderman.serverFest.fests.game.implementations.race;
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.game.implementations.race.data.CheckPoint;
+import at.gaderman.serverFest.fests.game.triggers.action.PlayerVehicleExitTrigger;
 import at.gaderman.serverFest.fests.game.triggers.damage.PlayerDamageTrigger;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.*;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.block.Block;
-import org.bukkit.entity.Horse;
-import org.bukkit.entity.Nautilus;
-import org.bukkit.entity.Player;
-import org.bukkit.entity.Vehicle;
+import org.bukkit.entity.*;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.vehicle.VehicleExitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
@@ -26,7 +25,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-public class MountRace extends RaceGame implements PlayerDamageTrigger {
+public class MountRace extends RaceGame implements PlayerDamageTrigger, PlayerVehicleExitTrigger {
     public MountRace(Fest fest) {
         super(fest);
     }
@@ -60,12 +59,16 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger {
 
     @Override
     protected void onStop() {
+        fest.participants().forEach(Entity::leaveVehicle);
     }
 
     @Override
     protected void kickOff() {
         fest.participants().forEach(player -> {
-            spawnHorseFor(player);
+            if (player.isInWater())
+                spawnNautilusFor(player);
+            else
+                spawnHorseFor(player);
 
             player.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION, PotionEffect.INFINITE_DURATION, 0, false, false));
         });
@@ -82,48 +85,59 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger {
 
     private void scheduleMountSwitcher(Player player, Vehicle vehicle) {
         boolean isHorse = vehicle instanceof Horse;
+        final long[] lastSwitch = {System.currentTimeMillis()};
+
         vehicle.getScheduler().runAtFixedRate(ServerFest.getPlugin(), task -> {
-            if(!fest.game().isRunning() || !player.isValid()) {
+            if (!fest.game().isRunning() || !player.isValid()) {
                 task.cancel();
                 return;
             }
 
-            if(isHorse && vehicle.isInWater()){
-                player.spawnParticle(Particle.WHITE_SMOKE, vehicle.getLocation(), 50);
+            if(System.currentTimeMillis() - lastSwitch[0] < 500)
+                return;
+
+            if (isHorse && vehicle.isInWater()) {
+                player.spawnParticle(Particle.WHITE_SMOKE, vehicle.getLocation(), 50, 0.5, 0.5, 0.5, 0.1f);
                 player.playSound(vehicle.getLocation(), Sound.ENTITY_ZOMBIE_VILLAGER_CONVERTED, 1f, 2f);
 
                 vehicle.remove();
                 spawnNautilusFor(player);
+
+                lastSwitch[0] = System.currentTimeMillis();
             }
 
-            if(!isHorse && vehicle.isOnGround() && !vehicle.isInWater()) {
-                player.spawnParticle(Particle.WHITE_SMOKE, vehicle.getLocation(), 50);
+            if (!isHorse && vehicle.isOnGround() && !vehicle.isInWater()) {
+                player.spawnParticle(Particle.WHITE_SMOKE, vehicle.getLocation(), 50, 0.5, 0.5, 0.5, 0.1f);
                 player.playSound(vehicle.getLocation(), Sound.ENTITY_ZOMBIE_VILLAGER_CONVERTED, 1f, 2f);
 
                 vehicle.remove();
                 spawnHorseFor(player);
+
+                lastSwitch[0] = System.currentTimeMillis();
             }
         }, null, 1, 1);
     }
 
-    private void spawnHorseFor(Player player){
+    private void spawnHorseFor(Player player) {
         player.getWorld().spawn(player.getLocation(), Horse.class, horse -> {
             horse.setAdult();
+            horse.setInvulnerable(true);
 
             horse.setTamed(true);
             horse.getEquipment().setItem(EquipmentSlot.SADDLE, ItemStack.of(Material.SADDLE));
             horse.addPassenger(player);
 
             horse.getAttribute(Attribute.MOVEMENT_SPEED).setBaseValue(0.3f);
-            horse.getAttribute(Attribute.JUMP_STRENGTH).setBaseValue(0.7f);
+            horse.getAttribute(Attribute.JUMP_STRENGTH).setBaseValue(1f);
 
             scheduleMountSwitcher(player, horse);
         });
     }
 
-    private void spawnNautilusFor(Player player){
+    private void spawnNautilusFor(Player player) {
         player.getWorld().spawn(player.getLocation(), Nautilus.class, nautilus -> {
             nautilus.setAdult();
+            nautilus.setInvulnerable(true);
 
             nautilus.setTamed(true);
             nautilus.getEquipment().setItem(EquipmentSlot.SADDLE, ItemStack.of(Material.SADDLE));
@@ -177,6 +191,15 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger {
                 Location centerLocation = new Location(world, center.x(), center.y(), center.z());
                 Block centerBlock = centerLocation.getBlock();
 
+                int maxY = world.getHighestBlockYAt(centerLocation);
+
+                if (Math.abs(center.y() - maxY) <= 2) {
+                    while (new Location(world, center.x(), maxY + 1, center.z()).getBlock().isPassable())
+                        maxY--;
+
+                    center = new BlockPos(center.x(), maxY + 1, center.z());
+                }
+
                 if (centerBlock.isLiquid()) {
                     boolean isDeepWater = true;
 
@@ -184,6 +207,7 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger {
                         Block beneath = centerLocation.clone().add(0, -y - 1, 0).getBlock();
                         if (beneath.getType() != Material.WATER &&
                                 beneath.getType() != Material.KELP_PLANT &&
+                                beneath.getType() != Material.KELP &&
                                 beneath.getType() != Material.SEAGRASS &&
                                 beneath.getType() != Material.TALL_SEAGRASS) {
                             isDeepWater = false;
@@ -199,6 +223,8 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger {
                 blocks.add(center);
                 blocks.addAll(path.sides());
 
+                boolean doTitleDrops = world.getGameRuleValue(GameRules.BLOCK_DROPS);
+                world.setGameRule(GameRules.BLOCK_DROPS, false);
                 for (BlockPos pos : blocks) {
                     Location location = new Location(world, pos.x(), center.y(), pos.z());
 
@@ -207,6 +233,7 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger {
 
                     location.getBlock().setType(Material.SPRUCE_SLAB);
                 }
+                world.setGameRule(GameRules.BLOCK_DROPS, doTitleDrops);
             });
 
             if (index != 0)
@@ -305,6 +332,11 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger {
         event.setCancelled(true);
     }
 
+    @Override
+    public void onVehicleExit(VehicleExitEvent event, Player player, Vehicle vehicle) {
+        if (fest.game().isRunning() && vehicle.isValid() && !player.getGameMode().isInvulnerable())
+            event.setCancelled(true);
+    }
 
     //endregion
 
