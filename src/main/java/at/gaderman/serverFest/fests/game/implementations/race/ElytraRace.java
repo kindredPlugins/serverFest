@@ -10,19 +10,16 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.apache.commons.lang3.time.StopWatch;
 import org.bukkit.*;
-import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityToggleGlideEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 
 public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, PlayerDamageTrigger {
 
@@ -109,7 +106,7 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
                 RaceGamePlayerData playerData = (RaceGamePlayerData) getOrCreatePlayerData(participant.getUniqueId());
                 renderGuideParticles(participant, playerData.currentCheckPoint());
 
-                if (participant.isInWater())
+                if (participant.isInWater() || participant.isOnGround())
                     resetPlayerToLastCheckPoint(participant);
 
                 border.setCenter(startPoint.x(), participant.getZ());
@@ -149,12 +146,6 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
 
         player.setVelocity(new Vector());
         player.teleport(lastCheckPoint.clone().add(lastCheckPoint.getDirection().clone().multiply(-2)).add(0, 1, 0));
-
-        player.setGliding(true);
-
-        player.getScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
-            if(fest.game().isRunning()) player.setGliding(true);
-        }, null, 1);
 
         player.getScheduler().runDelayed(ServerFest.getPlugin(), task -> {
             if (!fest.game().isRunning()) {
@@ -211,6 +202,7 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
     }
 
     //TODO: checking blocks requires chunks to be loaded, loading chunks requires large cost, makes fest load unbearable, compared to short load from without
+    //TODO: elytra race needs many chunks ahead to be loaded especially at elytra speed, load needed chunks beforehand similar to MountRace before starting race
     /**
      * Checks if gate has enough unobstructed room, shifting it upwards or clearing the space if necessary
      */
@@ -336,7 +328,7 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
     @Override
     public void onToggleGlide(EntityToggleGlideEvent event, Player player) {
         if (!event.isGliding())
-            resetPlayerToLastCheckPoint(player);
+            event.setCancelled(true);
     }
 
     @Override

@@ -96,7 +96,7 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger, PlayerVe
                 return;
             }
 
-            if(System.currentTimeMillis() - lastSwitch[0] < 500)
+            if (System.currentTimeMillis() - lastSwitch[0] < 500)
                 return;
 
             if (isHorse && vehicle.isInWater()) {
@@ -199,8 +199,11 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger, PlayerVe
                 int maxY = world.getHighestBlockYAt(centerLocation);
 
                 if (Math.abs(center.y() - maxY) <= 2) {
-                    while (new Location(world, center.x(), maxY + 1, center.z()).getBlock().isPassable())
+                    Block checkBlock = new Location(world, center.x(), maxY + 1, center.z()).getBlock();
+                    while (checkBlock.isPassable() && !checkBlock.isLiquid()) {
                         maxY--;
+                        checkBlock = new Location(world, center.x(), maxY + 1, center.z()).getBlock();
+                    }
 
                     center = new BlockPos(center.x(), maxY + 1, center.z());
                 }
