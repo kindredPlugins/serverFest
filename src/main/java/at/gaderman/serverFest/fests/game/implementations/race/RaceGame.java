@@ -30,6 +30,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public abstract class RaceGame extends FestGame implements NoBlockManipulationPrefab, PlayerInventoryClickTrigger {
 
@@ -40,16 +41,17 @@ public abstract class RaceGame extends FestGame implements NoBlockManipulationPr
     }
 
     @Override
-    protected void onStart() {
+    public void onPlayersJoinedWorld() {
         WorldBorder startBorder = Bukkit.createWorldBorder();
         startBorder.setSize(1.5);
         startBorder.setCenter(fest.world().getSpawnLocation());
 
-        fest.participants().forEach(participant -> {
-            participant.setWorldBorder(startBorder);
-        });
+        fest.participants().forEach(participant -> participant.setWorldBorder(startBorder));
+    }
 
-        final int[] timeLeft = {10}; // 10 seconds
+    @Override
+    protected void onStart() {
+        final int[] timeLeft = {7}; // 7 seconds
         new BukkitRunnable() {
             @Override
             public void run() {
@@ -115,7 +117,7 @@ public abstract class RaceGame extends FestGame implements NoBlockManipulationPr
                 participant.playSound(participant, Sound.ENTITY_WITHER_DEATH, 1f, 1.3f);
             }
 
-            participant.sendTitlePart(TitlePart.SUBTITLE, MiniMessage.miniMessage().deserialize("<head:" + singleWinner.getUniqueId() + ":false> ")
+            participant.sendTitlePart(TitlePart.SUBTITLE, MiniMessage.miniMessage().deserialize("<head:" + singleWinner.getUniqueId() + "> ")
                     .append(singleWinner.name().color(NamedTextColor.GOLD))
                     .append(Component.text(" has won!", NamedTextColor.GREEN)));
         });

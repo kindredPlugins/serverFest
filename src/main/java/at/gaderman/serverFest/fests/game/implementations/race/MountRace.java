@@ -22,6 +22,7 @@ import org.bukkit.util.Vector;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -46,7 +47,7 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger, PlayerVe
     }
 
     @Override
-    public void setUpWorld() {
+    public CompletableFuture<Void> setUpWorld() {
         World world = fest.world();
 
         Location spawnPoint = new Location(world, fest.offset(), world.getSeaLevel(), 0).toCenterLocation();
@@ -54,7 +55,9 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger, PlayerVe
 
         world.setSpawnLocation(spawnPoint);
 
-        buildTrack();
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        buildTrack(future);
+        return future;
     }
 
     @Override
@@ -151,7 +154,7 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger, PlayerVe
 
     //region Track
 
-    private void buildTrack() {
+    private void buildTrack(CompletableFuture<Void> future) {
         World world = fest.world();
         Location origin = world.getSpawnLocation().clone().add(0, -1, 0);
 
@@ -159,13 +162,15 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger, PlayerVe
         int checkPointCount = 10;
         double gateSize = trackDiameter * 2 + 3;
 
-        buildTrackSection(world, origin, trackDiameter, gateSize, checkPointCount, 0);
+        buildTrackSection(future, world, origin, trackDiameter, gateSize, checkPointCount, 0);
     }
 
-    private void buildTrackSection(World world, Location lastLocation, int trackDiameter,
+    private void buildTrackSection(CompletableFuture<Void> future, World world, Location lastLocation, int trackDiameter,
                                    double gateSize, int checkPointCount, int index) {
-        if (index >= checkPointCount)
+        if (index >= checkPointCount) {
+            future.complete(null);
             return;
+        }
 
         double newX = lastLocation.getX() + (Math.random() - 0.5) * 45;
         double newZ = lastLocation.getZ() + Math.random() * 15 + 30;
@@ -240,7 +245,7 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger, PlayerVe
                 createGate(newLocation.clone().add(0, gateSize / 2 * 0.8, 0),
                         gateSize, 0.6, index == checkPointCount - 1);
 
-            buildTrackSection(world, newLocation, trackDiameter, gateSize, checkPointCount, index + 1);
+            buildTrackSection(future, world, newLocation, trackDiameter, gateSize, checkPointCount, index + 1);
         });
     }
 

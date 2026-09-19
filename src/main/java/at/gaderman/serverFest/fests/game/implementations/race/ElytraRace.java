@@ -21,6 +21,8 @@ import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 
 public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, PlayerDamageTrigger {
 
@@ -46,7 +48,7 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
     //region Overrides
 
     @Override
-    public void setUpWorld() {
+    public CompletableFuture<Void> setUpWorld() {
         World world = fest.world();
 
         int tries = 1;
@@ -66,6 +68,11 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
         }
 
         createElytraTrack();
+
+        //elytra track is not async for now so future can be completed here alright
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        future.complete(null);
+        return future;
     }
 
     @Override

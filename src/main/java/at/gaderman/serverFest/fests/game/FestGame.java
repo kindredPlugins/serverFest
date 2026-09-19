@@ -7,6 +7,7 @@ import org.bukkit.entity.Player;
 import org.jspecify.annotations.NonNull;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 public abstract class FestGame implements BasicGUIElement {
 
@@ -23,8 +24,14 @@ public abstract class FestGame implements BasicGUIElement {
 
     /**
      * Called to setup the game specific world, the world itself is already created inside fest, this just initializes it for the game, like adding race tracks or arenas
+     * @return a runnable callback when world setup has been completed
      */
-    public abstract void setUpWorld();
+    public abstract CompletableFuture<Void> setUpWorld();
+
+    /**
+     * Called when fest participants have been teleported to the fest world, usually used to create a starting are for them to gather
+     */
+    public abstract void onPlayersJoinedWorld();
 
     /**
      * Start the game, setting its status to running and calling the implementing games {@link #onStart()}

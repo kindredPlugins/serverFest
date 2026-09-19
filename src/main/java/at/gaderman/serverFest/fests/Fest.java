@@ -19,6 +19,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
 public class Fest {
@@ -97,14 +99,16 @@ public class Fest {
         offset = pdc.getOrDefault(FEST_OFFSET, PersistentDataType.LONG, 0L);
         pdc.set(FEST_OFFSET, PersistentDataType.LONG, offset + OFFSET_INCREMENT);
 
-        game.setUpWorld();
+        game.setUpWorld()
+                .thenRun(game::start);
 
-        participants().forEach(player -> {
-            SaveStateManagement.savePlayerState(player);
-            player.teleport(world.getSpawnLocation());
+        world.getChunkAtAsync(world.getSpawnLocation()).thenAccept(chunk -> {
+            participants().forEach(player -> {
+                SaveStateManagement.savePlayerState(player);
+                player.teleport(world.getSpawnLocation());
+            });
+            game.onPlayersJoinedWorld();
         });
-
-        game.start();
     }
 
     public void stop() {
@@ -117,7 +121,7 @@ public class Fest {
         participantUUIDs.remove(player.getUniqueId());
 
         participants().forEach(participant -> participant.sendMessage(
-                player.name().color(NamedTextColor.RED)
+                        player.name().color(NamedTextColor.RED)
                                 .append(Component.text(" has left the fest", NamedTextColor.GRAY))
                 )
         );
