@@ -2,32 +2,36 @@ package at.gaderman.serverFest.fests.game.implementations.scored;
 
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
-import at.gaderman.serverFest.fests.game.FestGame;
 import at.gaderman.serverFest.fests.game.implementations.scored.data.ScoreGamePlayerData;
 import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
 import at.gaderman.serverFest.fests.game.triggers.prefabs.NoBlockManipulationPrefab;
+import at.gaderman.serverFest.fests.game.triggers.projectiles.PlayerProjectileHitTrigger;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.title.TitlePart;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.block.data.AnaloguePowerable;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.type.Observer;
 import org.bukkit.block.data.type.Piston;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
+import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.scheduler.BukkitRunnable;
 import org.jspecify.annotations.NonNull;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-public class TargetPractice extends FestGame implements NoBlockManipulationPrefab {
+public class TargetPractice extends ScoreGame implements NoBlockManipulationPrefab, PlayerProjectileHitTrigger {
 
     private Location shootCorner;
+    private final List<ScoreTarget> scoreTargets = new ArrayList<>();
 
     public TargetPractice(Fest fest) {
         super(fest);
@@ -68,62 +72,45 @@ public class TargetPractice extends FestGame implements NoBlockManipulationPrefa
     }
 
     @Override
-    protected void onStart() {
-        final int[] timeLeft = {7}; // 7 seconds
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                timeLeft[0]--;
+    protected void kickOff() {
+        ItemStack bow = new ItemStack(Material.BOW);
+        bow.addEnchantment(Enchantment.INFINITY, 1);
 
-                if (timeLeft[0] <= 5)
-                    sendTitle(timeLeft[0]);
+        fest.participants().forEach(player -> {
+            Inventory inventory = player.getInventory();
 
-                if (timeLeft[0] <= 0) {
-                    cancel();
-
-                    fest.participants().forEach(participant -> {
-                        participant.setWorldBorder(fest.world().getWorldBorder());
-                        participant.playSound(participant, Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 1f, 1f);
-                        participant.sendTitlePart(TitlePart.TITLE, Component.text("Shoot!", NamedTextColor.GOLD));
-                    });
-
-                    ItemStack bow = new ItemStack(Material.BOW);
-                    bow.addEnchantment(Enchantment.INFINITY, 1);
-
-                    fest.participants().forEach(player -> {
-                        Inventory inventory = player.getInventory();
-
-                        inventory.setItem(0, bow);
-                        inventory.setItem(inventory.getSize() - 1, ItemStack.of(Material.ARROW));
-                    });
-
-                    spawnScatteredTargets();
-                }
-
-            }
-        }.runTaskTimer(ServerFest.getPlugin(), 20L, 20L);
-
-        Bukkit.getServer().getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
-            stop();
-        }, 1200);
-    }
-
-    private void sendTitle(long timeLeft) {
-        fest.participants().forEach(participant -> {
-            participant.playSound(participant, Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1.5f);
-            participant.sendTitlePart(TitlePart.TITLE, Component.text(timeLeft, NamedTextColor.GREEN));
+            inventory.setItem(0, bow);
+            inventory.setItem(inventory.getSize() - 1, ItemStack.of(Material.ARROW));
         });
+
+        spawnScatteredTargets();
     }
 
     @Override
-    protected void onWinner(List<Player> winner) {
-
+    protected int runTime() {
+        return 30 * 20;
     }
 
     @Override
     protected void onStop() {
 
     }
+
+    //region Visuals
+
+
+    @Override
+    protected Component startTitle() {
+        return Component.text("Shoot Targets!", NamedTextColor.RED);
+    }
+
+    @Override
+    protected Component bossBarTitle() {
+        return Component.text("Shoot Targets!", NamedTextColor.RED);
+    }
+
+
+    //endregion
 
     //region Arena
 
@@ -181,7 +168,10 @@ public class TargetPractice extends FestGame implements NoBlockManipulationPrefa
             int y = (int) (Math.random() * 8);
             int z = i * chunkSize + zAmount;
 
-            createTarget(this.shootCorner.clone().add(x, y, z));
+            Location targetLoc = this.shootCorner.clone().add(x, y, z);
+            createTarget(targetLoc);
+            //IMPORTANT: this vector here is for the target block, if the target constellation changes this will break distance based score gains!!!
+            scoreTargets.add(new ScoreTarget(targetLoc.clone().add(0, 2, 1), i * chunkSize + zAmount));
         }
     }
 
@@ -198,20 +188,90 @@ public class TargetPractice extends FestGame implements NoBlockManipulationPrefa
 
         location.clone().add(0, 2, 1).getBlock().setType(Material.TARGET);
         location.clone().add(0, 3, 1).getBlock().setType(Material.CARVED_PUMPKIN);
-        location.clone().add(1, 2, 1).getBlock().setType(Material.BAMBOO_FENCE);
-        location.clone().add(-1, 2, 1).getBlock().setType(Material.BAMBOO_FENCE);
+
+        Block fenceLeft = location.clone().add(1, 2, 1).getBlock();
+        fenceLeft.setType(Material.BAMBOO_FENCE);
+        fenceLeft.tick();
+        Block fenceRight = location.clone().add(-1, 2, 1).getBlock();
+        fenceRight.setType(Material.BAMBOO_FENCE);
+        fenceRight.tick();
 
         Block observer = location.clone().add(0, 1, 1).getBlock();
         observer.setType(Material.OBSERVER);
         Observer observerData = (Observer) observer.getBlockData();
-        observerData.setFacing(BlockFace.UP);
+        observerData.setFacing(BlockFace.DOWN);
         observer.setBlockData(observerData);
     }
 
     //endregion
 
+    //region Event Handling
+
+    @Override
+    public void onPlayerProjectileHit(ProjectileHitEvent event, Projectile projectile, Player player) {
+        Block block = event.getHitBlock();
+
+        if (event.getHitEntity() != null) {
+            event.setCancelled(true);
+            return;
+        }
+
+        if (block == null || block.getType() != Material.TARGET) {
+            projectile.remove();
+            return;
+        }
+
+        Bukkit.getServer().getRegionScheduler().runDelayed(ServerFest.getPlugin(), block.getLocation(), _ -> {
+            if (!fest.game().isRunning())
+                return;
+
+            AnaloguePowerable powerable = (AnaloguePowerable) block.getBlockData();
+            ScoreTarget scoreTarget = scoreTargets.stream()
+                    .filter(target -> target.target.getBlock().equals(block.getLocation())).findFirst().orElse(null);
+
+            var playerData = (ScoreGamePlayerData) getOrCreatePlayerData(player.getUniqueId());
+            int scoreGain = powerable.getPower() + (scoreTarget == null ? 0 : scoreTarget.rowBonus);
+            playerData.setScore(playerData.score() + scoreGain);
+
+            player.sendMessage(Component.text("+" + scoreGain, NamedTextColor.GREEN));
+        }, 1);
+
+        player.playSound(player, Sound.ENTITY_ARROW_HIT_PLAYER, 1f, 1f);
+        projectile.remove();
+
+        Location pistonLocation = block.getLocation().clone().add(0, -2, -1);
+        pulsePiston(pistonLocation);
+
+        Bukkit.getServer().getRegionScheduler().runDelayed(ServerFest.getPlugin(), pistonLocation, _ -> {
+            if (!fest.game().isRunning())
+                return;
+
+            pulsePiston(pistonLocation);
+        }, 100);
+    }
+
+    private void pulsePiston(Location pistonLocation) {
+        Block pulseBlock = pistonLocation.clone().add(0, -1, 0).getBlock();
+        BlockData blockData = pulseBlock.getBlockData().clone();
+
+        pulseBlock.setType(Material.REDSTONE_BLOCK);
+
+        Bukkit.getServer().getRegionScheduler().runDelayed(ServerFest.getPlugin(), pulseBlock.getLocation(), _ -> {
+            if (!fest.game().isRunning())
+                return;
+
+            pulseBlock.setBlockData(blockData);
+        }, 2);
+    }
+
+
+    //endregion
+
     @Override
     protected @NonNull FestPlayerData createPlayerData(UUID uuid) {
-        return new ScoreGamePlayerData();
+        return new ScoreGamePlayerData(uuid);
+    }
+
+    private record ScoreTarget(Location target, int rowBonus) {
     }
 }

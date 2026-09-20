@@ -9,6 +9,7 @@ import at.gaderman.serverFest.fests.game.triggers.interact.PlayerBlockBreakTrigg
 import at.gaderman.serverFest.fests.game.triggers.interact.PlayerBlockPlaceTrigger;
 import at.gaderman.serverFest.fests.game.triggers.interact.PlayerInteractTrigger;
 import at.gaderman.serverFest.fests.game.triggers.inventory.PlayerInventoryClickTrigger;
+import at.gaderman.serverFest.fests.game.triggers.projectiles.PlayerProjectileHitTrigger;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -18,6 +19,7 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityToggleGlideEvent;
+import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -158,4 +160,21 @@ public class TriggerListener implements Listener {
 
     //endregion
 
+    //region Projectiles
+
+    @EventHandler
+    public void onProjectileHit(ProjectileHitEvent event){
+        if(!(fest.game() instanceof PlayerProjectileHitTrigger playerProjectileHitTrigger))
+            return;
+
+        if(!(event.getEntity().getShooter() instanceof Player player))
+            return;
+
+        if(!fest.participantUUIDs().contains(player.getUniqueId()))
+            return;
+
+        playerProjectileHitTrigger.onPlayerProjectileHit(event, event.getEntity(), player);
+    }
+
+    //endregion
 }
