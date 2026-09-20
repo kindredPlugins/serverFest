@@ -69,8 +69,9 @@ public abstract class FestGame implements BasicGUIElement {
         onStop();
 
         fest.participants().forEach(participant -> {
-            FestPlayerData festPlayerData = playerDataMap.get(participant.getUniqueId());
-            festPlayerData.reset();
+            FestPlayerData festPlayerData = playerDataMap.getOrDefault(participant.getUniqueId(), null);
+            if(festPlayerData != null)
+                festPlayerData.reset();
         });
         fest.stop();
         //TODO: allow winner to pick reward
