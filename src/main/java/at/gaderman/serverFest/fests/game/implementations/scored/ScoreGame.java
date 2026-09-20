@@ -16,7 +16,12 @@ import org.bukkit.Sound;
 import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.meta.FireworkMeta;
+import org.bukkit.scoreboard.Criteria;
+import org.bukkit.scoreboard.DisplaySlot;
+import org.bukkit.scoreboard.Objective;
+import org.bukkit.scoreboard.Scoreboard;
 
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -109,13 +114,15 @@ public abstract class ScoreGame extends FestGame {
     protected void onWinner(List<Player> winner) {
         Player singleWinner = winner.getFirst();
 
+        var winnerData = (ScoreGamePlayerData) getOrCreatePlayerData(singleWinner.getUniqueId());
+
         fest.participants().forEach(participant -> {
             boolean isWinner = winner.contains(participant);
             participant.resetTitle();
 
             if (isWinner) {
                 participant.sendTitlePart(TitlePart.TITLE, Component.text("Winner!", NamedTextColor.GOLD));
-                participant.getWorld().playSound(participant, Sound.MUSIC_DISC_PIGSTEP, 1f, 1.3f);
+                participant.getWorld().playSound(participant, Sound.MUSIC_DISC_OTHERSIDE, 1f, 1.3f);
 
                 participant.getWorld().spawn(participant.getLocation(), Firework.class, firework -> {
                     FireworkMeta meta = firework.getFireworkMeta();
@@ -128,6 +135,7 @@ public abstract class ScoreGame extends FestGame {
                             .build());
 
                     firework.setFireworkMeta(meta);
+                    firework.setTicksToDetonate(40);
                 });
             } else {
                 participant.sendTitlePart(TitlePart.TITLE, winner.getFirst().displayName().color(NamedTextColor.AQUA)
@@ -137,7 +145,10 @@ public abstract class ScoreGame extends FestGame {
 
             participant.sendTitlePart(TitlePart.SUBTITLE, MiniMessage.miniMessage().deserialize("<head:" + singleWinner.getUniqueId() + "> ")
                     .append(singleWinner.name().color(NamedTextColor.GOLD))
-                    .append(Component.text(" has won!", NamedTextColor.GREEN)));
+                    .append(Component.text(" has won!", NamedTextColor.GREEN))
+                    .append(Component.text(" (", NamedTextColor.GRAY))
+                    .append(Component.text(winnerData.score(), NamedTextColor.YELLOW))
+                    .append(Component.text(")", NamedTextColor.GRAY)));
         });
 
         Bukkit.getServer().getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
@@ -169,5 +180,46 @@ public abstract class ScoreGame extends FestGame {
 
     protected abstract Component bossBarTitle();
 
+    protected void updateScoreboard() {
+        List<Scoring> allScores = fest.participants().stream().map(player -> {
+            var playerData = (ScoreGamePlayerData) getOrCreatePlayerData(player.getUniqueId());
+            return new Scoring(player, playerData.score());
+        }).toList();
+
+        List<Scoring> topScores = allScores.stream()
+                .sorted(Comparator.comparing(scoring -> scoring.score))
+                .limit(8)
+                .toList();
+
+        fest.participants().forEach(player -> {
+            Scoreboard board = player.getScoreboard();
+
+            if (board.equals(Bukkit.getScoreboardManager().getMainScoreboard()))
+                board = Bukkit.getScoreboardManager().getNewScoreboard();
+
+            Objective scoreObj = board.getObjective("score");
+            if (scoreObj != null)
+                scoreObj.unregister();
+
+            scoreObj = board.registerNewObjective("score", Criteria.DUMMY, Component.text("Score", NamedTextColor.GOLD));
+            scoreObj.setDisplaySlot(DisplaySlot.SIDEBAR);
+
+            Objective finalScoreObj = scoreObj;
+            topScores.forEach(scoring -> finalScoreObj.getScore(scoring.player).setScore(scoring.score));
+
+            if (topScores.stream().noneMatch(scoring -> scoring.player.equals(player))) {
+                var playerData = (ScoreGamePlayerData) getOrCreatePlayerData(player.getUniqueId());
+                scoreObj.getScore(player).setScore(playerData.score());
+
+                scoreObj.getScore("...").setScore(playerData.score());
+            }
+
+            player.setScoreboard(board);
+        });
+    }
+
     //endregion
+
+    private record Scoring(Player player, int score) {
+    }
 }

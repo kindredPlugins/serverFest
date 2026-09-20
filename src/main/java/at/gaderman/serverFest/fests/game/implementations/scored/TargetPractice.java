@@ -4,6 +4,7 @@ import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.game.implementations.scored.data.ScoreGamePlayerData;
 import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
+import at.gaderman.serverFest.fests.game.triggers.damage.PlayerDamageTrigger;
 import at.gaderman.serverFest.fests.game.triggers.prefabs.NoBlockManipulationPrefab;
 import at.gaderman.serverFest.fests.game.triggers.projectiles.PlayerProjectileHitTrigger;
 import net.kyori.adventure.text.Component;
@@ -16,19 +17,23 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.type.Observer;
 import org.bukkit.block.data.type.Piston;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.scoreboard.*;
 import org.jspecify.annotations.NonNull;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-public class TargetPractice extends ScoreGame implements NoBlockManipulationPrefab, PlayerProjectileHitTrigger {
+public class TargetPractice extends ScoreGame implements NoBlockManipulationPrefab, PlayerProjectileHitTrigger, PlayerDamageTrigger {
 
     private Location shootCorner;
     private final List<ScoreTarget> scoreTargets = new ArrayList<>();
@@ -72,6 +77,17 @@ public class TargetPractice extends ScoreGame implements NoBlockManipulationPref
     }
 
     @Override
+    protected void onWinner(List<Player> winner) {
+        super.onWinner(winner);
+
+        List<Player> players = fest.participants();
+        fest.world().getEntitiesByClass(Arrow.class).forEach(arrow -> {
+            if(arrow.getShooter() instanceof Player shooter && players.contains(shooter))
+                arrow.remove();
+        });
+    }
+
+    @Override
     protected void kickOff() {
         ItemStack bow = new ItemStack(Material.BOW);
         bow.addEnchantment(Enchantment.INFINITY, 1);
@@ -84,6 +100,7 @@ public class TargetPractice extends ScoreGame implements NoBlockManipulationPref
         });
 
         spawnScatteredTargets();
+        updateScoreboard();
     }
 
     @Override
@@ -93,11 +110,10 @@ public class TargetPractice extends ScoreGame implements NoBlockManipulationPref
 
     @Override
     protected void onStop() {
-
+        fest.participants().forEach(player -> player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard()));
     }
 
     //region Visuals
-
 
     @Override
     protected Component startTitle() {
@@ -108,7 +124,6 @@ public class TargetPractice extends ScoreGame implements NoBlockManipulationPref
     protected Component bossBarTitle() {
         return Component.text("Shoot Targets!", NamedTextColor.RED);
     }
-
 
     //endregion
 
@@ -127,6 +142,9 @@ public class TargetPractice extends ScoreGame implements NoBlockManipulationPref
         Location origin = world.getSpawnLocation();
 
         world.getChunkAtAsync(origin).thenAccept(_ -> {
+            boolean doBlockDrops = world.getGameRuleValue(GameRules.BLOCK_DROPS);
+            world.setGameRule(GameRules.BLOCK_DROPS, false);
+
             int arenaWidth = ARENA_WIDTH / 2;
 
             int minX = (int) origin.getX() - arenaWidth;
@@ -153,6 +171,7 @@ public class TargetPractice extends ScoreGame implements NoBlockManipulationPref
                 for (int z = 0; z <= ARENA_LENGTH - PLATFORM_OFFSET; z++)
                     shootCorner.clone().add(x, 0, z).getBlock().setType(Material.YELLOW_GLAZED_TERRACOTTA);
 
+            world.setGameRule(GameRules.BLOCK_DROPS, doBlockDrops);
             future.complete(null);
         });
     }
@@ -207,6 +226,12 @@ public class TargetPractice extends ScoreGame implements NoBlockManipulationPref
 
     //region Event Handling
 
+
+    @Override
+    public void onPlayerDamage(EntityDamageEvent event, Player player) {
+        event.setCancelled(true);
+    }
+
     @Override
     public void onPlayerProjectileHit(ProjectileHitEvent event, Projectile projectile, Player player) {
         Block block = event.getHitBlock();
@@ -217,7 +242,7 @@ public class TargetPractice extends ScoreGame implements NoBlockManipulationPref
         }
 
         if (block == null || block.getType() != Material.TARGET) {
-            projectile.remove();
+            projectile.setTicksLived(60 * 20 - 10);
             return;
         }
 
@@ -227,13 +252,14 @@ public class TargetPractice extends ScoreGame implements NoBlockManipulationPref
 
             AnaloguePowerable powerable = (AnaloguePowerable) block.getBlockData();
             ScoreTarget scoreTarget = scoreTargets.stream()
-                    .filter(target -> target.target.getBlock().equals(block.getLocation())).findFirst().orElse(null);
+                    .filter(target -> target.target.distance(block.getLocation()) < 1).findFirst().orElse(null);
 
             var playerData = (ScoreGamePlayerData) getOrCreatePlayerData(player.getUniqueId());
             int scoreGain = powerable.getPower() + (scoreTarget == null ? 0 : scoreTarget.rowBonus);
             playerData.setScore(playerData.score() + scoreGain);
+            updateScoreboard();
 
-            player.sendMessage(Component.text("+" + scoreGain, NamedTextColor.GREEN));
+            player.sendActionBar(Component.text("+" + scoreGain + " ◈", NamedTextColor.GREEN));
         }, 1);
 
         player.playSound(player, Sound.ENTITY_ARROW_HIT_PLAYER, 1f, 1f);
