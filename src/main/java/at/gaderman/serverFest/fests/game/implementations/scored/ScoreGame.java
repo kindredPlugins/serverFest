@@ -16,6 +16,8 @@ import org.bukkit.Sound;
 import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.meta.FireworkMeta;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scoreboard.Criteria;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
@@ -34,6 +36,13 @@ public abstract class ScoreGame extends FestGame {
 
     public ScoreGame(Fest fest) {
         super(fest);
+    }
+
+    @Override
+    public void onPlayersJoinedWorld() {
+        fest.participants().forEach(participant -> {
+            participant.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION, PotionEffect.INFINITE_DURATION, 0, false, false));
+        });
     }
 
     @Override

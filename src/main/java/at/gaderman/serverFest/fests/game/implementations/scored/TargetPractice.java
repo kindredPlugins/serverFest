@@ -24,11 +24,9 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.scoreboard.*;
 import org.jspecify.annotations.NonNull;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -69,11 +67,6 @@ public class TargetPractice extends ScoreGame implements NoBlockManipulationPref
         CompletableFuture<Void> future = new CompletableFuture<>();
         buildArena(future);
         return future;
-    }
-
-    @Override
-    public void onPlayersJoinedWorld() {
-
     }
 
     @Override

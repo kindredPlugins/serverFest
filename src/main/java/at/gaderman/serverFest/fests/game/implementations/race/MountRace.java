@@ -72,8 +72,6 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger, PlayerVe
                 spawnNautilusFor(player);
             else
                 spawnHorseFor(player);
-
-            player.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION, PotionEffect.INFINITE_DURATION, 0, false, false));
         });
     }
 

@@ -10,6 +10,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BlockStateMeta;
+import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.jetbrains.annotations.Nullable;
@@ -56,6 +57,9 @@ public class SaveStateManagement {
         enderChest.setItem(3, PlayerMetaData.createPlayerDataItem(player));
         PlayerMetaData.resetPlayer(player);
 
+        enderChest.setItem(4, transferEffectsToPotion(player));
+        player.clearActivePotionEffects();
+
         PersistentDataContainer pdc = player.getPersistentDataContainer();
         pdc.set(SAVED_STATE, PersistentDataType.STRING, ServerFest.getPlugin().getPluginMeta().getVersion());
 
@@ -82,6 +86,11 @@ public class SaveStateManagement {
         ItemStack metaDataItem = enderChest.getItem(3);
         if (metaDataItem != null) {
             PlayerMetaData.applyToPlayer(player, metaDataItem);
+        }
+
+        ItemStack effectsPotion = enderChest.getItem(4);
+        if (effectsPotion != null) {
+            transferEffectsFromPotion(effectsPotion, player);
         }
 
         ItemStack enderContainer = enderChest.getItem(0);
@@ -121,6 +130,28 @@ public class SaveStateManagement {
             return new ItemStack[0];
 
         return chest.getBlockInventory().getContents();
+    }
+
+    //TODO: known issue, active potion effects only covers highest power, dormant lower-power effects will be skipped
+    private static ItemStack transferEffectsToPotion(Player player) {
+        ItemStack potion = ItemStack.of(Material.POTION);
+        potion.editMeta(meta -> {
+            PotionMeta potionMeta = (PotionMeta) meta;
+
+            player.getActivePotionEffects().forEach(effect -> potionMeta.addCustomEffect(effect, false));
+        });
+        return  potion;
+    }
+
+    private static void transferEffectsFromPotion(ItemStack potion, Player player) {
+        if(potion == null || !potion.hasItemMeta())
+            return;
+
+        if(!(potion.getItemMeta() instanceof PotionMeta potionMeta))
+            return;
+
+        player.clearActivePotionEffects();
+        potionMeta.getCustomEffects().forEach(player::addPotionEffect);
     }
 
     private static String serializeLocation(Location location) {

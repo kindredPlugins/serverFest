@@ -20,17 +20,17 @@ import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.meta.FireworkMeta;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
 import org.jspecify.annotations.NonNull;
 
 import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 public abstract class RaceGame extends FestGame implements NoBlockManipulationPrefab, PlayerInventoryClickTrigger {
 
@@ -46,7 +46,10 @@ public abstract class RaceGame extends FestGame implements NoBlockManipulationPr
         startBorder.setSize(1.5);
         startBorder.setCenter(fest.world().getSpawnLocation());
 
-        fest.participants().forEach(participant -> participant.setWorldBorder(startBorder));
+        fest.participants().forEach(participant -> {
+            participant.setWorldBorder(startBorder);
+            participant.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION, PotionEffect.INFINITE_DURATION, 0, false, false));
+        });
     }
 
     @Override
