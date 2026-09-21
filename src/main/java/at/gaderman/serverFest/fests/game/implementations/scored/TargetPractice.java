@@ -13,9 +13,9 @@ import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.AnaloguePowerable;
-import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.type.Observer;
 import org.bukkit.block.data.type.Piston;
+import org.bukkit.block.data.type.RedstoneWallTorch;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Player;
@@ -26,15 +26,14 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.jspecify.annotations.NonNull;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 public class TargetPractice extends ScoreGame implements NoBlockManipulationPrefab, PlayerProjectileHitTrigger, PlayerDamageTrigger {
 
     private Location shootCorner;
     private final List<ScoreTarget> scoreTargets = new ArrayList<>();
+    private final Set<ScoreTarget> activeTargets = new HashSet<>();
 
     public TargetPractice(Fest fest) {
         super(fest);
@@ -75,7 +74,7 @@ public class TargetPractice extends ScoreGame implements NoBlockManipulationPref
 
         List<Player> players = fest.participants();
         fest.world().getEntitiesByClass(Arrow.class).forEach(arrow -> {
-            if(arrow.getShooter() instanceof Player shooter && players.contains(shooter))
+            if (arrow.getShooter() instanceof Player shooter && players.contains(shooter))
                 arrow.remove();
         });
     }
@@ -182,7 +181,7 @@ public class TargetPractice extends ScoreGame implements NoBlockManipulationPref
 
             Location targetLoc = this.shootCorner.clone().add(x, y, z);
             createTarget(targetLoc);
-            //IMPORTANT: this vector here is for the target block, if the target constellation changes this will break distance based score gains!!!
+            //IMPORTANT: this vector here is for the target block, if the target constellation changes this will break score gains!!!
             scoreTargets.add(new ScoreTarget(targetLoc.clone().add(0, 2, 1), i * chunkSize + zAmount));
         }
     }
@@ -198,15 +197,15 @@ public class TargetPractice extends ScoreGame implements NoBlockManipulationPref
 
         location.clone().add(0, 0, 1).getBlock().setType(Material.NOTE_BLOCK);
 
+        location.clone().add(1, 2, 1).getBlock().setType(Material.BAMBOO_FENCE);
+        location.clone().add(-1, 2, 1).getBlock().setType(Material.BAMBOO_FENCE);
         location.clone().add(0, 2, 1).getBlock().setType(Material.TARGET);
         location.clone().add(0, 3, 1).getBlock().setType(Material.CARVED_PUMPKIN);
 
-        Block fenceLeft = location.clone().add(1, 2, 1).getBlock();
-        fenceLeft.setType(Material.BAMBOO_FENCE);
-        fenceLeft.tick();
-        Block fenceRight = location.clone().add(-1, 2, 1).getBlock();
-        fenceRight.setType(Material.BAMBOO_FENCE);
-        fenceRight.tick();
+        Block torch = location.clone().add(0, 3, 0).getBlock();
+        RedstoneWallTorch wallTorch = (RedstoneWallTorch) Material.REDSTONE_WALL_TORCH.createBlockData();
+        wallTorch.setFacing(BlockFace.NORTH);
+        torch.setBlockData(wallTorch, false);
 
         Block observer = location.clone().add(0, 1, 1).getBlock();
         observer.setType(Material.OBSERVER);
@@ -239,16 +238,20 @@ public class TargetPractice extends ScoreGame implements NoBlockManipulationPref
             return;
         }
 
+        ScoreTarget scoreTarget = scoreTargets.stream()
+                .filter(target -> target.target.distance(block.getLocation()) < 1).findFirst().orElse(null);
+
+        if(scoreTarget == null || activeTargets.contains(scoreTarget))
+            return;
+
         Bukkit.getServer().getRegionScheduler().runDelayed(ServerFest.getPlugin(), block.getLocation(), _ -> {
             if (!fest.game().isRunning())
                 return;
 
             AnaloguePowerable powerable = (AnaloguePowerable) block.getBlockData();
-            ScoreTarget scoreTarget = scoreTargets.stream()
-                    .filter(target -> target.target.distance(block.getLocation()) < 1).findFirst().orElse(null);
 
             var playerData = (ScoreGamePlayerData) getOrCreatePlayerData(player.getUniqueId());
-            int scoreGain = powerable.getPower() + (scoreTarget == null ? 0 : scoreTarget.rowBonus);
+            int scoreGain = powerable.getPower() + scoreTarget.rowBonus;
             playerData.setScore(playerData.score() + scoreGain);
             updateScoreboard();
 
@@ -261,28 +264,32 @@ public class TargetPractice extends ScoreGame implements NoBlockManipulationPref
         Location pistonLocation = block.getLocation().clone().add(0, -2, -1);
         pulsePiston(pistonLocation);
 
+        activeTargets.add(scoreTarget);
+
         Bukkit.getServer().getRegionScheduler().runDelayed(ServerFest.getPlugin(), pistonLocation, _ -> {
             if (!fest.game().isRunning())
                 return;
 
+            activeTargets.remove(scoreTarget);
             pulsePiston(pistonLocation);
         }, 100);
     }
 
     private void pulsePiston(Location pistonLocation) {
-        Block pulseBlock = pistonLocation.clone().add(0, -1, 0).getBlock();
-        BlockData blockData = pulseBlock.getBlockData().clone();
-
-        pulseBlock.setType(Material.REDSTONE_BLOCK);
+        Block pulseBlock = pistonLocation.clone().add(0, 1, 1).getBlock();
+        Observer observerData = (Observer) pulseBlock.getBlockData();
+        observerData.setFacing(BlockFace.UP);
+        pulseBlock.setBlockData(observerData);
+        pulseBlock.tick();
 
         Bukkit.getServer().getRegionScheduler().runDelayed(ServerFest.getPlugin(), pulseBlock.getLocation(), _ -> {
             if (!fest.game().isRunning())
                 return;
 
-            pulseBlock.setBlockData(blockData);
+            observerData.setFacing(BlockFace.DOWN);
+            pulseBlock.setBlockData(observerData);
         }, 2);
     }
-
 
     //endregion
 
