@@ -19,8 +19,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
 public class Fest {
@@ -44,7 +42,6 @@ public class Fest {
         //TODO: change this later to give players actual choice of participation
         this.participantUUIDs = Bukkit.getOnlinePlayers().stream().map(Player::getUniqueId).collect(Collectors.toList());
         this.game = gameType.createNewInstance(this);
-
         this.triggerListener = new TriggerListener(this);
 
         FestManager.getInstance().registerFest(this);
