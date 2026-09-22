@@ -6,6 +6,7 @@ import at.gaderman.serverFest.fests.game.implementations.scored.data.ScoreGamePl
 import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
 import at.gaderman.serverFest.fests.game.triggers.damage.PlayerDamageTrigger;
 import at.gaderman.serverFest.fests.game.triggers.prefabs.NoBlockManipulationPrefab;
+import at.gaderman.serverFest.fests.game.triggers.prefabs.NoItemInventoryManipulation;
 import at.gaderman.serverFest.fests.game.triggers.projectiles.PlayerProjectileHitTrigger;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -26,7 +27,7 @@ import org.jspecify.annotations.NonNull;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
-public class TargetPractice extends ScoreGame implements NoBlockManipulationPrefab, PlayerProjectileHitTrigger, PlayerDamageTrigger {
+public class TargetPractice extends ScoreGame implements NoBlockManipulationPrefab, NoItemInventoryManipulation, PlayerProjectileHitTrigger, PlayerDamageTrigger {
 
     private Location shootCorner;
     private final List<ScoreTarget> scoreTargets = new ArrayList<>();
@@ -206,7 +207,6 @@ public class TargetPractice extends ScoreGame implements NoBlockManipulationPref
     //endregion
 
     //region Event Handling
-
 
     @Override
     public void onPlayerDamage(EntityDamageEvent event, Player player) {

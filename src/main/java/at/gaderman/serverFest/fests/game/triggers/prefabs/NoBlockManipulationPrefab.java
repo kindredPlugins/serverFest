@@ -1,8 +1,8 @@
 package at.gaderman.serverFest.fests.game.triggers.prefabs;
 
 import at.gaderman.serverFest.fests.game.triggers.interact.PlayerBlockBreakTrigger;
-import at.gaderman.serverFest.fests.game.triggers.interact.PlayerInteractTrigger;
 import at.gaderman.serverFest.fests.game.triggers.interact.PlayerBlockPlaceTrigger;
+import at.gaderman.serverFest.fests.game.triggers.interact.PlayerInteractTrigger;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;

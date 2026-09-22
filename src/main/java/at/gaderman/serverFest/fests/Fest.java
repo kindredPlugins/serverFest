@@ -43,8 +43,6 @@ public class Fest {
         this.participantUUIDs = Bukkit.getOnlinePlayers().stream().map(Player::getUniqueId).collect(Collectors.toList());
         this.game = gameType.createNewInstance(this);
         this.triggerListener = new TriggerListener(this);
-
-        FestManager.getInstance().registerFest(this);
     }
 
     //endregion
@@ -84,6 +82,7 @@ public class Fest {
 
     public void start() {
         ServerFest.getPlugin().getLogger().info("Started fest with id " + uuid);
+        FestManager.getInstance().registerFest(this);
 
 //        world = WorldManager.getInstance().createChallengeWorldCreator(
 //                        new NamespacedKey(ServerFest.getPlugin(), uuid.toString()))
@@ -96,10 +95,9 @@ public class Fest {
         offset = pdc.getOrDefault(FEST_OFFSET, PersistentDataType.LONG, 0L);
         pdc.set(FEST_OFFSET, PersistentDataType.LONG, offset + OFFSET_INCREMENT);
 
-        game.setUpWorld()
-                .thenRun(game::start);
+        game.setUpWorld().thenRun(game::start);
 
-        world.getChunkAtAsync(world.getSpawnLocation()).thenAccept(chunk -> {
+        world.getChunkAtAsync(world.getSpawnLocation()).thenAccept(_ -> {
             participants().forEach(player -> {
                 SaveStateManagement.savePlayerState(player);
                 player.teleport(world.getSpawnLocation());

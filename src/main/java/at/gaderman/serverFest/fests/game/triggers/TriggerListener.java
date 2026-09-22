@@ -8,7 +8,9 @@ import at.gaderman.serverFest.fests.game.triggers.damage.PlayerDamageTrigger;
 import at.gaderman.serverFest.fests.game.triggers.interact.PlayerBlockBreakTrigger;
 import at.gaderman.serverFest.fests.game.triggers.interact.PlayerBlockPlaceTrigger;
 import at.gaderman.serverFest.fests.game.triggers.interact.PlayerInteractTrigger;
+import at.gaderman.serverFest.fests.game.triggers.inventory.PlayerDropItemTrigger;
 import at.gaderman.serverFest.fests.game.triggers.inventory.PlayerInventoryClickTrigger;
+import at.gaderman.serverFest.fests.game.triggers.inventory.PlayerPickupItemTrigger;
 import at.gaderman.serverFest.fests.game.triggers.projectiles.PlayerProjectileHitTrigger;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -18,9 +20,11 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.EntityToggleGlideEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.vehicle.VehicleExitEvent;
@@ -156,6 +160,33 @@ public class TriggerListener implements Listener {
             return;
 
         playerInventoryClickTrigger.onInventoryClick(event, player);
+    }
+
+    @EventHandler
+    public void onDropItem(PlayerDropItemEvent event){
+        if(!(fest.game() instanceof PlayerDropItemTrigger playerDropItemTrigger))
+            return;
+
+        Player player = event.getPlayer();
+
+        if(!fest.participantUUIDs().contains(player.getUniqueId()))
+            return;
+
+        playerDropItemTrigger.onPlayerDropItem(event, player, event.getItemDrop());
+    }
+
+    @EventHandler
+    public void onPickUpItem(EntityPickupItemEvent event){
+        if(!(fest.game() instanceof PlayerPickupItemTrigger playerPickupItemTrigger))
+            return;
+
+        if(!(event.getEntity() instanceof Player player))
+            return;
+
+        if(!fest.participantUUIDs().contains(player.getUniqueId()))
+            return;
+
+        playerPickupItemTrigger.onPlayerPickupItem(event, player, event.getItem());
     }
 
     //endregion
