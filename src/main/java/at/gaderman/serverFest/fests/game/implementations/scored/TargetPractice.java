@@ -4,6 +4,7 @@ import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.game.implementations.scored.data.ScoreGamePlayerData;
 import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
+import at.gaderman.serverFest.fests.game.interfaces.InvisiblePlayersGame;
 import at.gaderman.serverFest.fests.game.triggers.damage.PlayerDamageTrigger;
 import at.gaderman.serverFest.fests.game.triggers.prefabs.NoBlockManipulationPrefab;
 import at.gaderman.serverFest.fests.game.triggers.prefabs.NoItemInventoryManipulation;
@@ -27,7 +28,8 @@ import org.jspecify.annotations.NonNull;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
-public class TargetPractice extends ScoreGame implements NoBlockManipulationPrefab, NoItemInventoryManipulation, PlayerProjectileHitTrigger, PlayerDamageTrigger {
+public class TargetPractice extends ScoreGame implements NoBlockManipulationPrefab, NoItemInventoryManipulation, PlayerProjectileHitTrigger, PlayerDamageTrigger,
+        InvisiblePlayersGame {
 
     private Location shootCorner;
     private final List<ScoreTarget> scoreTargets = new ArrayList<>();
@@ -62,6 +64,13 @@ public class TargetPractice extends ScoreGame implements NoBlockManipulationPref
         world.setSpawnLocation(spawnPoint);
 
         return buildArena();
+    }
+
+    @Override
+    public void onPlayersJoinedWorld() {
+        super.onPlayersJoinedWorld();
+
+        InvisiblePlayersGame.super.grantInvisibilityToPlayers(fest.participants());
     }
 
     @Override
@@ -142,8 +151,12 @@ public class TargetPractice extends ScoreGame implements NoBlockManipulationPref
 
             for (int x = minX; x <= maxX; x++)
                 for (int y = 0; y < ARENA_HEIGHT; y++)
-                    for (int z = minZ; z <= maxZ; z++)
-                        world.getBlockAt(x, origin.getBlockY() - 1 + y, z).setType(Material.AIR);
+                    for (int z = minZ; z <= maxZ; z++) {
+                        boolean edge = x == minX || x == maxX || z == minZ || z == maxZ;
+                        Material clearMat = edge ? Material.STRUCTURE_VOID : Material.AIR;
+
+                        world.getBlockAt(x, origin.getBlockY() - 1 + y, z).setType(clearMat);
+                    }
 
             for (int x = 0; x < PLATFORM_WIDTH * 2 + 1; x++)
                 for (int z = 0; z < PLATFORM_LENGTH + 2; z++) {

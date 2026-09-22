@@ -6,6 +6,7 @@ import at.gaderman.serverFest.fests.game.FestGame;
 import at.gaderman.serverFest.fests.game.implementations.race.data.CheckPoint;
 import at.gaderman.serverFest.fests.game.implementations.race.data.RaceGamePlayerData;
 import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
+import at.gaderman.serverFest.fests.game.interfaces.InvisiblePlayersGame;
 import at.gaderman.serverFest.fests.game.triggers.inventory.PlayerInventoryClickTrigger;
 import at.gaderman.serverFest.fests.game.triggers.prefabs.NoBlockManipulationPrefab;
 import at.gaderman.serverFest.fests.game.triggers.prefabs.NoItemInventoryManipulation;
@@ -32,7 +33,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-public abstract class RaceGame extends FestGame implements NoBlockManipulationPrefab, NoItemInventoryManipulation, PlayerInventoryClickTrigger {
+public abstract class RaceGame extends FestGame implements NoBlockManipulationPrefab, NoItemInventoryManipulation, PlayerInventoryClickTrigger,
+        InvisiblePlayersGame {
 
     protected List<CheckPoint> checkPoints = new ArrayList<>();
 
@@ -50,6 +52,8 @@ public abstract class RaceGame extends FestGame implements NoBlockManipulationPr
             participant.setWorldBorder(startBorder);
             participant.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION, PotionEffect.INFINITE_DURATION, 0, false, false));
         });
+
+        InvisiblePlayersGame.super.grantInvisibilityToPlayers(fest.participants());
     }
 
     @Override
