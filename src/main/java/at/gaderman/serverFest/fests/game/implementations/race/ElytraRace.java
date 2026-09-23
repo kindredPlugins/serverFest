@@ -18,7 +18,9 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, PlayerDamageTrigger {
@@ -44,31 +46,56 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
 
     //region Overrides
 
+    private static final double GATE_SIZE = 5;
+    private static final double GATE_THICKNESS = 0.6;
+
     @Override
     public CompletableFuture<Void> setUpWorld() {
         World world = fest.world();
 
         int tries = 1;
         Location spawnPoint = new Location(world, fest.offset(), 100, 0).toCenterLocation();
+
         while (world.getHighestBlockAt(spawnPoint).getY() > spawnPoint.getY() - 10) {
             spawnPoint = new Location(world, spawnPoint.getX() + 300, spawnPoint.getY(), 0).toCenterLocation();
             tries++;
         }
+
         ServerFest.getPlugin().getLogger().info("Found ElytraRace start after " + tries + " tries");
 
-        world.setSpawnLocation(spawnPoint.toCenterLocation());
+        world.setSpawnLocation(spawnPoint);
 
-        for (int x = -1; x <= 1; x++) {
-            for (int z = -1; z <= 1; z++) {
+        for(int x = -1; x <= 1; x++)
+            for(int z = -1; z <= 1; z++)
                 spawnPoint.clone().add(x, -1, z).getBlock().setType(Material.BAMBOO_BLOCK);
-            }
-        }
 
         createElytraTrack();
 
-        //elytra track is not async for now so future can be completed here alright
+        Set<ChunkPos> chunks = new HashSet<>();
+
+        for(Vector point : trackSamples) {
+            int chunkX = ((int) point.getX()) >> 4;
+            int chunkZ = ((int) point.getZ()) >> 4;
+
+            for(int x = -1; x <= 1; x++)
+                for(int z = -1; z <= 1; z++)
+                    chunks.add(new ChunkPos(chunkX + x, chunkZ + z));
+        }
+
         CompletableFuture<Void> future = new CompletableFuture<>();
-        future.complete(null);
+
+        loadChunks(world, chunks, () -> {
+            for(CheckPoint checkPoint : checkPoints)
+                adjustGateLocation(checkPoint.location());
+
+            for(int i = 1; i < checkPoints.size(); i++) {
+                CheckPoint checkPoint = checkPoints.get(i);
+                createGate(checkPoint.location(), GATE_SIZE, GATE_THICKNESS, i == checkPoints.size() - 1);
+            }
+
+            future.complete(null);
+        });
+
         return future;
     }
 
@@ -172,10 +199,8 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
         int gateCount = 20;
 
         double spacing = 50.0;
-        double gateSize = 5.0;
-        double thickness = 0.6;
 
-        checkPoints.add(new CheckPoint(origin, gateSize, gateSize));
+        checkPoints.add(new CheckPoint(origin, GATE_SIZE, GATE_SIZE));
 
         // How quickly it oscillates.
         double waveLength = 2;
@@ -192,10 +217,7 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
             double y = Math.random() * 20 - 10;
 
             Location gateLocation = origin.clone().add(x, y, z);
-            adjustGateLocation(gateLocation);
-            checkPoints.add(new CheckPoint(gateLocation, gateSize, gateSize));
-
-            createGate(gateLocation, gateSize, thickness, i == gateCount - 1);
+            checkPoints.add(new CheckPoint(gateLocation, GATE_SIZE, GATE_SIZE));
         }
 
         buildTrackSpline();

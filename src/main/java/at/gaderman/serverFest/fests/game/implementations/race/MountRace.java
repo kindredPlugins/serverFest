@@ -311,22 +311,6 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger, PlayerVe
                 .collect(Collectors.toSet());
     }
 
-    private void loadChunks(World world, Set<ChunkPos> chunks, Runnable finished) {
-        if (chunks.isEmpty()) {
-            finished.run();
-            return;
-        }
-
-        AtomicInteger remaining = new AtomicInteger(chunks.size());
-
-        for (ChunkPos chunk : chunks) {
-            world.getChunkAtAsync(chunk.x(), chunk.z(), true, loaded -> {
-                if (remaining.decrementAndGet() == 0)
-                    finished.run();
-            });
-        }
-    }
-
     //endregion
 
     //region Event Handling
@@ -348,8 +332,5 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger, PlayerVe
     }
 
     private record BlockPos(int x, int y, int z) {
-    }
-
-    private record ChunkPos(int x, int z) {
     }
 }

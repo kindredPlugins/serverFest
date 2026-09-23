@@ -33,8 +33,8 @@ public abstract class ScheduledFest {
         }
 
         //TODO: sample value for now, later on should use instanceType to allow randomizing
-        //Fest festInstance = new Fest(GameType.values()[(int) (Math.random() * GameType.values().length)]);
-        Fest festInstance = new Fest(GameType.TARGET_PRACTICE);
+        Fest festInstance = new Fest(instanceType);
+        //Fest festInstance = new Fest(GameType.ELYTRA_RACE);
 
         Bukkit.getOnlinePlayers().forEach(player -> {
             player.playSound(player, Sound.ENTITY_ENDER_DRAGON_GROWL, 2f, 0.65f);
