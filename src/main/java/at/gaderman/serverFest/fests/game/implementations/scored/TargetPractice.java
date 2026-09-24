@@ -55,7 +55,7 @@ public class TargetPractice extends ScoreGame implements NoBlockManipulationPref
     }
 
     @Override
-    protected Location determineOrigin() {
+    public Location determineOrigin() {
         Location origin = super.determineOrigin();
         origin.setY(fest.world().getHighestBlockYAt(origin) + 1);
         return origin;

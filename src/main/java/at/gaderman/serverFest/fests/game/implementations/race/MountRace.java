@@ -44,7 +44,7 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger, PlayerVe
     }
 
     @Override
-    protected Location determineOrigin() {
+    public Location determineOrigin() {
         Location origin = super.determineOrigin();
         origin.setY(fest.world().getHighestBlockYAt(origin) + 1);
         return origin;

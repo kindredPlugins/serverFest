@@ -23,7 +23,7 @@ public abstract class FestGame implements BasicGUIElement {
         this.fest = fest;
     }
 
-    protected Location determineOrigin(){
+    public Location determineOrigin(){
         return new Location(fest.world(), fest.offset(), fest.world().getSeaLevel(), 0).toCenterLocation();
     }
 

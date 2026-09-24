@@ -50,7 +50,7 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
     private static final double GATE_THICKNESS = 0.6;
 
     @Override
-    protected Location determineOrigin() {
+    public Location determineOrigin() {
         Location origin = super.determineOrigin();
         World world = fest.world();
 

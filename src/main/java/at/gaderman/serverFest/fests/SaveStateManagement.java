@@ -7,6 +7,9 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.*;
 import org.bukkit.block.Chest;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BlockStateMeta;
@@ -27,6 +30,8 @@ public class SaveStateManagement {
      * Completely saves data and stats of a player by encoding it in their ender chest
      */
     public static void savePlayerState(Player player) {
+        player.saveData();
+
         Inventory enderChest = player.getEnderChest();
         ItemStack[] enderChestContent = enderChest.getContents();
 
@@ -48,6 +53,8 @@ public class SaveStateManagement {
 
         ItemStack secondInvContainer = transferToContainer(secondContents);
         secondInvContainer.editMeta(meta -> meta.itemName(Component.text("Inventory Contents 2", NamedTextColor.AQUA)));
+
+        //TODO: handle in-hand and crafting items
 
         enderChest.setItem(1, firstInvContainer);
         enderChest.setItem(2, secondInvContainer);
@@ -105,6 +112,7 @@ public class SaveStateManagement {
         }
 
         pdc.remove(SAVED_STATE);
+        player.saveData();
     }
 
     private static ItemStack transferToContainer(ItemStack[] contents) {
@@ -140,14 +148,14 @@ public class SaveStateManagement {
 
             player.getActivePotionEffects().forEach(effect -> potionMeta.addCustomEffect(effect, false));
         });
-        return  potion;
+        return potion;
     }
 
     private static void transferEffectsFromPotion(ItemStack potion, Player player) {
-        if(potion == null || !potion.hasItemMeta())
+        if (potion == null || !potion.hasItemMeta())
             return;
 
-        if(!(potion.getItemMeta() instanceof PotionMeta potionMeta))
+        if (!(potion.getItemMeta() instanceof PotionMeta potionMeta))
             return;
 
         player.clearActivePotionEffects();
@@ -173,4 +181,21 @@ public class SaveStateManagement {
         }
     }
 
+    public static class SaveListener implements Listener {
+
+        public SaveListener() {
+            Bukkit.getPluginManager().registerEvents(this, ServerFest.getPlugin());
+        }
+
+        @EventHandler
+        public void onPlayerJoin(PlayerJoinEvent event) {
+            Player player = event.getPlayer();
+            PersistentDataContainer pdc = player.getPersistentDataContainer();
+
+            if (!pdc.has(SAVED_STATE))
+                return;
+
+            restorePlayerState(player);
+        }
+    }
 }
