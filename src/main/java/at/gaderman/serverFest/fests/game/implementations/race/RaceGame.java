@@ -48,7 +48,7 @@ public abstract class RaceGame extends FestGame implements NoBlockManipulationPr
     public void onPlayersJoinedWorld() {
         WorldBorder startBorder = Bukkit.createWorldBorder();
         startBorder.setSize(1.5);
-        startBorder.setCenter(fest.world().getSpawnLocation());
+        startBorder.setCenter(fest.origin());
 
         fest.participants().forEach(participant -> {
             participant.setWorldBorder(startBorder);

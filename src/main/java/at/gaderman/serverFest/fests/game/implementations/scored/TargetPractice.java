@@ -55,14 +55,14 @@ public class TargetPractice extends ScoreGame implements NoBlockManipulationPref
     }
 
     @Override
+    protected Location determineOrigin() {
+        Location origin = super.determineOrigin();
+        origin.setY(fest.world().getHighestBlockYAt(origin) + 1);
+        return origin;
+    }
+
+    @Override
     public CompletableFuture<Void> setUpWorld() {
-        World world = fest.world();
-
-        Location spawnPoint = new Location(world, fest.offset(), world.getSeaLevel(), 0).toCenterLocation();
-        spawnPoint.setY(world.getHighestBlockAt(spawnPoint).getY() + 1);
-
-        world.setSpawnLocation(spawnPoint);
-
         return buildArena();
     }
 
@@ -136,7 +136,7 @@ public class TargetPractice extends ScoreGame implements NoBlockManipulationPref
 
     private CompletableFuture<Void> buildArena() {
         World world = fest.world();
-        Location origin = world.getSpawnLocation();
+        Location origin = fest.origin();
 
         return world.getChunkAtAsync(origin).thenAccept(_ -> {
             boolean doBlockDrops = world.getGameRuleValue(GameRules.BLOCK_DROPS);

@@ -7,10 +7,7 @@ import at.gaderman.serverFest.fests.game.triggers.TriggerListener;
 import at.gaderman.serverFest.management.WorldManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.Bukkit;
-import org.bukkit.GameRules;
-import org.bukkit.NamespacedKey;
-import org.bukkit.World;
+import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
@@ -19,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 public class Fest {
@@ -33,6 +31,7 @@ public class Fest {
     private final FestGame game;
 
     private World world;
+    private Location origin;
     private long offset;
 
     private final TriggerListener triggerListener;
@@ -76,10 +75,15 @@ public class Fest {
                 .toList();
     }
 
+    public Location origin() {
+        return origin.clone();
+    }
+
     //endregion
 
     //region Methods
 
+    //TODO: remove the reliance on world spawn point, multiple fests have issue of interfering with each other in this case
     public void start() {
         ServerFest.getPlugin().getLogger().info("Started fest with id " + uuid);
         FestManager.getInstance().registerFest(this);
@@ -95,15 +99,21 @@ public class Fest {
         offset = pdc.getOrDefault(FEST_OFFSET, PersistentDataType.LONG, 0L);
         pdc.set(FEST_OFFSET, PersistentDataType.LONG, offset + OFFSET_INCREMENT);
 
-        game.setUpWorld().thenRun(game::start);
+        this.origin = adjustLocationToCenterOfChunk(game.determineOrigin());
 
-        world.getChunkAtAsync(world.getSpawnLocation()).thenAccept(_ -> {
-            participants().forEach(player -> {
-                SaveStateManagement.savePlayerState(player);
-                player.teleport(world.getSpawnLocation());
-            });
-            game.onPlayersJoinedWorld();
+        game.setUpWorld().thenRun(game::start).thenRun(() -> {
+            origin.getChunk().removePluginChunkTicket(ServerFest.getPlugin());
+            FestManager.getInstance().reserveChunkForNextFest();
         });
+
+        CompletableFuture<?>[] teleports = participants().stream()
+                .map(player -> {
+                    SaveStateManagement.savePlayerState(player);
+                    return player.teleportAsync(origin);
+                })
+                .toArray(CompletableFuture[]::new);
+
+        CompletableFuture.allOf(teleports).thenRun(game::onPlayersJoinedWorld);
     }
 
     public void stop() {
@@ -122,6 +132,15 @@ public class Fest {
         );
 
         SaveStateManagement.restorePlayerState(player);
+    }
+
+    private static Location adjustLocationToCenterOfChunk(Location location) {
+        int centerX = (location.getChunk().getX() << 4) + 8;
+        int centerZ = (location.getChunk().getZ() << 4) + 8;
+
+        location.setX(centerX + 0.5);
+        location.setZ(centerZ + 0.5);
+        return location;
     }
 
     //endregion

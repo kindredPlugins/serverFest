@@ -50,24 +50,31 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
     private static final double GATE_THICKNESS = 0.6;
 
     @Override
-    public CompletableFuture<Void> setUpWorld() {
+    protected Location determineOrigin() {
+        Location origin = super.determineOrigin();
         World world = fest.world();
 
         int tries = 1;
-        Location spawnPoint = new Location(world, fest.offset(), 100, 0).toCenterLocation();
+        origin.setY(100);
 
-        while (world.getHighestBlockAt(spawnPoint).getY() > spawnPoint.getY() - 10) {
-            spawnPoint = new Location(world, spawnPoint.getX() + 300, spawnPoint.getY(), 0).toCenterLocation();
+        while (world.getHighestBlockAt(origin).getY() > origin.getY() - 10) {
+            origin = new Location(world, origin.getX() + 300, origin.getY(), 0).toCenterLocation();
             tries++;
         }
 
         ServerFest.getPlugin().getLogger().info("Found ElytraRace start after " + tries + " tries");
 
-        world.setSpawnLocation(spawnPoint);
+        return origin;
+    }
+
+    @Override
+    public CompletableFuture<Void> setUpWorld() {
+        World world = fest.world();
+        Location origin = fest.origin();
 
         for(int x = -1; x <= 1; x++)
             for(int z = -1; z <= 1; z++)
-                spawnPoint.clone().add(x, -1, z).getBlock().setType(Material.BAMBOO_BLOCK);
+                origin.clone().add(x, -1, z).getBlock().setType(Material.BAMBOO_BLOCK);
 
         createElytraTrack();
 
@@ -192,9 +199,7 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
     private static final double WAVE_AMPLITUDE = 100;
 
     private void createElytraTrack() {
-        World world = fest.world();
-
-        Location origin = world.getSpawnLocation();
+        Location origin = fest.origin();
 
         int gateCount = 20;
 
@@ -223,8 +228,6 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
         buildTrackSpline();
     }
 
-    //TODO: checking blocks requires chunks to be loaded, loading chunks requires large cost, makes fest load unbearable, compared to short load from without
-    //TODO: elytra race needs many chunks ahead to be loaded especially at elytra speed, load needed chunks beforehand similar to MountRace before starting race
     /**
      * Checks if gate has enough unobstructed room, shifting it upwards or clearing the space if necessary
      */

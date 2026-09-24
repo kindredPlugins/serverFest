@@ -155,16 +155,16 @@ public class SaveStateManagement {
     }
 
     private static String serializeLocation(Location location) {
-        return location.getWorld().getUID() + ":" + location.getBlockX() + ":" + location.getBlockY() + ":" + location.getBlockZ() + ":" + location.getYaw() + ":" + location.getPitch();
+        return location.getWorld().getUID() + ":" + location.getX() + ":" + location.getY() + ":" + location.getZ() + ":" + location.getYaw() + ":" + location.getPitch();
     }
 
     private static Location deserializeLocation(String location) {
         try {
             String[] parts = location.split(":");
             World world = Bukkit.getWorld(UUID.fromString(parts[0]));
-            int x = Integer.parseInt(parts[1]);
-            int y = Integer.parseInt(parts[2]);
-            int z = Integer.parseInt(parts[3]);
+            double x = Double.parseDouble(parts[1]);
+            double y = Double.parseDouble(parts[2]);
+            double z = Double.parseDouble(parts[3]);
             float yaw = Float.parseFloat(parts[4]);
             float pitch = Float.parseFloat(parts[5]);
             return new Location(world, x, y, z, yaw, pitch);

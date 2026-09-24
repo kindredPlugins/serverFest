@@ -3,6 +3,7 @@ package at.gaderman.serverFest.fests.game;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
 import at.gaderman.serverFest.gui.BasicGUIElement;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.jspecify.annotations.NonNull;
 
@@ -20,6 +21,10 @@ public abstract class FestGame implements BasicGUIElement {
 
     public FestGame(Fest fest) {
         this.fest = fest;
+    }
+
+    protected Location determineOrigin(){
+        return new Location(fest.world(), fest.offset(), fest.world().getSeaLevel(), 0).toCenterLocation();
     }
 
     /**

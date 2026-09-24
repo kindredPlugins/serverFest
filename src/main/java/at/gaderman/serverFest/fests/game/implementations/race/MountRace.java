@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public class MountRace extends RaceGame implements PlayerDamageTrigger, PlayerVehicleExitTrigger {
@@ -45,14 +44,14 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger, PlayerVe
     }
 
     @Override
+    protected Location determineOrigin() {
+        Location origin = super.determineOrigin();
+        origin.setY(fest.world().getHighestBlockYAt(origin) + 1);
+        return origin;
+    }
+
+    @Override
     public CompletableFuture<Void> setUpWorld() {
-        World world = fest.world();
-
-        Location spawnPoint = new Location(world, fest.offset(), world.getSeaLevel(), 0).toCenterLocation();
-        spawnPoint.setY(world.getHighestBlockAt(spawnPoint).getY() + 1);
-
-        world.setSpawnLocation(spawnPoint);
-
         CompletableFuture<Void> future = new CompletableFuture<>();
         buildTrack(future);
         return future;
@@ -152,7 +151,7 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger, PlayerVe
 
     private void buildTrack(CompletableFuture<Void> future) {
         World world = fest.world();
-        Location origin = world.getSpawnLocation().clone().add(0, -1, 0);
+        Location origin = fest.origin().add(0, -1, 0);
 
         int trackDiameter = 2;
         int checkPointCount = 10;

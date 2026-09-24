@@ -28,6 +28,8 @@ public final class ServerFest extends JavaPlugin implements Listener {
         getCommand("fest").setExecutor(new FestCommand());
 
         Bukkit.getPluginManager().registerEvents(this, this);
+
+        FestManager.getInstance();
     }
 
     @Override
