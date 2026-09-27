@@ -4,11 +4,13 @@ import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
 import at.gaderman.serverFest.gui.BasicGUIElement;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.jspecify.annotations.NonNull;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public abstract class FestGame implements BasicGUIElement {
 
@@ -23,12 +25,13 @@ public abstract class FestGame implements BasicGUIElement {
         this.fest = fest;
     }
 
-    public Location determineOrigin(){
+    public Location determineOrigin() {
         return new Location(fest.world(), fest.offset(), fest.world().getSeaLevel(), 0).toCenterLocation();
     }
 
     /**
      * Called to setup the game specific world, the world itself is already created inside fest, this just initializes it for the game, like adding race tracks or arenas
+     *
      * @return a runnable callback when world setup has been completed
      */
     public abstract CompletableFuture<Void> setUpWorld();
@@ -75,7 +78,7 @@ public abstract class FestGame implements BasicGUIElement {
 
         fest.participants().forEach(participant -> {
             FestPlayerData festPlayerData = playerDataMap.getOrDefault(participant.getUniqueId(), null);
-            if(festPlayerData != null)
+            if (festPlayerData != null)
                 festPlayerData.reset();
         });
         fest.stop();
@@ -102,5 +105,28 @@ public abstract class FestGame implements BasicGUIElement {
 
     public boolean isRunning() {
         return running;
+    }
+
+    //region Helper methods
+
+    protected void loadChunks(World world, Set<ChunkPos> chunks, Runnable finished) {
+        if (chunks.isEmpty()) {
+            finished.run();
+            return;
+        }
+
+        AtomicInteger remaining = new AtomicInteger(chunks.size());
+
+        for (ChunkPos chunk : chunks) {
+            world.getChunkAtAsync(chunk.x(), chunk.z(), true, loaded -> {
+                if (remaining.decrementAndGet() == 0)
+                    finished.run();
+            });
+        }
+    }
+
+    //endregion
+
+    public record ChunkPos(int x, int z) {
     }
 }

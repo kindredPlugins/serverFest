@@ -138,16 +138,24 @@ public class TargetPractice extends ScoreGame implements NoBlockManipulationPref
         World world = fest.world();
         Location origin = fest.origin();
 
-        return world.getChunkAtAsync(origin).thenAccept(_ -> {
+        int arenaWidth = ARENA_WIDTH / 2;
+        int minX = origin.getBlockX() - arenaWidth;
+        int maxX = origin.getBlockX() + arenaWidth;
+        int minZ = origin.getBlockZ() - PLATFORM_LENGTH;
+        int maxZ = origin.getBlockZ() + ARENA_LENGTH - 1;
+
+        Set<Integer> chunkZs = new HashSet<>();
+        for (int z = minZ; z <= maxZ; z++)
+            chunkZs.add(z >> 4);
+
+        int chunkX = origin.getBlockX() >> 4;
+        List<CompletableFuture<Chunk>> chunks = chunkZs.stream()
+                .map(chunkZ -> world.getChunkAtAsync(chunkX, chunkZ))
+                .toList();
+
+        return CompletableFuture.allOf(chunks.toArray(CompletableFuture[]::new)).thenRun(() -> {
             boolean doBlockDrops = world.getGameRuleValue(GameRules.BLOCK_DROPS);
             world.setGameRule(GameRules.BLOCK_DROPS, false);
-
-            int arenaWidth = ARENA_WIDTH / 2;
-
-            int minX = (int) origin.getX() - arenaWidth;
-            int maxX = (int) origin.getX() + arenaWidth;
-            int minZ = (int) origin.getZ() - PLATFORM_LENGTH;
-            int maxZ = (int) origin.getZ() + ARENA_LENGTH - 1;
 
             for (int x = minX; x <= maxX; x++)
                 for (int y = 0; y < ARENA_HEIGHT; y++)

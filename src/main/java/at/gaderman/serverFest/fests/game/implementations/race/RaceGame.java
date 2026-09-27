@@ -225,26 +225,6 @@ public abstract class RaceGame extends FestGame implements NoBlockManipulationPr
 
     //endregion
 
-    //region Track
-
-    protected void loadChunks(World world, Set<ChunkPos> chunks, Runnable finished) {
-        if (chunks.isEmpty()) {
-            finished.run();
-            return;
-        }
-
-        AtomicInteger remaining = new AtomicInteger(chunks.size());
-
-        for (ChunkPos chunk : chunks) {
-            world.getChunkAtAsync(chunk.x(), chunk.z(), true, loaded -> {
-                if (remaining.decrementAndGet() == 0)
-                    finished.run();
-            });
-        }
-    }
-
-    //endregion
-
     //region Visuals
 
     private void updateBossbar(Player participant) {
@@ -304,8 +284,5 @@ public abstract class RaceGame extends FestGame implements NoBlockManipulationPr
     @Override
     protected @NonNull FestPlayerData createPlayerData(UUID uuid) {
         return new RaceGamePlayerData(uuid);
-    }
-
-    protected record ChunkPos(int x, int z) {
     }
 }

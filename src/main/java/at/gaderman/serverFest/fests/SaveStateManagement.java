@@ -108,7 +108,7 @@ public class SaveStateManagement {
             Location saveLoc = deserializeLocation(pdc.get(SAVE_LOCATION, PersistentDataType.STRING));
 
             if (saveLoc != null)
-                player.teleport(saveLoc);
+                player.teleportAsync(saveLoc);
         }
 
         pdc.remove(SAVED_STATE);
