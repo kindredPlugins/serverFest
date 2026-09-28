@@ -4,6 +4,11 @@ import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.arenas.ArenaLayout;
 import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
 import at.gaderman.serverFest.gui.BasicGUIElement;
+import net.kyori.adventure.audience.Audience;
+import net.kyori.adventure.bossbar.BossBar;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
@@ -12,6 +17,7 @@ import org.jspecify.annotations.NonNull;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 public abstract class FestGame<T extends ArenaLayout> implements BasicGUIElement {
 
@@ -20,6 +26,7 @@ public abstract class FestGame<T extends ArenaLayout> implements BasicGUIElement
 
     private boolean running;
     private final List<Player> winners = new ArrayList<>();
+    private BossBar arenaBuildingBar;
 
     private final Map<UUID, FestPlayerData> playerDataMap = new HashMap<>();
 
@@ -43,13 +50,18 @@ public abstract class FestGame<T extends ArenaLayout> implements BasicGUIElement
     /**
      * Called when fest participants have been teleported to the fest world, usually used to create a starting are for them to gather
      */
-    public abstract void onPlayersJoinedWorld();
+    public void onPlayersJoinedWorld() {
+        updateArenaBuildingBar(Component.text("Setting up arena..."), 0.0f);
+    }
 
     /**
      * Start the game, setting its status to running and calling the implementing games {@link #onStart()}
      */
     public final void start() {
         running = true;
+        if (arenaBuildingBar != null)
+            arenaBuildingBar.viewers().forEach(viewer -> arenaBuildingBar.removeViewer((Audience) viewer));
+
         onStart();
     }
 
@@ -113,18 +125,38 @@ public abstract class FestGame<T extends ArenaLayout> implements BasicGUIElement
 
     //region Helper methods
 
-    protected void loadChunks(World world, Set<ChunkPos> chunks, Runnable finished) {
+    protected void updateArenaBuildingBar(Component text, float progress) {
+        if (arenaBuildingBar == null) {
+            arenaBuildingBar = BossBar.bossBar(text, progress, BossBar.Color.YELLOW, BossBar.Overlay.PROGRESS);
+
+            fest.participants().forEach(participant -> arenaBuildingBar.addViewer(participant));
+        }
+
+        arenaBuildingBar.name(text);
+        arenaBuildingBar.progress(progress);
+    }
+
+    protected void loadChunks(World world, Set<ChunkPos> chunks, Consumer<Set<Chunk>> finished) {
         if (chunks.isEmpty()) {
-            finished.run();
+            finished.accept(Collections.emptySet());
             return;
         }
 
+        Set<Chunk> resolvedChunks = new LinkedHashSet<>();
         AtomicInteger remaining = new AtomicInteger(chunks.size());
 
         for (ChunkPos chunk : chunks) {
-            world.getChunkAtAsync(chunk.x(), chunk.z(), true, loaded -> {
+            world.getChunkAtAsync(chunk.x(), chunk.z(), true, resolved -> {
+                resolvedChunks.add(resolved);
+
+                updateArenaBuildingBar(Component.text("Loading chunks ", NamedTextColor.YELLOW)
+                                .append(Component.text(chunks.size() - remaining.get(), NamedTextColor.GOLD))
+                                .append(Component.text(" / ", NamedTextColor.GRAY))
+                                .append(Component.text(chunks.size(), NamedTextColor.DARK_GRAY))
+                        , (float) (chunks.size() - remaining.get()) / chunks.size());
+
                 if (remaining.decrementAndGet() == 0)
-                    finished.run();
+                    finished.accept(resolvedChunks);
             });
         }
     }

@@ -177,7 +177,7 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
         List<TrackPoint> initialPath = createPath(lastLocation, newLocation, trackDiameter);
         Set<ChunkPos> chunks = getRequiredChunks(initialPath);
 
-        loadChunks(world, chunks, () -> {
+        loadChunks(world, chunks, _ -> {
             int highestY = world.getHighestBlockYAt(newLocation);
             newLocation.setY(highestY + 1);
 

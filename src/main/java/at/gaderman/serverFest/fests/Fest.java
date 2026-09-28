@@ -34,14 +34,13 @@ public class Fest {
     private Location origin;
     private long offset;
 
-    private final TriggerListener triggerListener;
+    private TriggerListener triggerListener;
 
     public Fest(GameType gameType) {
         this.uuid = UUID.randomUUID();
         //TODO: change this later to give players actual choice of participation
         this.participantUUIDs = Bukkit.getOnlinePlayers().stream().map(Player::getUniqueId).collect(Collectors.toList());
         this.game = gameType.createNewInstance(this, ServerFest.arenaManager.requestArenaLayout(gameType));
-        this.triggerListener = new TriggerListener(this);
     }
 
     //endregion
@@ -85,6 +84,8 @@ public class Fest {
 
     public void start() {
         ServerFest.getPlugin().getLogger().info("Started fest with id " + uuid);
+
+        this.triggerListener = new TriggerListener(this);
         FestManager.getInstance().registerFest(this);
 
 //        world = WorldManager.getInstance().createChallengeWorldCreator(

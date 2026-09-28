@@ -108,11 +108,10 @@ public class SaveStateManagement {
             Location saveLoc = deserializeLocation(pdc.get(SAVE_LOCATION, PersistentDataType.STRING));
 
             if (saveLoc != null)
-                player.teleportAsync(saveLoc);
+                player.teleportAsync(saveLoc).thenRun(player::saveData);
         }
 
         pdc.remove(SAVED_STATE);
-        player.saveData();
     }
 
     private static ItemStack transferToContainer(ItemStack[] contents) {

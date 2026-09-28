@@ -2,7 +2,6 @@ package at.gaderman.serverFest.fests.game.implementations.race;
 
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
-import at.gaderman.serverFest.fests.arenas.ArenaLayout;
 import at.gaderman.serverFest.fests.arenas.implementations.ElytraRaceArenaDefinition;
 import at.gaderman.serverFest.fests.arenas.implementations.ElytraRaceArenaLayout;
 import at.gaderman.serverFest.fests.game.implementations.race.data.CheckPoint;
@@ -13,6 +12,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.apache.commons.lang3.time.StopWatch;
 import org.bukkit.*;
+import org.bukkit.block.Block;
 import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageEvent;
@@ -20,8 +20,6 @@ import org.bukkit.event.entity.EntityToggleGlideEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -46,6 +44,8 @@ public class ElytraRace extends RaceGame<ElytraRaceArenaLayout> implements Playe
     public List<Component> iconLore() {
         return List.of();
     }
+
+    private Set<Chunk> forceLoadedChunks;
 
     //region Overrides
 
@@ -81,15 +81,23 @@ public class ElytraRace extends RaceGame<ElytraRaceArenaLayout> implements Playe
 
         CompletableFuture<Void> future = new CompletableFuture<>();
 
-        loadChunks(world, arenaLayout.chunks(), () -> {
+        loadChunks(world, arenaLayout.chunks(), resolvedChunks -> {
+            forceLoadedChunks = resolvedChunks;
+            resolvedChunks.forEach(chunk -> chunk.addPluginChunkTicket(ServerFest.getPlugin()));
+
             for (CheckPoint checkPoint : checkPoints)
                 adjustGateLocation(checkPoint.location());
+
+            checkPoints.getFirst().location().set(origin.getX(), origin.getY(), origin.getZ());
+
+            updateArenaBuildingBar(Component.text("Generating entities..."), 0.9f);
 
             for (int i = 1; i < checkPoints.size(); i++) {
                 CheckPoint checkPoint = checkPoints.get(i);
                 createGate(checkPoint.location(), GATE_SIZE, GATE_THICKNESS, i == checkPoints.size() - 1);
             }
 
+            updateArenaBuildingBar(Component.text("Waiting for server..."), 1f);
             future.complete(null);
         });
 
@@ -98,6 +106,8 @@ public class ElytraRace extends RaceGame<ElytraRaceArenaLayout> implements Playe
 
     @Override
     protected void onStop() {
+        if (forceLoadedChunks != null)
+            forceLoadedChunks.forEach(chunk -> chunk.removePluginChunkTicket(ServerFest.getPlugin()));
     }
 
     @Override
@@ -203,7 +213,8 @@ public class ElytraRace extends RaceGame<ElytraRaceArenaLayout> implements Playe
             for (int x = -5; x <= 5 && clear; x++) {
                 for (int z = -5; z <= 5 && clear; z++) {
                     for (int offsetY = 0; offsetY <= 5; offsetY++) {
-                        if (!world.getBlockAt(location.getBlockX() + x, y + offsetY, location.getBlockZ() + z).isPassable()) {
+                        Block block = world.getBlockAt(location.getBlockX() + x, y + offsetY, location.getBlockZ() + z);
+                        if (!block.isPassable() || block.isLiquid()) {
                             clear = false;
                             break;
                         }
