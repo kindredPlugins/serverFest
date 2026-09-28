@@ -2,6 +2,7 @@ package at.gaderman.serverFest.fests.game.implementations.scored;
 
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
+import at.gaderman.serverFest.fests.arenas.ArenaInstance;
 import at.gaderman.serverFest.fests.arenas.ArenaLayout;
 import at.gaderman.serverFest.fests.game.FestGame;
 import at.gaderman.serverFest.fests.game.implementations.scored.data.ScoreGamePlayerData;
@@ -35,8 +36,8 @@ public abstract class ScoreGame<T extends ArenaLayout> extends FestGame<T> {
 
     private int remainingTime; //remaining time in ticks
 
-    public ScoreGame(Fest fest, T arenaLayout) {
-        super(fest, arenaLayout);
+    public ScoreGame(Fest fest, ArenaInstance arenaInstance) {
+        super(fest, arenaInstance);
     }
 
     @Override

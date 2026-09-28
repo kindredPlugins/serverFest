@@ -2,6 +2,7 @@ package at.gaderman.serverFest.fests.game.implementations.race;
 
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
+import at.gaderman.serverFest.fests.arenas.ArenaInstance;
 import at.gaderman.serverFest.fests.arenas.implementations.ElytraRaceArenaDefinition;
 import at.gaderman.serverFest.fests.arenas.implementations.ElytraRaceArenaLayout;
 import at.gaderman.serverFest.fests.game.implementations.race.data.CheckPoint;
@@ -13,6 +14,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import org.apache.commons.lang3.time.StopWatch;
 import org.bukkit.*;
 import org.bukkit.block.Block;
+import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageEvent;
@@ -20,14 +22,15 @@ import org.bukkit.event.entity.EntityToggleGlideEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 public class ElytraRace extends RaceGame<ElytraRaceArenaLayout> implements PlayerToggleGlideTrigger, PlayerDamageTrigger {
 
-    public ElytraRace(Fest fest, ElytraRaceArenaLayout arenaLayout) {
-        super(fest, arenaLayout);
+    public ElytraRace(Fest fest, ArenaInstance arenaInstance) {
+        super(fest, arenaInstance);
     }
 
     @Override
@@ -46,6 +49,7 @@ public class ElytraRace extends RaceGame<ElytraRaceArenaLayout> implements Playe
     }
 
     private Set<Chunk> forceLoadedChunks;
+    private List<Block> placedBlocks = new ArrayList<>();
 
     //region Overrides
 
@@ -60,10 +64,10 @@ public class ElytraRace extends RaceGame<ElytraRaceArenaLayout> implements Playe
         int tries = 1;
         origin.setY(100);
 
-        while (world.getHighestBlockAt(origin).getY() > origin.getY() - 10) {
-            origin = new Location(world, origin.getX() + 300, origin.getY(), 0).toCenterLocation();
-            tries++;
-        }
+//        while (world.getHighestBlockAt(origin).getY() > origin.getY() - 10) {
+//            origin = new Location(world, origin.getX() + 300, origin.getY(), 0).toCenterLocation();
+//            tries++;
+//        }
 
         ServerFest.getPlugin().getLogger().info("Found ElytraRace start after " + tries + " tries");
 
@@ -76,8 +80,11 @@ public class ElytraRace extends RaceGame<ElytraRaceArenaLayout> implements Playe
         Location origin = fest.origin();
 
         for (int x = -1; x <= 1; x++)
-            for (int z = -1; z <= 1; z++)
-                origin.clone().add(x, -1, z).getBlock().setType(Material.BAMBOO_BLOCK);
+            for (int z = -1; z <= 1; z++) {
+                Location location = origin.clone().add(x, -1, z);
+                location.getBlock().setType(Material.BAMBOO_BLOCK);
+                placedBlocks.add(location.getBlock());
+            }
 
         CompletableFuture<Void> future = new CompletableFuture<>();
 
@@ -108,6 +115,11 @@ public class ElytraRace extends RaceGame<ElytraRaceArenaLayout> implements Playe
     protected void onStop() {
         if (forceLoadedChunks != null)
             forceLoadedChunks.forEach(chunk -> chunk.removePluginChunkTicket(ServerFest.getPlugin()));
+    }
+
+    @Override
+    protected CompletableFuture<Void> onReset() {
+        return super.onReset().thenRun(() -> placedBlocks.forEach(block -> block.setType(Material.AIR)));
     }
 
     @Override

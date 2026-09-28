@@ -2,6 +2,7 @@ package at.gaderman.serverFest.fests.game;
 
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.arenas.ArenaDefinition;
+import at.gaderman.serverFest.fests.arenas.ArenaInstance;
 import at.gaderman.serverFest.fests.arenas.ArenaLayout;
 import at.gaderman.serverFest.fests.arenas.implementations.ElytraRaceArenaDefinition;
 import at.gaderman.serverFest.fests.arenas.implementations.ElytraRaceArenaLayout;
@@ -15,11 +16,11 @@ public enum GameType {
     MOUNT_RACE,
     TARGET_PRACTICE;
 
-    public FestGame<?> createNewInstance(Fest fest, ArenaLayout arenaLayout) {
+    public FestGame<?> createNewInstance(Fest fest, ArenaInstance arenaInstance) {
         return switch (this) {
-            case ELYTRA_RACE -> new ElytraRace(fest, (ElytraRaceArenaLayout) arenaLayout);
-            case MOUNT_RACE -> new MountRace(fest, (RaceGameArenaLayout) arenaLayout);
-            case TARGET_PRACTICE -> new TargetPractice(fest, arenaLayout);
+            case ELYTRA_RACE -> new ElytraRace(fest, arenaInstance);
+            case MOUNT_RACE -> new MountRace(fest, arenaInstance);
+            case TARGET_PRACTICE -> new TargetPractice(fest, arenaInstance);
         };
     }
 

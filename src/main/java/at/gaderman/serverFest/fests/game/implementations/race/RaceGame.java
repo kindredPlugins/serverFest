@@ -2,6 +2,7 @@ package at.gaderman.serverFest.fests.game.implementations.race;
 
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
+import at.gaderman.serverFest.fests.arenas.ArenaInstance;
 import at.gaderman.serverFest.fests.arenas.ArenaLayout;
 import at.gaderman.serverFest.fests.arenas.implementations.RaceGameArenaLayout;
 import at.gaderman.serverFest.fests.game.FestGame;
@@ -20,6 +21,7 @@ import net.kyori.adventure.title.Title;
 import net.kyori.adventure.title.TitlePart;
 import org.bukkit.*;
 import org.bukkit.entity.BlockDisplay;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.meta.FireworkMeta;
@@ -35,6 +37,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public abstract class RaceGame<T extends RaceGameArenaLayout> extends FestGame<T> implements NoBlockManipulationPrefab, NoItemInventoryManipulation, PlayerInventoryClickTrigger,
@@ -42,8 +45,8 @@ public abstract class RaceGame<T extends RaceGameArenaLayout> extends FestGame<T
 
     protected List<CheckPoint> checkPoints = arenaLayout.checkPoints();
 
-    public RaceGame(Fest fest, T arenaLayout) {
-        super(fest, arenaLayout);
+    public RaceGame(Fest fest, ArenaInstance arenaInstance) {
+        super(fest, arenaInstance);
     }
 
     @Override
@@ -140,6 +143,16 @@ public abstract class RaceGame<T extends RaceGameArenaLayout> extends FestGame<T
 
     protected abstract void onPassCheckPoint(Player player, int checkPoint);
 
+    @Override
+    protected CompletableFuture<Void> onReset() {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        visualEntities.forEach(entity -> {
+            entity.getWorld().getChunkAtAsync(entity.getLocation()).thenRun(entity::remove);
+        });
+        future.complete(null);
+        return future;
+    }
+
     //region Checkpoint Logic
 
     private void activateCheckPointDetection() {
@@ -229,6 +242,8 @@ public abstract class RaceGame<T extends RaceGameArenaLayout> extends FestGame<T
 
     //region Visuals
 
+    private final List<Entity> visualEntities = new ArrayList<>();
+
     private void updateBossbar(Player participant) {
         RaceGamePlayerData playerData = (RaceGamePlayerData) getOrCreatePlayerData(participant.getUniqueId());
 
@@ -277,6 +292,8 @@ public abstract class RaceGame<T extends RaceGameArenaLayout> extends FestGame<T
                 Transformation transformation = display.getTransformation();
                 transformation.getScale().set((float) x, (float) y, (float) z);
                 display.setTransformation(transformation);
+
+                visualEntities.add(display);
             });
         });
     }

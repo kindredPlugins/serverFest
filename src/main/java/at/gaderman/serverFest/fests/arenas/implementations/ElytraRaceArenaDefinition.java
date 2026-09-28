@@ -43,7 +43,7 @@ public class ElytraRaceArenaDefinition implements ArenaDefinition {
     public static final double WAVE_AMPLITUDE = 100;
 
     private void createElytraTrack() {
-        int gateCount = 20;
+        int gateCount = 15;
 
         double spacing = 50.0;
 
@@ -55,7 +55,7 @@ public class ElytraRaceArenaDefinition implements ArenaDefinition {
         double waveLength = 2;
 
         double lastZ = 0;
-        for (int i = 1; i < gateCount; i++) {
+        for (int i = 1; i < gateCount + 1; i++) {
             double z = lastZ + spacing + Math.random() * 35;
             lastZ = z;
 

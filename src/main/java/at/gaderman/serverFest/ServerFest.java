@@ -34,7 +34,6 @@ public final class ServerFest extends JavaPlugin {
 
         FestManager.getInstance();
         arenaManager = new ArenaManager();
-        arenaManager.reserveArenas();
     }
 
     @Override

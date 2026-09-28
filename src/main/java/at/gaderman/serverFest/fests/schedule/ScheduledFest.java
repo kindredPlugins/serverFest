@@ -2,6 +2,7 @@ package at.gaderman.serverFest.fests.schedule;
 
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
+import at.gaderman.serverFest.fests.arenas.ArenaManager;
 import at.gaderman.serverFest.fests.game.GameType;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -16,7 +17,7 @@ public abstract class ScheduledFest {
     protected int minPlayers;
     private boolean recurring = true;
 
-    private @Nullable GameType gameType;
+    private @Nullable GameType gameType = GameType.ELYTRA_RACE;
 
     /**
      * Sets up the schedule for this event
@@ -32,9 +33,14 @@ public abstract class ScheduledFest {
             instanceType = GameType.values()[(int) (Math.random() * GameType.values().length)];
         }
 
-        //TODO: sample value for now, later on should use instanceType to allow randomizing
-        //Fest festInstance = new Fest(instanceType);
-        Fest festInstance = new Fest(GameType.ELYTRA_RACE);
+        if(ServerFest.arenaManager.requestArena(gameType) == null) {
+            Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
+                startUp();
+            }, 20);
+            return;
+        }
+
+        Fest festInstance = new Fest(instanceType);
 
         Bukkit.getOnlinePlayers().forEach(player -> {
             player.playSound(player, Sound.ENTITY_ENDER_DRAGON_GROWL, 2f, 0.65f);

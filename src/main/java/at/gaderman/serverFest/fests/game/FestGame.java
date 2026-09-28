@@ -1,6 +1,7 @@
 package at.gaderman.serverFest.fests.game;
 
 import at.gaderman.serverFest.fests.Fest;
+import at.gaderman.serverFest.fests.arenas.ArenaInstance;
 import at.gaderman.serverFest.fests.arenas.ArenaLayout;
 import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
 import at.gaderman.serverFest.gui.BasicGUIElement;
@@ -22,6 +23,7 @@ import java.util.function.Consumer;
 public abstract class FestGame<T extends ArenaLayout> implements BasicGUIElement {
 
     protected final Fest fest;
+    protected final ArenaInstance arenaInstance;
     protected final T arenaLayout;
 
     private boolean running;
@@ -30,14 +32,14 @@ public abstract class FestGame<T extends ArenaLayout> implements BasicGUIElement
 
     private final Map<UUID, FestPlayerData> playerDataMap = new HashMap<>();
 
-    public FestGame(Fest fest, T arenaLayout)
-    {
+    public FestGame(Fest fest, ArenaInstance arenaInstance) {
         this.fest = fest;
-        this.arenaLayout = arenaLayout;
+        this.arenaInstance = arenaInstance;
+        this.arenaLayout = (T) arenaInstance.arenaLayout();
     }
 
     public Location determineOrigin() {
-        return new Location(fest.world(), fest.offset(), fest.world().getSeaLevel(), 0).toCenterLocation();
+        return arenaLayout.origin();
     }
 
     /**
@@ -98,10 +100,21 @@ public abstract class FestGame<T extends ArenaLayout> implements BasicGUIElement
                 festPlayerData.reset();
         });
         fest.stop();
+        reset();
         //TODO: allow winner to pick reward
     }
 
     protected abstract void onStop();
+
+    private void reset() {
+        arenaInstance.markAsReset();
+        onReset().thenRun(arenaInstance::resetToReady);
+    }
+
+    /**
+     * The underlying reset method of each fest game, this will reset the arena so it can then be used for preceding games as well
+     */
+    protected abstract CompletableFuture<Void> onReset();
 
     /**
      * Gets or creates player data for this fest for the given UUID

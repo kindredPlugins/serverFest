@@ -2,6 +2,7 @@ package at.gaderman.serverFest.fests.game.implementations.scored;
 
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
+import at.gaderman.serverFest.fests.arenas.ArenaInstance;
 import at.gaderman.serverFest.fests.arenas.ArenaLayout;
 import at.gaderman.serverFest.fests.game.implementations.scored.data.ScoreGamePlayerData;
 import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
@@ -36,8 +37,8 @@ public class TargetPractice extends ScoreGame<ArenaLayout> implements NoBlockMan
     private final List<ScoreTarget> scoreTargets = new ArrayList<>();
     private final Map<UUID, Set<ScoreTarget>> activeTargetMap = new HashMap<>();
 
-    public TargetPractice(Fest fest, ArenaLayout arenaLayout) {
-        super(fest, arenaLayout);
+    public TargetPractice(Fest fest, ArenaInstance arenaInstance) {
+        super(fest, arenaInstance);
     }
 
     @Override
@@ -109,6 +110,12 @@ public class TargetPractice extends ScoreGame<ArenaLayout> implements NoBlockMan
     @Override
     protected void onStop() {
         fest.participants().forEach(player -> player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard()));
+    }
+
+    @Override
+    protected CompletableFuture<Void> onReset() {
+        //TODO: reset placed targets
+        return CompletableFuture.completedFuture(null);
     }
 
     //region Visuals
