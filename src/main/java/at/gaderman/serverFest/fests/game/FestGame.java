@@ -1,6 +1,7 @@
 package at.gaderman.serverFest.fests.game;
 
 import at.gaderman.serverFest.fests.Fest;
+import at.gaderman.serverFest.fests.arenas.ArenaLayout;
 import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
 import at.gaderman.serverFest.gui.BasicGUIElement;
 import org.bukkit.Location;
@@ -12,17 +13,20 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public abstract class FestGame implements BasicGUIElement {
+public abstract class FestGame<T extends ArenaLayout> implements BasicGUIElement {
 
     protected final Fest fest;
+    protected final T arenaLayout;
 
     private boolean running;
     private final List<Player> winners = new ArrayList<>();
 
     private final Map<UUID, FestPlayerData> playerDataMap = new HashMap<>();
 
-    public FestGame(Fest fest) {
+    public FestGame(Fest fest, T arenaLayout)
+    {
         this.fest = fest;
+        this.arenaLayout = arenaLayout;
     }
 
     public Location determineOrigin() {

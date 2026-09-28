@@ -2,6 +2,8 @@ package at.gaderman.serverFest.fests.game.implementations.race;
 
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
+import at.gaderman.serverFest.fests.arenas.ArenaLayout;
+import at.gaderman.serverFest.fests.arenas.implementations.RaceGameArenaLayout;
 import at.gaderman.serverFest.fests.game.implementations.race.data.CheckPoint;
 import at.gaderman.serverFest.fests.game.triggers.action.PlayerVehicleExitTrigger;
 import at.gaderman.serverFest.fests.game.triggers.damage.PlayerDamageTrigger;
@@ -23,9 +25,9 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-public class MountRace extends RaceGame implements PlayerDamageTrigger, PlayerVehicleExitTrigger {
-    public MountRace(Fest fest) {
-        super(fest);
+public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDamageTrigger, PlayerVehicleExitTrigger {
+    public MountRace(Fest fest, RaceGameArenaLayout arenaLayout) {
+        super(fest, arenaLayout);
     }
 
     @Override

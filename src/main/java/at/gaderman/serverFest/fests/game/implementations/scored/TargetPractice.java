@@ -2,6 +2,7 @@ package at.gaderman.serverFest.fests.game.implementations.scored;
 
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
+import at.gaderman.serverFest.fests.arenas.ArenaLayout;
 import at.gaderman.serverFest.fests.game.implementations.scored.data.ScoreGamePlayerData;
 import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
 import at.gaderman.serverFest.fests.game.interfaces.InvisiblePlayersGame;
@@ -28,15 +29,15 @@ import org.jspecify.annotations.NonNull;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
-public class TargetPractice extends ScoreGame implements NoBlockManipulationPrefab, NoItemInventoryManipulation, PlayerProjectileHitTrigger, PlayerDamageTrigger,
+public class TargetPractice extends ScoreGame<ArenaLayout> implements NoBlockManipulationPrefab, NoItemInventoryManipulation, PlayerProjectileHitTrigger, PlayerDamageTrigger,
         InvisiblePlayersGame {
 
     private Location shootCorner;
     private final List<ScoreTarget> scoreTargets = new ArrayList<>();
     private final Map<UUID, Set<ScoreTarget>> activeTargetMap = new HashMap<>();
 
-    public TargetPractice(Fest fest) {
-        super(fest);
+    public TargetPractice(Fest fest, ArenaLayout arenaLayout) {
+        super(fest, arenaLayout);
     }
 
     @Override

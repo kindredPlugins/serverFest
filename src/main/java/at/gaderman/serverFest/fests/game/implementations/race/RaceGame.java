@@ -2,6 +2,8 @@ package at.gaderman.serverFest.fests.game.implementations.race;
 
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
+import at.gaderman.serverFest.fests.arenas.ArenaLayout;
+import at.gaderman.serverFest.fests.arenas.implementations.RaceGameArenaLayout;
 import at.gaderman.serverFest.fests.game.FestGame;
 import at.gaderman.serverFest.fests.game.implementations.race.data.CheckPoint;
 import at.gaderman.serverFest.fests.game.implementations.race.data.RaceGamePlayerData;
@@ -35,13 +37,13 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public abstract class RaceGame extends FestGame implements NoBlockManipulationPrefab, NoItemInventoryManipulation, PlayerInventoryClickTrigger,
+public abstract class RaceGame<T extends RaceGameArenaLayout> extends FestGame<T> implements NoBlockManipulationPrefab, NoItemInventoryManipulation, PlayerInventoryClickTrigger,
         InvisiblePlayersGame {
 
-    protected List<CheckPoint> checkPoints = new ArrayList<>();
+    protected List<CheckPoint> checkPoints = arenaLayout.checkPoints();
 
-    public RaceGame(Fest fest) {
-        super(fest);
+    public RaceGame(Fest fest, T arenaLayout) {
+        super(fest, arenaLayout);
     }
 
     @Override

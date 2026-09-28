@@ -1,6 +1,11 @@
 package at.gaderman.serverFest.fests.game;
 
 import at.gaderman.serverFest.fests.Fest;
+import at.gaderman.serverFest.fests.arenas.ArenaDefinition;
+import at.gaderman.serverFest.fests.arenas.ArenaLayout;
+import at.gaderman.serverFest.fests.arenas.implementations.ElytraRaceArenaDefinition;
+import at.gaderman.serverFest.fests.arenas.implementations.ElytraRaceArenaLayout;
+import at.gaderman.serverFest.fests.arenas.implementations.RaceGameArenaLayout;
 import at.gaderman.serverFest.fests.game.implementations.race.ElytraRace;
 import at.gaderman.serverFest.fests.game.implementations.race.MountRace;
 import at.gaderman.serverFest.fests.game.implementations.scored.TargetPractice;
@@ -10,11 +15,17 @@ public enum GameType {
     MOUNT_RACE,
     TARGET_PRACTICE;
 
-    public FestGame createNewInstance(Fest fest){
-        return switch (this){
-            case ELYTRA_RACE -> new ElytraRace(fest);
-            case MOUNT_RACE -> new MountRace(fest);
-            case TARGET_PRACTICE ->  new TargetPractice(fest);
+    public FestGame<?> createNewInstance(Fest fest, ArenaLayout arenaLayout) {
+        return switch (this) {
+            case ELYTRA_RACE -> new ElytraRace(fest, (ElytraRaceArenaLayout) arenaLayout);
+            case MOUNT_RACE -> new MountRace(fest, (RaceGameArenaLayout) arenaLayout);
+            case TARGET_PRACTICE -> new TargetPractice(fest, arenaLayout);
+        };
+    }
+
+    public ArenaDefinition getArenaDefinition() {
+        return switch (this) {
+            default -> new ElytraRaceArenaDefinition();
         };
     }
 }

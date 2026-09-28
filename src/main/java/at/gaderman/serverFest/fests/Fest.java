@@ -40,7 +40,7 @@ public class Fest {
         this.uuid = UUID.randomUUID();
         //TODO: change this later to give players actual choice of participation
         this.participantUUIDs = Bukkit.getOnlinePlayers().stream().map(Player::getUniqueId).collect(Collectors.toList());
-        this.game = gameType.createNewInstance(this);
+        this.game = gameType.createNewInstance(this, ServerFest.arenaManager.requestArenaLayout(gameType));
         this.triggerListener = new TriggerListener(this);
     }
 
@@ -83,7 +83,6 @@ public class Fest {
 
     //region Methods
 
-    //TODO: remove the reliance on world spawn point, multiple fests have issue of interfering with each other in this case
     public void start() {
         ServerFest.getPlugin().getLogger().info("Started fest with id " + uuid);
         FestManager.getInstance().registerFest(this);

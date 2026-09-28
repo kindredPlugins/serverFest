@@ -4,6 +4,7 @@ import at.gaderman.serverFest.command.FestCommand;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.FestManager;
 import at.gaderman.serverFest.fests.SaveStateManagement;
+import at.gaderman.serverFest.fests.arenas.ArenaManager;
 import at.gaderman.serverFest.management.WorldManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -14,7 +15,9 @@ public final class ServerFest extends JavaPlugin {
 
     public static final Component CHAT_PREFIX = Component.text("[ServerFest] ", NamedTextColor.GREEN);
 
-    public static ServerFest getPlugin(){
+    public static ArenaManager arenaManager;
+
+    public static ServerFest getPlugin() {
         return getPlugin(ServerFest.class);
     }
 
@@ -30,6 +33,8 @@ public final class ServerFest extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new SaveStateManagement.SaveListener(), this);
 
         FestManager.getInstance();
+        arenaManager = new ArenaManager();
+        arenaManager.reserveArenas();
     }
 
     @Override
