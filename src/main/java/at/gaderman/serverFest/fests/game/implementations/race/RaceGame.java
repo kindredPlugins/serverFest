@@ -3,8 +3,7 @@ package at.gaderman.serverFest.fests.game.implementations.race;
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.arenas.ArenaInstance;
-import at.gaderman.serverFest.fests.arenas.ArenaLayout;
-import at.gaderman.serverFest.fests.arenas.implementations.RaceGameArenaLayout;
+import at.gaderman.serverFest.fests.arenas.implementations.race.RaceGameArenaLayout;
 import at.gaderman.serverFest.fests.game.FestGame;
 import at.gaderman.serverFest.fests.game.implementations.race.data.CheckPoint;
 import at.gaderman.serverFest.fests.game.implementations.race.data.RaceGamePlayerData;
@@ -35,10 +34,8 @@ import org.jspecify.annotations.NonNull;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public abstract class RaceGame<T extends RaceGameArenaLayout> extends FestGame<T> implements NoBlockManipulationPrefab, NoItemInventoryManipulation, PlayerInventoryClickTrigger,
         InvisiblePlayersGame {
@@ -146,9 +143,7 @@ public abstract class RaceGame<T extends RaceGameArenaLayout> extends FestGame<T
     @Override
     protected CompletableFuture<Void> onReset() {
         CompletableFuture<Void> future = new CompletableFuture<>();
-        visualEntities.forEach(entity -> {
-            entity.getWorld().getChunkAtAsync(entity.getLocation()).thenRun(entity::remove);
-        });
+        visualEntities.forEach(Entity::remove);
         future.complete(null);
         return future;
     }
@@ -293,6 +288,7 @@ public abstract class RaceGame<T extends RaceGameArenaLayout> extends FestGame<T
                 transformation.getScale().set((float) x, (float) y, (float) z);
                 display.setTransformation(transformation);
 
+                display.setPersistent(false);
                 visualEntities.add(display);
             });
         });

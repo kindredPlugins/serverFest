@@ -1,4 +1,4 @@
-package at.gaderman.serverFest.fests.arenas.implementations;
+package at.gaderman.serverFest.fests.arenas.implementations.race;
 
 import at.gaderman.serverFest.fests.arenas.ArenaDefinition;
 import at.gaderman.serverFest.fests.arenas.ArenaLayout;

@@ -92,6 +92,7 @@ public abstract class FestGame<T extends ArenaLayout> implements BasicGUIElement
      */
     public void stop() {
         running = false;
+        reset();
         onStop();
 
         fest.participants().forEach(participant -> {
@@ -100,7 +101,6 @@ public abstract class FestGame<T extends ArenaLayout> implements BasicGUIElement
                 festPlayerData.reset();
         });
         fest.stop();
-        reset();
         //TODO: allow winner to pick reward
     }
 
