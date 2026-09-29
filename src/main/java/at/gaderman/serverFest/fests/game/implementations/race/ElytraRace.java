@@ -64,11 +64,11 @@ public class ElytraRace extends RaceGame<ElytraRaceArenaLayout> implements Playe
         origin.setY(100);
 
 //        while (world.getHighestBlockAt(origin).getY() > origin.getY() - 10) {
-//            origin = new Location(world, origin.getX() + 300, origin.getY(), 0).toCenterLocation();
+//            origin.set(origin.getX() + 300, origin.getY(), origin.getZ());
 //            tries++;
 //        }
-
-        ServerFest.getPlugin().getLogger().info("Found ElytraRace start after " + tries + " tries");
+//
+//        ServerFest.getPlugin().getLogger().info("Found ElytraRace start after " + tries + " tries");
 
         return origin;
     }

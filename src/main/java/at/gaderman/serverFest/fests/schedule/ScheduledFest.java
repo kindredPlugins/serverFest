@@ -2,7 +2,6 @@ package at.gaderman.serverFest.fests.schedule;
 
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
-import at.gaderman.serverFest.fests.arenas.ArenaManager;
 import at.gaderman.serverFest.fests.game.GameType;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -17,7 +16,7 @@ public abstract class ScheduledFest {
     protected int minPlayers;
     private boolean recurring = true;
 
-    private @Nullable GameType gameType = GameType.ELYTRA_RACE;
+    private @Nullable GameType gameType = GameType.MOUNT_RACE;
 
     /**
      * Sets up the schedule for this event
