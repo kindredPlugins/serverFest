@@ -29,8 +29,6 @@ import java.util.stream.Collectors;
 
 public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDamageTrigger, PlayerVehicleExitTrigger {
 
-    private ArenaBlockTracker blockTracker = new ArenaBlockTracker(arenaInstance);
-
     public MountRace(Fest fest, ArenaInstance arenaInstance) {
         super(fest, arenaInstance);
     }
@@ -68,11 +66,6 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
     protected void onStop() {
         forcedChunks.forEach(chunk -> chunk.removePluginChunkTicket(ServerFest.getPlugin()));
         fest.participants().forEach(Entity::leaveVehicle);
-    }
-
-    @Override
-    protected CompletableFuture<Void> onReset() {
-        return super.onReset().thenRun(() -> blockTracker.restore());
     }
 
     @Override
@@ -259,6 +252,7 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
                 }
                 world.setGameRule(GameRules.BLOCK_DROPS, doTitleDrops);
             });
+            blockTracker.save();
 
             if (index != 0)
                 createGate(newLocation.clone().add(0, gateSize / 2 * 0.8, 0),
