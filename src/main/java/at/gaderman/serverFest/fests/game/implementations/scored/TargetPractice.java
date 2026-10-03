@@ -73,6 +73,7 @@ public class TargetPractice extends ScoreGame<ArenaLayout> implements NoBlockMan
         super.onPlayersJoinedWorld();
 
         InvisiblePlayersGame.super.grantInvisibilityToPlayers(fest.participants());
+        fest.participants().forEach(player -> player.teleport(fest.origin().toCenterLocation()));
     }
 
     @Override

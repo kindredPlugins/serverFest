@@ -16,7 +16,7 @@ public abstract class ScheduledFest {
     protected int minPlayers;
     private boolean recurring = true;
 
-    private @Nullable GameType gameType = GameType.TARGET_PRACTICE;
+    private @Nullable GameType gameType;
 
     /**
      * Sets up the schedule for this event
@@ -32,7 +32,7 @@ public abstract class ScheduledFest {
             instanceType = GameType.values()[(int) (Math.random() * GameType.values().length)];
         }
 
-        if(ServerFest.arenaManager.requestArena(gameType) == null) {
+        if(ServerFest.arenaManager.requestArena(instanceType) == null) {
             Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
                 startUp();
             }, 20);

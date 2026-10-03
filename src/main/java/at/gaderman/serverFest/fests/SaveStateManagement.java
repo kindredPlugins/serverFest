@@ -152,13 +152,14 @@ public class SaveStateManagement {
     }
 
     private static void transferEffectsFromPotion(ItemStack potion, Player player) {
+        player.clearActivePotionEffects();
+
         if (potion == null || !potion.hasItemMeta())
             return;
 
         if (!(potion.getItemMeta() instanceof PotionMeta potionMeta))
             return;
 
-        player.clearActivePotionEffects();
         potionMeta.getCustomEffects().forEach(player::addPotionEffect);
     }
 
