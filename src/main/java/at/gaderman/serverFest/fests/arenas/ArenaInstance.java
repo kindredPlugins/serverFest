@@ -64,6 +64,8 @@ public class ArenaInstance {
         ArenaBlockTracker blockTracker = new ArenaBlockTracker(this);
         blockTracker.restore();
 
+        origin.getChunk().addPluginChunkTicket(ServerFest.getPlugin());
+
         List<FestGame.ChunkPos> chunksToGenerate = new ArrayList<>(arenaLayout.chunks());
         chunksToGenerate.removeIf(chunkPos -> origin.getWorld().isChunkGenerated(chunkPos.x(), chunkPos.z()));
 
@@ -106,5 +108,7 @@ public class ArenaInstance {
         arenaDefinition = gameType.getArenaDefinition();
         arenaLayout = arenaDefinition.generateLayout(origin);
         state = ArenaState.READY;
+
+        origin.getChunk().addPluginChunkTicket(ServerFest.getPlugin());
     }
 }

@@ -27,7 +27,7 @@ public class FestManager {
     private FestManager() {
         festWorld = WorldManager.getInstance().loadOrCreateFestWorld();
 
-        reserveChunkForNextFest();
+        //reserveChunkForNextFest();
     }
 
     public void registerFest(Fest fest) {

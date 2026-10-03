@@ -2,9 +2,8 @@ package at.gaderman.serverFest.fests.game.implementations.race;
 
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
-import at.gaderman.serverFest.fests.arenas.ArenaBlockTracker;
 import at.gaderman.serverFest.fests.arenas.ArenaInstance;
-import at.gaderman.serverFest.fests.arenas.implementations.race.RaceGameArenaLayout;
+import at.gaderman.serverFest.fests.game.implementations.race.arena.RaceGameArenaLayout;
 import at.gaderman.serverFest.fests.game.implementations.race.data.CheckPoint;
 import at.gaderman.serverFest.fests.game.triggers.action.PlayerVehicleExitTrigger;
 import at.gaderman.serverFest.fests.game.triggers.damage.PlayerDamageTrigger;
