@@ -11,8 +11,12 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
+/**
+ * Represents an arena reservation, the {@link ArenaManager} serves multiple ArenaInstances which prepare physical world
+ */
 public class ArenaInstance {
 
+    private final int id;
     private final GameType gameType;
     private final Location origin;
 
@@ -22,10 +26,15 @@ public class ArenaInstance {
 
     private boolean generationBatchFinished = true;
 
-    public ArenaInstance(GameType gameType, Location origin) {
+    public ArenaInstance(int id, GameType gameType, Location origin) {
+        this.id = id;
         this.gameType = gameType;
         this.origin = origin;
         this.state = ArenaState.WAITING;
+    }
+
+    public int id(){
+        return this.id;
     }
 
     public GameType gameType(){
@@ -51,6 +60,11 @@ public class ArenaInstance {
 
         arenaDefinition = gameType.getArenaDefinition();
         arenaLayout = arenaDefinition.generateLayout(origin);
+
+        ArenaBlockTracker blockTracker = new ArenaBlockTracker(this);
+        blockTracker.restore();
+
+        origin.getChunk().addPluginChunkTicket(ServerFest.getPlugin());
 
         List<FestGame.ChunkPos> chunksToGenerate = new ArrayList<>(arenaLayout.chunks());
         chunksToGenerate.removeIf(chunkPos -> origin.getWorld().isChunkGenerated(chunkPos.x(), chunkPos.z()));
@@ -94,5 +108,7 @@ public class ArenaInstance {
         arenaDefinition = gameType.getArenaDefinition();
         arenaLayout = arenaDefinition.generateLayout(origin);
         state = ArenaState.READY;
+
+        origin.getChunk().addPluginChunkTicket(ServerFest.getPlugin());
     }
 }

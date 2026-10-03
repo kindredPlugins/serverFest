@@ -100,7 +100,7 @@ public class Fest {
 
         game.setUpWorld().thenRun(game::start).thenRun(() -> {
             origin.getChunk().removePluginChunkTicket(ServerFest.getPlugin());
-            FestManager.getInstance().reserveChunkForNextFest();
+            //FestManager.getInstance().reserveChunkForNextFest();
         });
 
         CompletableFuture<?>[] teleports = participants().stream()

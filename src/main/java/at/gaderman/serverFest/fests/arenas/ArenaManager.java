@@ -35,10 +35,11 @@ public class ArenaManager {
     }
 
     private void createArena(GameType gameType) {
-        long offset = arenas.stream().filter(arena -> arena.gameType().equals(gameType)).count() * OFFSET_INCREMENT;
+        long arenaCount = arenas.stream().filter(arena -> arena.gameType().equals(gameType)).count();
+        long offset = arenaCount * OFFSET_INCREMENT;
         Location origin = new Location(festWorld, offset, festWorld.getSeaLevel(), gameType.ordinal() * OFFSET_INCREMENT);
 
-        ArenaInstance arena = new ArenaInstance(gameType, origin);
+        ArenaInstance arena = new ArenaInstance((int) arenaCount, gameType, origin);
         arenas.add(arena);
 
         scheduleArenaGeneration();

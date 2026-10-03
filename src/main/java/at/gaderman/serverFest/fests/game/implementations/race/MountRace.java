@@ -2,9 +2,8 @@ package at.gaderman.serverFest.fests.game.implementations.race;
 
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
-import at.gaderman.serverFest.fests.arenas.ArenaBlockTracker;
 import at.gaderman.serverFest.fests.arenas.ArenaInstance;
-import at.gaderman.serverFest.fests.arenas.implementations.race.RaceGameArenaLayout;
+import at.gaderman.serverFest.fests.game.implementations.race.arena.RaceGameArenaLayout;
 import at.gaderman.serverFest.fests.game.implementations.race.data.CheckPoint;
 import at.gaderman.serverFest.fests.game.triggers.action.PlayerVehicleExitTrigger;
 import at.gaderman.serverFest.fests.game.triggers.damage.PlayerDamageTrigger;
@@ -28,8 +27,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDamageTrigger, PlayerVehicleExitTrigger {
-
-    private ArenaBlockTracker blockTracker = new ArenaBlockTracker(arenaInstance);
 
     public MountRace(Fest fest, ArenaInstance arenaInstance) {
         super(fest, arenaInstance);
@@ -68,11 +65,6 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
     protected void onStop() {
         forcedChunks.forEach(chunk -> chunk.removePluginChunkTicket(ServerFest.getPlugin()));
         fest.participants().forEach(Entity::leaveVehicle);
-    }
-
-    @Override
-    protected CompletableFuture<Void> onReset() {
-        return super.onReset().thenRun(() -> blockTracker.restore());
     }
 
     @Override
@@ -259,6 +251,7 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
                 }
                 world.setGameRule(GameRules.BLOCK_DROPS, doTitleDrops);
             });
+            blockTracker.save();
 
             if (index != 0)
                 createGate(newLocation.clone().add(0, gateSize / 2 * 0.8, 0),

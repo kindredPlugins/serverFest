@@ -16,7 +16,7 @@ public abstract class ScheduledFest {
     protected int minPlayers;
     private boolean recurring = true;
 
-    private @Nullable GameType gameType = GameType.MOUNT_RACE;
+    private @Nullable GameType gameType = GameType.TARGET_PRACTICE;
 
     /**
      * Sets up the schedule for this event

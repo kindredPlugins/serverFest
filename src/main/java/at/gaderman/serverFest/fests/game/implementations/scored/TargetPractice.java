@@ -112,9 +112,11 @@ public class TargetPractice extends ScoreGame<ArenaLayout> implements NoBlockMan
         fest.participants().forEach(player -> player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard()));
     }
 
+    // IMPORTANT: TargetPractice has no need for blockTracker conceptually, since it clears its are for itself everytime
+    // However, further versions could change something about TargetPractice which might not be cleared correctly then
+    // So BlockTracker will still be used
     @Override
     protected CompletableFuture<Void> onReset() {
-        //TODO: reset placed targets
         return CompletableFuture.completedFuture(null);
     }
 
@@ -171,24 +173,25 @@ public class TargetPractice extends ScoreGame<ArenaLayout> implements NoBlockMan
                         boolean edge = x == minX || x == maxX || z == minZ || z == maxZ;
                         Material clearMat = edge ? Material.STRUCTURE_VOID : Material.AIR;
 
-                        world.getBlockAt(x, origin.getBlockY() - 1 + y, z).setType(clearMat);
+                        blockTracker.setBlock(world.getBlockAt(x, origin.getBlockY() - 1 + y, z), clearMat);
                     }
 
             for (int x = 0; x < PLATFORM_WIDTH * 2 + 1; x++)
                 for (int z = 0; z < PLATFORM_LENGTH + 2; z++) {
                     Location place = new Location(world, origin.x() + x - PLATFORM_WIDTH, origin.getY() - 1, origin.z() + z - PLATFORM_LENGTH);
-                    place.getBlock().setType(Material.BAMBOO_MOSAIC);
+                    blockTracker.setBlock(place, Material.BAMBOO_MOSAIC);
 
                     if (x == 0 || z == 0 || x == PLATFORM_WIDTH * 2 || z == PLATFORM_LENGTH * 2 - 1)
-                        place.clone().add(0, 1, 0).getBlock().setType(Material.BAMBOO_FENCE);
+                        blockTracker.setBlock(place.clone().add(0, 1, 0), Material.BAMBOO_FENCE);
                 }
 
             this.shootCorner = new Location(world, origin.getX() - arenaWidth, origin.getY() - 1, origin.getZ() + 12);
             for (int x = 0; x <= arenaWidth * 2; x++)
                 for (int z = 0; z <= ARENA_LENGTH - PLATFORM_OFFSET; z++)
-                    shootCorner.clone().add(x, 0, z).getBlock().setType(Material.YELLOW_GLAZED_TERRACOTTA);
+                    blockTracker.setBlock(shootCorner.clone().add(x, 0, z), Material.YELLOW_GLAZED_TERRACOTTA);
 
             world.setGameRule(GameRules.BLOCK_DROPS, doBlockDrops);
+            blockTracker.save();
         });
     }
 
@@ -200,7 +203,7 @@ public class TargetPractice extends ScoreGame<ArenaLayout> implements NoBlockMan
         for (int i = 0; i < rows; i++) {
             int zAmount = Math.random() < 0.5 ? 1 : 2;
 
-            int x = (int) (Math.random() * ARENA_WIDTH - 1) + 1;
+            int x = (int) (Math.random() * ARENA_WIDTH - 2) + 1;
             int y = (int) (Math.random() * 8);
             int z = i * chunkSize + zAmount;
 
@@ -220,17 +223,18 @@ public class TargetPractice extends ScoreGame<ArenaLayout> implements NoBlockMan
 
             usedXPositions.add(x);
         }
+        blockTracker.save();
     }
 
     private void createTarget(Location location) {
-        location.clone().add(0, 1, 0).getBlock().setType(Material.BAMBOO_FENCE);
+        blockTracker.setBlock(location.clone().add(0, 1, 0), Material.BAMBOO_FENCE);
 
-        location.clone().add(1, 2, 0).getBlock().setType(Material.BAMBOO_FENCE);
-        location.clone().add(-1, 2, 0).getBlock().setType(Material.BAMBOO_FENCE);
-        location.clone().add(0, 2, 0).getBlock().setType(Material.TARGET);
-        location.clone().add(0, 3, 0).getBlock().setType(Material.CARVED_PUMPKIN);
+        blockTracker.setBlock(location.clone().add(1, 2, 0), Material.BAMBOO_FENCE);
+        blockTracker.setBlock(location.clone().add(-1, 2, 0), Material.BAMBOO_FENCE);
+        blockTracker.setBlock(location.clone().add(0, 2, 0), Material.TARGET);
+        blockTracker.setBlock(location.clone().add(0, 3, 0), Material.CARVED_PUMPKIN);
 
-        location.clone().add(0, 2, -1).getBlock().setType(Material.IRON_TRAPDOOR);
+        blockTracker.setBlock(location.clone().add(0, 2, -1), Material.IRON_TRAPDOOR);
     }
 
     //endregion

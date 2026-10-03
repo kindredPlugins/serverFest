@@ -1,4 +1,4 @@
-package at.gaderman.serverFest.fests.arenas.implementations.race;
+package at.gaderman.serverFest.fests.game.implementations.race.arena;
 
 import at.gaderman.serverFest.fests.arenas.ArenaDefinition;
 import at.gaderman.serverFest.fests.arenas.ArenaLayout;
@@ -14,7 +14,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-public class MountRaceArenaDefinition implements ArenaDefinition {
+public class MountRaceArenaDefinition extends ArenaDefinition {
 
     @Override
     public @NotNull ArenaLayout generateLayout(Location origin) {

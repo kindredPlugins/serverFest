@@ -1,6 +1,7 @@
 package at.gaderman.serverFest.fests.game;
 
 import at.gaderman.serverFest.fests.Fest;
+import at.gaderman.serverFest.fests.arenas.ArenaBlockTracker;
 import at.gaderman.serverFest.fests.arenas.ArenaInstance;
 import at.gaderman.serverFest.fests.arenas.ArenaLayout;
 import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
@@ -29,6 +30,7 @@ public abstract class FestGame<T extends ArenaLayout> implements BasicGUIElement
     private boolean running;
     private final List<Player> winners = new ArrayList<>();
     private BossBar arenaBuildingBar;
+    protected final ArenaBlockTracker blockTracker;
 
     private final Map<UUID, FestPlayerData> playerDataMap = new HashMap<>();
 
@@ -36,6 +38,7 @@ public abstract class FestGame<T extends ArenaLayout> implements BasicGUIElement
         this.fest = fest;
         this.arenaInstance = arenaInstance;
         this.arenaLayout = (T) arenaInstance.arenaLayout();
+        this.blockTracker = new ArenaBlockTracker(arenaInstance);
     }
 
     public Location determineOrigin() {
@@ -108,7 +111,9 @@ public abstract class FestGame<T extends ArenaLayout> implements BasicGUIElement
 
     private void reset() {
         arenaInstance.markAsReset();
-        onReset().thenRun(arenaInstance::resetToReady);
+        blockTracker.restore().thenRun(() ->
+                onReset().thenRun(arenaInstance::resetToReady)
+        );
     }
 
     /**

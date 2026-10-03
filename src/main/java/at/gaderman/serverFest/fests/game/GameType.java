@@ -3,8 +3,8 @@ package at.gaderman.serverFest.fests.game;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.arenas.ArenaDefinition;
 import at.gaderman.serverFest.fests.arenas.ArenaInstance;
-import at.gaderman.serverFest.fests.arenas.implementations.race.ElytraRaceArenaDefinition;
-import at.gaderman.serverFest.fests.arenas.implementations.race.MountRaceArenaDefinition;
+import at.gaderman.serverFest.fests.game.implementations.race.arena.ElytraRaceArenaDefinition;
+import at.gaderman.serverFest.fests.game.implementations.race.arena.MountRaceArenaDefinition;
 import at.gaderman.serverFest.fests.game.implementations.race.ElytraRace;
 import at.gaderman.serverFest.fests.game.implementations.race.MountRace;
 import at.gaderman.serverFest.fests.game.implementations.scored.TargetPractice;
@@ -26,7 +26,7 @@ public enum GameType {
         return switch (this) {
             case ELYTRA_RACE -> new ElytraRaceArenaDefinition();
             case MOUNT_RACE -> new MountRaceArenaDefinition();
-            default -> new ElytraRaceArenaDefinition();
+            case TARGET_PRACTICE -> new ArenaDefinition();
         };
     }
 }

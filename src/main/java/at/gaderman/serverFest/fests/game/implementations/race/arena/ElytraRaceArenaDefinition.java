@@ -1,4 +1,4 @@
-package at.gaderman.serverFest.fests.arenas.implementations.race;
+package at.gaderman.serverFest.fests.game.implementations.race.arena;
 
 import at.gaderman.serverFest.fests.arenas.ArenaDefinition;
 import at.gaderman.serverFest.fests.arenas.ArenaLayout;
@@ -14,7 +14,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class ElytraRaceArenaDefinition implements ArenaDefinition {
+public class ElytraRaceArenaDefinition extends ArenaDefinition {
 
     private Location origin;
     private final List<CheckPoint> checkPoints = new ArrayList<>();
