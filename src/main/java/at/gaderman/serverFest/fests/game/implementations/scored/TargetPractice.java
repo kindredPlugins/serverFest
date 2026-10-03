@@ -2,6 +2,8 @@ package at.gaderman.serverFest.fests.game.implementations.scored;
 
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
+import at.gaderman.serverFest.fests.arenas.ArenaInstance;
+import at.gaderman.serverFest.fests.arenas.ArenaLayout;
 import at.gaderman.serverFest.fests.game.implementations.scored.data.ScoreGamePlayerData;
 import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
 import at.gaderman.serverFest.fests.game.interfaces.InvisiblePlayersGame;
@@ -28,15 +30,15 @@ import org.jspecify.annotations.NonNull;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
-public class TargetPractice extends ScoreGame implements NoBlockManipulationPrefab, NoItemInventoryManipulation, PlayerProjectileHitTrigger, PlayerDamageTrigger,
+public class TargetPractice extends ScoreGame<ArenaLayout> implements NoBlockManipulationPrefab, NoItemInventoryManipulation, PlayerProjectileHitTrigger, PlayerDamageTrigger,
         InvisiblePlayersGame {
 
     private Location shootCorner;
     private final List<ScoreTarget> scoreTargets = new ArrayList<>();
     private final Map<UUID, Set<ScoreTarget>> activeTargetMap = new HashMap<>();
 
-    public TargetPractice(Fest fest) {
-        super(fest);
+    public TargetPractice(Fest fest, ArenaInstance arenaInstance) {
+        super(fest, arenaInstance);
     }
 
     @Override
@@ -110,6 +112,12 @@ public class TargetPractice extends ScoreGame implements NoBlockManipulationPref
         fest.participants().forEach(player -> player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard()));
     }
 
+    @Override
+    protected CompletableFuture<Void> onReset() {
+        //TODO: reset placed targets
+        return CompletableFuture.completedFuture(null);
+    }
+
     //region Visuals
 
     @Override
@@ -138,16 +146,24 @@ public class TargetPractice extends ScoreGame implements NoBlockManipulationPref
         World world = fest.world();
         Location origin = fest.origin();
 
-        return world.getChunkAtAsync(origin).thenAccept(_ -> {
+        int arenaWidth = ARENA_WIDTH / 2;
+        int minX = origin.getBlockX() - arenaWidth;
+        int maxX = origin.getBlockX() + arenaWidth;
+        int minZ = origin.getBlockZ() - PLATFORM_LENGTH;
+        int maxZ = origin.getBlockZ() + ARENA_LENGTH - 1;
+
+        Set<Integer> chunkZs = new HashSet<>();
+        for (int z = minZ; z <= maxZ; z++)
+            chunkZs.add(z >> 4);
+
+        int chunkX = origin.getBlockX() >> 4;
+        List<CompletableFuture<Chunk>> chunks = chunkZs.stream()
+                .map(chunkZ -> world.getChunkAtAsync(chunkX, chunkZ))
+                .toList();
+
+        return CompletableFuture.allOf(chunks.toArray(CompletableFuture[]::new)).thenRun(() -> {
             boolean doBlockDrops = world.getGameRuleValue(GameRules.BLOCK_DROPS);
             world.setGameRule(GameRules.BLOCK_DROPS, false);
-
-            int arenaWidth = ARENA_WIDTH / 2;
-
-            int minX = (int) origin.getX() - arenaWidth;
-            int maxX = (int) origin.getX() + arenaWidth;
-            int minZ = (int) origin.getZ() - PLATFORM_LENGTH;
-            int maxZ = (int) origin.getZ() + ARENA_LENGTH - 1;
 
             for (int x = minX; x <= maxX; x++)
                 for (int y = 0; y < ARENA_HEIGHT; y++)

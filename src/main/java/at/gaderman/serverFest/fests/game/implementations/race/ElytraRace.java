@@ -2,6 +2,9 @@ package at.gaderman.serverFest.fests.game.implementations.race;
 
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
+import at.gaderman.serverFest.fests.arenas.ArenaInstance;
+import at.gaderman.serverFest.fests.arenas.implementations.race.ElytraRaceArenaDefinition;
+import at.gaderman.serverFest.fests.arenas.implementations.race.ElytraRaceArenaLayout;
 import at.gaderman.serverFest.fests.game.implementations.race.data.CheckPoint;
 import at.gaderman.serverFest.fests.game.implementations.race.data.RaceGamePlayerData;
 import at.gaderman.serverFest.fests.game.triggers.action.PlayerToggleGlideTrigger;
@@ -10,6 +13,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.apache.commons.lang3.time.StopWatch;
 import org.bukkit.*;
+import org.bukkit.block.Block;
 import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageEvent;
@@ -18,15 +22,14 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
-public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, PlayerDamageTrigger {
+public class ElytraRace extends RaceGame<ElytraRaceArenaLayout> implements PlayerToggleGlideTrigger, PlayerDamageTrigger {
 
-    public ElytraRace(Fest fest) {
-        super(fest);
+    public ElytraRace(Fest fest, ArenaInstance arenaInstance) {
+        super(fest, arenaInstance);
     }
 
     @Override
@@ -44,10 +47,13 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
         return List.of();
     }
 
+    private Set<Chunk> forceLoadedChunks;
+    private List<Block> placedBlocks = new ArrayList<>();
+
     //region Overrides
 
-    private static final double GATE_SIZE = 5;
-    private static final double GATE_THICKNESS = 0.6;
+    public static final double GATE_SIZE = 5;
+    public static final double GATE_THICKNESS = 0.6;
 
     @Override
     public Location determineOrigin() {
@@ -57,12 +63,12 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
         int tries = 1;
         origin.setY(100);
 
-        while (world.getHighestBlockAt(origin).getY() > origin.getY() - 10) {
-            origin = new Location(world, origin.getX() + 300, origin.getY(), 0).toCenterLocation();
-            tries++;
-        }
-
-        ServerFest.getPlugin().getLogger().info("Found ElytraRace start after " + tries + " tries");
+//        while (world.getHighestBlockAt(origin).getY() > origin.getY() - 10) {
+//            origin.set(origin.getX() + 300, origin.getY(), origin.getZ());
+//            tries++;
+//        }
+//
+//        ServerFest.getPlugin().getLogger().info("Found ElytraRace start after " + tries + " tries");
 
         return origin;
     }
@@ -72,34 +78,32 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
         World world = fest.world();
         Location origin = fest.origin();
 
-        for(int x = -1; x <= 1; x++)
-            for(int z = -1; z <= 1; z++)
-                origin.clone().add(x, -1, z).getBlock().setType(Material.BAMBOO_BLOCK);
-
-        createElytraTrack();
-
-        Set<ChunkPos> chunks = new HashSet<>();
-
-        for(Vector point : trackSamples) {
-            int chunkX = ((int) point.getX()) >> 4;
-            int chunkZ = ((int) point.getZ()) >> 4;
-
-            for(int x = -1; x <= 1; x++)
-                for(int z = -1; z <= 1; z++)
-                    chunks.add(new ChunkPos(chunkX + x, chunkZ + z));
-        }
+        for (int x = -1; x <= 1; x++)
+            for (int z = -1; z <= 1; z++) {
+                Location location = origin.clone().add(x, -1, z);
+                location.getBlock().setType(Material.BAMBOO_BLOCK);
+                placedBlocks.add(location.getBlock());
+            }
 
         CompletableFuture<Void> future = new CompletableFuture<>();
 
-        loadChunks(world, chunks, () -> {
-            for(CheckPoint checkPoint : checkPoints)
+        loadChunks(world, arenaLayout.chunks(), resolvedChunks -> {
+            forceLoadedChunks = resolvedChunks;
+            resolvedChunks.forEach(chunk -> chunk.addPluginChunkTicket(ServerFest.getPlugin()));
+
+            for (CheckPoint checkPoint : checkPoints)
                 adjustGateLocation(checkPoint.location());
 
-            for(int i = 1; i < checkPoints.size(); i++) {
+            checkPoints.getFirst().location().set(origin.getX(), origin.getY(), origin.getZ());
+
+            updateArenaBuildingBar(Component.text("Generating entities..."), 0.9f);
+
+            for (int i = 1; i < checkPoints.size(); i++) {
                 CheckPoint checkPoint = checkPoints.get(i);
                 createGate(checkPoint.location(), GATE_SIZE, GATE_THICKNESS, i == checkPoints.size() - 1);
             }
 
+            updateArenaBuildingBar(Component.text("Waiting for server..."), 1f);
             future.complete(null);
         });
 
@@ -108,6 +112,13 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
 
     @Override
     protected void onStop() {
+        if (forceLoadedChunks != null)
+            forceLoadedChunks.forEach(chunk -> chunk.removePluginChunkTicket(ServerFest.getPlugin()));
+    }
+
+    @Override
+    protected CompletableFuture<Void> onReset() {
+        return super.onReset().thenRun(() -> placedBlocks.forEach(block -> block.setType(Material.AIR)));
     }
 
     @Override
@@ -128,7 +139,7 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
 
             WorldBorder border = Bukkit.createWorldBorder();
             border.setCenter(participant.getLocation());
-            border.setSize(WAVE_AMPLITUDE * 1.2 * 2);
+            border.setSize(ElytraRaceArenaDefinition.WAVE_AMPLITUDE * 1.2 * 2);
             participant.setWorldBorder(border);
 
             participant.getScheduler().runAtFixedRate(ServerFest.getPlugin(), task -> {
@@ -195,39 +206,6 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
 
     //region Track
 
-    // How far the track moves left/right.
-    private static final double WAVE_AMPLITUDE = 100;
-
-    private void createElytraTrack() {
-        Location origin = fest.origin();
-
-        int gateCount = 20;
-
-        double spacing = 50.0;
-
-        checkPoints.add(new CheckPoint(origin, GATE_SIZE, GATE_SIZE));
-
-        // How quickly it oscillates.
-        double waveLength = 2;
-
-        double lastZ = 0;
-        for (int i = 1; i < gateCount; i++) {
-            double z = lastZ + spacing + Math.random() * 35;
-            lastZ = z;
-
-            // Smooth left/right movement.
-            double x = Math.sin(i / waveLength) * WAVE_AMPLITUDE;
-
-            // Optional vertical movement.
-            double y = Math.random() * 20 - 10;
-
-            Location gateLocation = origin.clone().add(x, y, z);
-            checkPoints.add(new CheckPoint(gateLocation, GATE_SIZE, GATE_SIZE));
-        }
-
-        buildTrackSpline();
-    }
-
     /**
      * Checks if gate has enough unobstructed room, shifting it upwards or clearing the space if necessary
      */
@@ -246,7 +224,8 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
             for (int x = -5; x <= 5 && clear; x++) {
                 for (int z = -5; z <= 5 && clear; z++) {
                     for (int offsetY = 0; offsetY <= 5; offsetY++) {
-                        if (!world.getBlockAt(location.getBlockX() + x, y + offsetY, location.getBlockZ() + z).isPassable()) {
+                        Block block = world.getBlockAt(location.getBlockX() + x, y + offsetY, location.getBlockZ() + z);
+                        if (!block.isPassable() || block.isLiquid()) {
                             clear = false;
                             break;
                         }
@@ -267,55 +246,20 @@ public class ElytraRace extends RaceGame implements PlayerToggleGlideTrigger, Pl
 
         location.getWorld().createExplosion(location, 6);
         stopWatch.stop();
-        ServerFest.getPlugin().getLogger().info("Needed extra solution for checkpoint (" +  stopWatch.getTime() + "ms)");
+        ServerFest.getPlugin().getLogger().info("Needed extra solution for checkpoint (" + stopWatch.getTime() + "ms)");
     }
 
     //endregion
 
     //region Spline Border
 
-    private final List<Vector> trackSamples = new ArrayList<>();
-    private final List<Integer> segmentStartIndex = new ArrayList<>();
-
-    private static final int SAMPLES_PER_SEGMENT = 32;
-
-    private void buildTrackSpline() {
-        trackSamples.clear();
-        segmentStartIndex.clear();
-
-        List<Vector> checkPoints = this.checkPoints.stream()
-                .map(cp -> cp.location().toVector())
-                .toList();
-
-        int n = checkPoints.size();
-        for (int i = 0; i < n - 1; i++) {
-            segmentStartIndex.add(trackSamples.size());
-
-            Vector p0 = checkPoints.get(Math.max(i - 1, 0));
-            Vector p1 = checkPoints.get(i);
-            Vector p2 = checkPoints.get(i + 1);
-            Vector p3 = checkPoints.get(Math.min(i + 2, n - 1));
-
-            for (int s = 0; s < SAMPLES_PER_SEGMENT; s++) {
-                trackSamples.add(catmullRom(p0, p1, p2, p3, s / (double) SAMPLES_PER_SEGMENT));
-            }
-        }
-        trackSamples.add(checkPoints.get(n - 1));
-        segmentStartIndex.add(trackSamples.size() - 1);
-    }
-
-    private Vector catmullRom(Vector p0, Vector p1, Vector p2, Vector p3, double t) {
-        double t2 = t * t, t3 = t2 * t;
-        double x = 0.5 * ((2 * p1.getX()) + (-p0.getX() + p2.getX()) * t + (2 * p0.getX() - 5 * p1.getX() + 4 * p2.getX() - p3.getX()) * t2 + (-p0.getX() + 3 * p1.getX() - 3 * p2.getX() + p3.getX()) * t3);
-        double y = 0.5 * ((2 * p1.getY()) + (-p0.getY() + p2.getY()) * t + (2 * p0.getY() - 5 * p1.getY() + 4 * p2.getY() - p3.getY()) * t2 + (-p0.getY() + 3 * p1.getY() - 3 * p2.getY() + p3.getY()) * t3);
-        double z = 0.5 * ((2 * p1.getZ()) + (-p0.getZ() + p2.getZ()) * t + (2 * p0.getZ() - 5 * p1.getZ() + 4 * p2.getZ() - p3.getZ()) * t2 + (-p0.getZ() + 3 * p1.getZ() - 3 * p2.getZ() + p3.getZ()) * t3);
-        return new Vector(x, y, z);
-    }
-
     private static final double TRACK_HALF_WIDTH = 6.0;
     private static final int RENDER_WINDOW = 40;
 
     private void renderGuideParticles(Player participant, int currentCheckPointIndex) {
+        List<Integer> segmentStartIndex = arenaLayout.segmentStartIndex();
+        List<Vector> trackSamples = arenaLayout.trackSamples();
+
         int startSample = segmentStartIndex.get(Math.min(currentCheckPointIndex, segmentStartIndex.size() - 1));
         int endSample = Math.min(startSample + RENDER_WINDOW, trackSamples.size() - 1);
 

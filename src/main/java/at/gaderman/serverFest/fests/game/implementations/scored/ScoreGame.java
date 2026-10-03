@@ -2,6 +2,8 @@ package at.gaderman.serverFest.fests.game.implementations.scored;
 
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
+import at.gaderman.serverFest.fests.arenas.ArenaInstance;
+import at.gaderman.serverFest.fests.arenas.ArenaLayout;
 import at.gaderman.serverFest.fests.game.FestGame;
 import at.gaderman.serverFest.fests.game.implementations.scored.data.ScoreGamePlayerData;
 import net.kyori.adventure.bossbar.BossBar;
@@ -30,12 +32,12 @@ import java.util.List;
  * A type of fest game which resolves around gathering score on a time-limit
  * After the limit has run out who has the most score wins
  */
-public abstract class ScoreGame extends FestGame {
+public abstract class ScoreGame<T extends ArenaLayout> extends FestGame<T> {
 
     private int remainingTime; //remaining time in ticks
 
-    public ScoreGame(Fest fest) {
-        super(fest);
+    public ScoreGame(Fest fest, ArenaInstance arenaInstance) {
+        super(fest, arenaInstance);
     }
 
     @Override

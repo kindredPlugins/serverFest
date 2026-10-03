@@ -2,6 +2,9 @@ package at.gaderman.serverFest.fests.game.implementations.race;
 
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
+import at.gaderman.serverFest.fests.arenas.ArenaBlockTracker;
+import at.gaderman.serverFest.fests.arenas.ArenaInstance;
+import at.gaderman.serverFest.fests.arenas.implementations.race.RaceGameArenaLayout;
 import at.gaderman.serverFest.fests.game.implementations.race.data.CheckPoint;
 import at.gaderman.serverFest.fests.game.triggers.action.PlayerVehicleExitTrigger;
 import at.gaderman.serverFest.fests.game.triggers.damage.PlayerDamageTrigger;
@@ -16,6 +19,7 @@ import org.bukkit.event.vehicle.VehicleExitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
+import org.jspecify.annotations.NonNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,9 +27,12 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-public class MountRace extends RaceGame implements PlayerDamageTrigger, PlayerVehicleExitTrigger {
-    public MountRace(Fest fest) {
-        super(fest);
+public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDamageTrigger, PlayerVehicleExitTrigger {
+
+    private ArenaBlockTracker blockTracker = new ArenaBlockTracker(arenaInstance);
+
+    public MountRace(Fest fest, ArenaInstance arenaInstance) {
+        super(fest, arenaInstance);
     }
 
     @Override
@@ -59,7 +66,13 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger, PlayerVe
 
     @Override
     protected void onStop() {
+        forcedChunks.forEach(chunk -> chunk.removePluginChunkTicket(ServerFest.getPlugin()));
         fest.participants().forEach(Entity::leaveVehicle);
+    }
+
+    @Override
+    protected CompletableFuture<Void> onReset() {
+        return super.onReset().thenRun(() -> blockTracker.restore());
     }
 
     @Override
@@ -149,15 +162,17 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger, PlayerVe
 
     //region Track
 
+    public static final int CHECKPOINT_COUNT = 10;
+    public static final int TRACK_DIAMETER = 2;
+    public static final double GATE_SIZE = TRACK_DIAMETER * 2 + 3;
+
+    private final List<Chunk> forcedChunks = new ArrayList<>();
+
     private void buildTrack(CompletableFuture<Void> future) {
         World world = fest.world();
         Location origin = fest.origin().add(0, -1, 0);
 
-        int trackDiameter = 2;
-        int checkPointCount = 10;
-        double gateSize = trackDiameter * 2 + 3;
-
-        buildTrackSection(future, world, origin, trackDiameter, gateSize, checkPointCount, 0);
+        buildTrackSection(future, world, origin, TRACK_DIAMETER, GATE_SIZE, CHECKPOINT_COUNT, 0);
     }
 
     private void buildTrackSection(CompletableFuture<Void> future, World world, Location lastLocation, int trackDiameter,
@@ -167,15 +182,19 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger, PlayerVe
             return;
         }
 
-        double newX = lastLocation.getX() + (Math.random() - 0.5) * 45;
-        double newZ = lastLocation.getZ() + Math.random() * 15 + 30;
+        CheckPoint checkPoint = checkPoints.get(index);
+        double newX = checkPoints.get(index).location().getX();
+        double newZ = checkPoints.get(index).location().getZ();
 
         Location newLocation = new Location(world, newX, lastLocation.getY(), newZ);
 
-        List<TrackPoint> initialPath = createPath(lastLocation, newLocation, trackDiameter);
+        List<TrackPoint> initialPath = createPath(lastLocation, newLocation);
         Set<ChunkPos> chunks = getRequiredChunks(initialPath);
 
-        loadChunks(world, chunks, () -> {
+        loadChunks(world, chunks, resolvedChunks -> {
+            resolvedChunks.forEach(chunk -> chunk.addPluginChunkTicket(ServerFest.getPlugin()));
+            forcedChunks.addAll(resolvedChunks);
+
             int highestY = world.getHighestBlockYAt(newLocation);
             newLocation.setY(highestY + 1);
 
@@ -183,9 +202,10 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger, PlayerVe
                     newLocation.getBlock().getType().toString().contains("LEAVES"))
                 newLocation.setY(newLocation.getY() - 1);
 
-            checkPoints.add(new CheckPoint(newLocation.toCenterLocation(), gateSize, gateSize));
+            newLocation.toCenterLocation();
+            checkPoint.location().set(newLocation.x(), newLocation.y(), newLocation.z());
 
-            createPath(lastLocation, newLocation, trackDiameter).forEach(path -> {
+            createPath(lastLocation, newLocation).forEach(path -> {
                 BlockPos center = path.center();
 
                 Location centerLocation = new Location(world, center.x(), center.y(), center.z());
@@ -231,10 +251,11 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger, PlayerVe
                 for (BlockPos pos : blocks) {
                     Location location = new Location(world, pos.x(), center.y(), pos.z());
 
-                    for (int y = 0; y < 25; y++)
-                        location.clone().add(0, y + 1, 0).getBlock().setType(Material.AIR);
+                    for (int y = 0; y < 25; y++) {
+                        blockTracker.setBlock(location.clone().add(0, y + 1, 0), Material.AIR);
+                    }
 
-                    location.getBlock().setType(Material.SPRUCE_SLAB);
+                    blockTracker.setBlock(location.getBlock(), Material.SPRUCE_SLAB);
                 }
                 world.setGameRule(GameRules.BLOCK_DROPS, doTitleDrops);
             });
@@ -247,7 +268,7 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger, PlayerVe
         });
     }
 
-    private List<TrackPoint> createPath(Location from, Location to, int trackDiameter) {
+    public static List<TrackPoint> createPath(Location from, Location to) {
         List<TrackPoint> points = new ArrayList<>();
 
         Vector start = from.toVector();
@@ -273,24 +294,7 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger, PlayerVe
             int centerZ = Location.locToBlock(z);
 
             BlockPos center = new BlockPos(centerX, y, centerZ);
-            List<BlockPos> sides = new ArrayList<>();
-
-            for (int offsetX = -trackDiameter; offsetX <= trackDiameter; offsetX++) {
-                for (int offsetZ = -trackDiameter; offsetZ <= trackDiameter; offsetZ++) {
-                    if (offsetX == 0 && offsetZ == 0)
-                        continue;
-
-                    double distance = Math.sqrt(offsetX * offsetX + offsetZ * offsetZ);
-                    if (distance > trackDiameter)
-                        continue;
-
-                    sides.add(new BlockPos(
-                            centerX + offsetX,
-                            y,
-                            centerZ + offsetZ
-                    ));
-                }
-            }
+            List<BlockPos> sides = resolveSideBlocks(centerX, y, centerZ);
 
             points.add(new TrackPoint(center, sides));
         }
@@ -298,7 +302,25 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger, PlayerVe
         return points;
     }
 
-    private Set<ChunkPos> getRequiredChunks(List<TrackPoint> points) {
+    private static @NonNull List<BlockPos> resolveSideBlocks(int centerX, int y, int centerZ) {
+        List<BlockPos> sides = new ArrayList<>();
+
+        for (int offsetX = -TRACK_DIAMETER; offsetX <= TRACK_DIAMETER; offsetX++) {
+            for (int offsetZ = -TRACK_DIAMETER; offsetZ <= TRACK_DIAMETER; offsetZ++) {
+                if (offsetX == 0 && offsetZ == 0)
+                    continue;
+
+                double distance = Math.sqrt(offsetX * offsetX + offsetZ * offsetZ);
+                if (distance > TRACK_DIAMETER)
+                    continue;
+
+                sides.add(new BlockPos(centerX + offsetX, y, centerZ + offsetZ));
+            }
+        }
+        return sides;
+    }
+
+    public static Set<ChunkPos> getRequiredChunks(List<TrackPoint> points) {
         return points.stream()
                 .flatMap(point -> {
                     List<BlockPos> blocks = new ArrayList<>();
@@ -327,9 +349,9 @@ public class MountRace extends RaceGame implements PlayerDamageTrigger, PlayerVe
 
     //endregion
 
-    private record TrackPoint(BlockPos center, List<BlockPos> sides) {
+    public record TrackPoint(BlockPos center, List<BlockPos> sides) {
     }
 
-    private record BlockPos(int x, int y, int z) {
+    public record BlockPos(int x, int y, int z) {
     }
 }

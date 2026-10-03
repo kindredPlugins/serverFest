@@ -1,6 +1,7 @@
 package at.gaderman.serverFest.fests;
 
 import at.gaderman.serverFest.ServerFest;
+import at.gaderman.serverFest.fests.arenas.ArenaInstance;
 import at.gaderman.serverFest.fests.game.FestGame;
 import at.gaderman.serverFest.fests.game.GameType;
 import at.gaderman.serverFest.fests.game.triggers.TriggerListener;
@@ -28,20 +29,23 @@ public class Fest {
 
     private final UUID uuid;
     private final List<UUID> participantUUIDs;
-    private final FestGame game;
+    private final FestGame<?> game;
+    private final ArenaInstance arenaInstance;
 
     private World world;
     private Location origin;
-    private long offset;
 
-    private final TriggerListener triggerListener;
+    private TriggerListener triggerListener;
 
     public Fest(GameType gameType) {
         this.uuid = UUID.randomUUID();
         //TODO: change this later to give players actual choice of participation
         this.participantUUIDs = Bukkit.getOnlinePlayers().stream().map(Player::getUniqueId).collect(Collectors.toList());
-        this.game = gameType.createNewInstance(this);
-        this.triggerListener = new TriggerListener(this);
+
+        this.arenaInstance = ServerFest.arenaManager.requestArena(gameType);
+        this.game = gameType.createNewInstance(this, arenaInstance);
+
+        arenaInstance.activateArena();
     }
 
     //endregion
@@ -52,16 +56,12 @@ public class Fest {
         return uuid;
     }
 
-    public FestGame game() {
+    public FestGame<?> game() {
         return game;
     }
 
     public World world() {
         return world;
-    }
-
-    public long offset() {
-        return offset;
     }
 
     public List<UUID> participantUUIDs() {
@@ -83,9 +83,10 @@ public class Fest {
 
     //region Methods
 
-    //TODO: remove the reliance on world spawn point, multiple fests have issue of interfering with each other in this case
     public void start() {
         ServerFest.getPlugin().getLogger().info("Started fest with id " + uuid);
+
+        this.triggerListener = new TriggerListener(this);
         FestManager.getInstance().registerFest(this);
 
 //        world = WorldManager.getInstance().createChallengeWorldCreator(
@@ -94,10 +95,6 @@ public class Fest {
 
         world = WorldManager.getInstance().loadOrCreateFestWorld();
         world.setGameRule(GameRules.SPAWN_MOBS, false);
-
-        PersistentDataContainer pdc = world.getPersistentDataContainer();
-        offset = pdc.getOrDefault(FEST_OFFSET, PersistentDataType.LONG, 0L);
-        pdc.set(FEST_OFFSET, PersistentDataType.LONG, offset + OFFSET_INCREMENT);
 
         this.origin = adjustLocationToCenterOfChunk(game.determineOrigin());
 

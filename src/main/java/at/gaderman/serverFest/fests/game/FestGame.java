@@ -1,34 +1,50 @@
 package at.gaderman.serverFest.fests.game;
 
 import at.gaderman.serverFest.fests.Fest;
+import at.gaderman.serverFest.fests.arenas.ArenaInstance;
+import at.gaderman.serverFest.fests.arenas.ArenaLayout;
 import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
 import at.gaderman.serverFest.gui.BasicGUIElement;
+import net.kyori.adventure.audience.Audience;
+import net.kyori.adventure.bossbar.BossBar;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.Chunk;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.jspecify.annotations.NonNull;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
-public abstract class FestGame implements BasicGUIElement {
+public abstract class FestGame<T extends ArenaLayout> implements BasicGUIElement {
 
     protected final Fest fest;
+    protected final ArenaInstance arenaInstance;
+    protected final T arenaLayout;
 
     private boolean running;
     private final List<Player> winners = new ArrayList<>();
+    private BossBar arenaBuildingBar;
 
     private final Map<UUID, FestPlayerData> playerDataMap = new HashMap<>();
 
-    public FestGame(Fest fest) {
+    public FestGame(Fest fest, ArenaInstance arenaInstance) {
         this.fest = fest;
+        this.arenaInstance = arenaInstance;
+        this.arenaLayout = (T) arenaInstance.arenaLayout();
     }
 
-    public Location determineOrigin(){
-        return new Location(fest.world(), fest.offset(), fest.world().getSeaLevel(), 0).toCenterLocation();
+    public Location determineOrigin() {
+        return arenaLayout.origin();
     }
 
     /**
      * Called to setup the game specific world, the world itself is already created inside fest, this just initializes it for the game, like adding race tracks or arenas
+     *
      * @return a runnable callback when world setup has been completed
      */
     public abstract CompletableFuture<Void> setUpWorld();
@@ -36,13 +52,18 @@ public abstract class FestGame implements BasicGUIElement {
     /**
      * Called when fest participants have been teleported to the fest world, usually used to create a starting are for them to gather
      */
-    public abstract void onPlayersJoinedWorld();
+    public void onPlayersJoinedWorld() {
+        updateArenaBuildingBar(Component.text("Setting up arena..."), 0.0f);
+    }
 
     /**
      * Start the game, setting its status to running and calling the implementing games {@link #onStart()}
      */
     public final void start() {
         running = true;
+        if (arenaBuildingBar != null)
+            arenaBuildingBar.viewers().forEach(viewer -> arenaBuildingBar.removeViewer((Audience) viewer));
+
         onStart();
     }
 
@@ -71,11 +92,12 @@ public abstract class FestGame implements BasicGUIElement {
      */
     public void stop() {
         running = false;
+        reset();
         onStop();
 
         fest.participants().forEach(participant -> {
             FestPlayerData festPlayerData = playerDataMap.getOrDefault(participant.getUniqueId(), null);
-            if(festPlayerData != null)
+            if (festPlayerData != null)
                 festPlayerData.reset();
         });
         fest.stop();
@@ -83,6 +105,16 @@ public abstract class FestGame implements BasicGUIElement {
     }
 
     protected abstract void onStop();
+
+    private void reset() {
+        arenaInstance.markAsReset();
+        onReset().thenRun(arenaInstance::resetToReady);
+    }
+
+    /**
+     * The underlying reset method of each fest game, this will reset the arena so it can then be used for preceding games as well
+     */
+    protected abstract CompletableFuture<Void> onReset();
 
     /**
      * Gets or creates player data for this fest for the given UUID
@@ -102,5 +134,48 @@ public abstract class FestGame implements BasicGUIElement {
 
     public boolean isRunning() {
         return running;
+    }
+
+    //region Helper methods
+
+    protected void updateArenaBuildingBar(Component text, float progress) {
+        if (arenaBuildingBar == null) {
+            arenaBuildingBar = BossBar.bossBar(text, progress, BossBar.Color.YELLOW, BossBar.Overlay.PROGRESS);
+
+            fest.participants().forEach(participant -> arenaBuildingBar.addViewer(participant));
+        }
+
+        arenaBuildingBar.name(text);
+        arenaBuildingBar.progress(progress);
+    }
+
+    protected void loadChunks(World world, Set<ChunkPos> chunks, Consumer<Set<Chunk>> finished) {
+        if (chunks.isEmpty()) {
+            finished.accept(Collections.emptySet());
+            return;
+        }
+
+        Set<Chunk> resolvedChunks = new LinkedHashSet<>();
+        AtomicInteger remaining = new AtomicInteger(chunks.size());
+
+        for (ChunkPos chunk : chunks) {
+            world.getChunkAtAsync(chunk.x(), chunk.z(), true, resolved -> {
+                resolvedChunks.add(resolved);
+
+                updateArenaBuildingBar(Component.text("Loading chunks ", NamedTextColor.YELLOW)
+                                .append(Component.text(chunks.size() - remaining.get(), NamedTextColor.GOLD))
+                                .append(Component.text(" / ", NamedTextColor.GRAY))
+                                .append(Component.text(chunks.size(), NamedTextColor.DARK_GRAY))
+                        , (float) (chunks.size() - remaining.get()) / chunks.size());
+
+                if (remaining.decrementAndGet() == 0)
+                    finished.accept(resolvedChunks);
+            });
+        }
+    }
+
+    //endregion
+
+    public record ChunkPos(int x, int z) {
     }
 }

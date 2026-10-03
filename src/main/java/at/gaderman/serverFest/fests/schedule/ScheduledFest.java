@@ -16,7 +16,7 @@ public abstract class ScheduledFest {
     protected int minPlayers;
     private boolean recurring = true;
 
-    private @Nullable GameType gameType;
+    private @Nullable GameType gameType = GameType.MOUNT_RACE;
 
     /**
      * Sets up the schedule for this event
@@ -32,9 +32,14 @@ public abstract class ScheduledFest {
             instanceType = GameType.values()[(int) (Math.random() * GameType.values().length)];
         }
 
-        //TODO: sample value for now, later on should use instanceType to allow randomizing
+        if(ServerFest.arenaManager.requestArena(gameType) == null) {
+            Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
+                startUp();
+            }, 20);
+            return;
+        }
+
         Fest festInstance = new Fest(instanceType);
-        //Fest festInstance = new Fest(GameType.ELYTRA_RACE);
 
         Bukkit.getOnlinePlayers().forEach(player -> {
             player.playSound(player, Sound.ENTITY_ENDER_DRAGON_GROWL, 2f, 0.65f);
