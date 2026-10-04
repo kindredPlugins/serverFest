@@ -5,6 +5,7 @@ import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.FestManager;
 import at.gaderman.serverFest.fests.SaveStateManagement;
 import at.gaderman.serverFest.fests.arenas.ArenaManager;
+import at.gaderman.serverFest.fests.schedule.FestCalendar;
 import at.gaderman.serverFest.management.WorldManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -34,6 +35,7 @@ public final class ServerFest extends JavaPlugin {
 
         FestManager.getInstance();
         arenaManager = new ArenaManager();
+        FestCalendar.getInstance().load();
     }
 
     @Override

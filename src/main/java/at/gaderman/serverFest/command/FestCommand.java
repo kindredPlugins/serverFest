@@ -14,12 +14,14 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 public class FestCommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String @NotNull [] args) {
-        if(sender instanceof Player playerSender) {
+        if (sender instanceof Player playerSender) {
             Bukkit.getOnlinePlayers().forEach(player -> {
                 player.sendMessage(MiniMessage.miniMessage().deserialize("<sprite:\"minecraft:items\":item/firework_rocket> <head:" + playerSender.getUniqueId() + "> ")
                         .append(Component.text(" just scheduled a new fest!", NamedTextColor.GRAY)));
@@ -27,7 +29,8 @@ public class FestCommand implements CommandExecutor, TabCompleter {
             });
         }
 
-        new FixedDateScheduled().schedule();
+        FixedDateScheduled.create(LocalDateTime.now().plus(10, ChronoUnit.SECONDS));
+        //RecurringDateScheduled.create(LocalDateTime.now().plus(5, ChronoUnit.SECONDS), ChronoUnit.MINUTES, 5);
 
         return false;
     }

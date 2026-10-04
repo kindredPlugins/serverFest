@@ -1,38 +1,66 @@
 package at.gaderman.serverFest.fests.schedule;
 
 import at.gaderman.serverFest.ServerFest;
+import at.gaderman.serverFest.fests.game.GameType;
 import org.bukkit.Bukkit;
+import org.bukkit.configuration.ConfigurationSection;
+import org.jetbrains.annotations.Nullable;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.UUID;
+import java.util.function.Supplier;
 
-public class FixedDateScheduled extends ScheduledFest{
+/**
+ * A fest scheduled for a fixed date once, after this fest was scheduled at this point it will remove itself from
+ * the calendar
+ */
+public class FixedDateScheduled extends ScheduledFest {
 
-    private LocalDateTime timeStamp = LocalDateTime.now().plusSeconds(5);
-    private long offsetMinutes = 10080; // 1 week
+    private LocalDateTime timeStamp;
+
+    private FixedDateScheduled(@Nullable GameType gameType, LocalDateTime timeStamp) {
+        super();
+        setGameType(gameType);
+        this.timeStamp = timeStamp;
+    }
+
+    private FixedDateScheduled(UUID uuid, @Nullable GameType gameType, int minPlayers, LocalDateTime timeStamp) {
+        super(uuid, gameType, minPlayers);
+        this.timeStamp = timeStamp;
+    }
+
+    /**
+     * Creates a new instance of this object using {@link ScheduledFest#create(Supplier)}
+     */
+    public static FixedDateScheduled create(LocalDateTime timeStamp) {
+        return ScheduledFest.create(() -> new FixedDateScheduled(null, timeStamp));
+    }
 
     @Override
     public void schedule() {
-        LocalDateTime nextTime = nextSchedule();
+        LocalDateTime now = LocalDateTime.now();
 
-        long offset = LocalDateTime.now().until(nextTime, ChronoUnit.SECONDS) * 20;
+        if (now.isAfter(timeStamp)) {
+            FestCalendar.getInstance().removeFestEntry(uuid());
+            return;
+        }
+
+        long offset = now.until(timeStamp, ChronoUnit.SECONDS) * 20;
         Bukkit.getScheduler().runTaskLater(ServerFest.getPlugin(), () -> {
             startUp();
-            //schedule();
+            FestCalendar.getInstance().removeFestEntry(uuid());
         }, offset);
     }
 
-    public LocalDateTime nextSchedule(){
-        LocalDateTime current = LocalDateTime.now();
+    @Override
+    protected void writeExtraConfig(ConfigurationSection config) {
+        config.set("timeStamp", timeStamp.toString());
+    }
 
-        if(timeStamp.isAfter(current))
-            return timeStamp;
-
-        while (timeStamp.isBefore(current))
-            current = current.plusMinutes(offsetMinutes);
-
-        timeStamp = current;
-        return current;
+    public static FixedDateScheduled deserialize(ConfigurationSection config, UUID uuid, @Nullable GameType gameType, int minPlayers) {
+        LocalDateTime timeStamp = LocalDateTime.parse(config.getString("timeStamp"));
+        return new FixedDateScheduled(uuid, gameType, minPlayers, timeStamp);
     }
 
     public LocalDateTime timeStamp() {
@@ -41,15 +69,6 @@ public class FixedDateScheduled extends ScheduledFest{
 
     public FixedDateScheduled setTimeStamp(LocalDateTime timeStamp) {
         this.timeStamp = timeStamp;
-        return this;
-    }
-
-    public long offsetMinutes() {
-        return offsetMinutes;
-    }
-
-    public FixedDateScheduled setOffsetMinutes(long offsetMinutes) {
-        this.offsetMinutes = offsetMinutes;
         return this;
     }
 }
