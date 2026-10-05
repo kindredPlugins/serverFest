@@ -31,6 +31,10 @@ public abstract class ScheduledFest {
         this(UUID.randomUUID(), null, 1);
     }
 
+    protected ScheduledFest(@Nullable GameType gameType, int minPlayers){
+        this(UUID.randomUUID(), gameType, minPlayers);
+    }
+
     protected ScheduledFest(UUID uuid, @Nullable GameType gameType, int minPlayers) {
         this.uuid = uuid;
         this.gameType = gameType;
@@ -76,7 +80,7 @@ public abstract class ScheduledFest {
         Bukkit.getOnlinePlayers().forEach(player -> {
             player.playSound(player, Sound.ENTITY_ENDER_DRAGON_GROWL, 2f, 0.65f);
 
-            player.sendTitlePart(TitlePart.TITLE, festInstance.game().iconName());
+            player.sendTitlePart(TitlePart.TITLE, festInstance.game().gameType().definition().iconName());
             player.sendTitlePart(TitlePart.SUBTITLE, Component.text("will start in 5 minutes", NamedTextColor.YELLOW));
         });
 

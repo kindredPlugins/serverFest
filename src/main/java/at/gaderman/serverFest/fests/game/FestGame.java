@@ -4,6 +4,7 @@ import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.arenas.ArenaBlockTracker;
 import at.gaderman.serverFest.fests.arenas.ArenaInstance;
 import at.gaderman.serverFest.fests.arenas.ArenaLayout;
+import at.gaderman.serverFest.fests.game.definition.GameDefinition;
 import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
 import at.gaderman.serverFest.gui.BasicGUIElement;
 import net.kyori.adventure.audience.Audience;
@@ -14,6 +15,7 @@ import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.NonNull;
 
 import java.util.*;
@@ -21,7 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
-public abstract class FestGame<T extends ArenaLayout> implements BasicGUIElement {
+public abstract class FestGame<T extends ArenaLayout> {
 
     protected final Fest fest;
     protected final ArenaInstance arenaInstance;
@@ -40,6 +42,11 @@ public abstract class FestGame<T extends ArenaLayout> implements BasicGUIElement
         this.arenaLayout = (T) arenaInstance.arenaLayout();
         this.blockTracker = new ArenaBlockTracker(arenaInstance);
     }
+
+    /**
+     * Returns the corresponding {@link GameType} linked to this fest instance, mostly used for obtaining the {@link GameDefinition}
+     */
+    public abstract @NotNull GameType gameType();
 
     public Location determineOrigin() {
         return arenaLayout.origin();

@@ -3,6 +3,7 @@ package at.gaderman.serverFest.fests.game.implementations.race;
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.arenas.ArenaInstance;
+import at.gaderman.serverFest.fests.game.GameType;
 import at.gaderman.serverFest.fests.game.implementations.race.arena.RaceGameArenaLayout;
 import at.gaderman.serverFest.fests.game.implementations.race.data.CheckPoint;
 import at.gaderman.serverFest.fests.game.triggers.action.PlayerVehicleExitTrigger;
@@ -18,6 +19,7 @@ import org.bukkit.event.vehicle.VehicleExitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
+import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.NonNull;
 
 import java.util.ArrayList;
@@ -33,18 +35,8 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
     }
 
     @Override
-    public Material iconType() {
-        return Material.SADDLE;
-    }
-
-    @Override
-    public Component iconName() {
-        return Component.text("Mount Race", NamedTextColor.GOLD);
-    }
-
-    @Override
-    public List<Component> iconLore() {
-        return List.of();
+    public @NotNull GameType gameType() {
+        return GameType.MOUNT_RACE;
     }
 
     @Override

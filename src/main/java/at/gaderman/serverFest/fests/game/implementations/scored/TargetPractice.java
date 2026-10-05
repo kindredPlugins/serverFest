@@ -4,6 +4,7 @@ import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.arenas.ArenaInstance;
 import at.gaderman.serverFest.fests.arenas.ArenaLayout;
+import at.gaderman.serverFest.fests.game.GameType;
 import at.gaderman.serverFest.fests.game.implementations.scored.data.ScoreGamePlayerData;
 import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
 import at.gaderman.serverFest.fests.game.interfaces.InvisiblePlayersGame;
@@ -25,6 +26,7 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.NonNull;
 
 import java.util.*;
@@ -42,18 +44,8 @@ public class TargetPractice extends ScoreGame<ArenaLayout> implements NoBlockMan
     }
 
     @Override
-    public Material iconType() {
-        return Material.TARGET;
-    }
-
-    @Override
-    public Component iconName() {
-        return Component.text("Target Practice", NamedTextColor.RED);
-    }
-
-    @Override
-    public List<Component> iconLore() {
-        return List.of();
+    public @NotNull GameType gameType() {
+        return GameType.TARGET_PRACTICE;
     }
 
     @Override

@@ -3,6 +3,7 @@ package at.gaderman.serverFest.fests.game.implementations.race;
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.arenas.ArenaInstance;
+import at.gaderman.serverFest.fests.game.GameType;
 import at.gaderman.serverFest.fests.game.implementations.race.arena.ElytraRaceArenaDefinition;
 import at.gaderman.serverFest.fests.game.implementations.race.arena.ElytraRaceArenaLayout;
 import at.gaderman.serverFest.fests.game.implementations.race.data.CheckPoint;
@@ -20,6 +21,7 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityToggleGlideEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,18 +35,8 @@ public class ElytraRace extends RaceGame<ElytraRaceArenaLayout> implements Playe
     }
 
     @Override
-    public Material iconType() {
-        return Material.ELYTRA;
-    }
-
-    @Override
-    public Component iconName() {
-        return Component.text("Elytra Race", NamedTextColor.GREEN);
-    }
-
-    @Override
-    public List<Component> iconLore() {
-        return List.of();
+    public @NotNull GameType gameType() {
+        return GameType.ELYTRA_RACE;
     }
 
     private Set<Chunk> forceLoadedChunks;

@@ -1,6 +1,7 @@
 package at.gaderman.serverFest.fests.schedule;
 
 import at.gaderman.serverFest.ServerFest;
+import at.gaderman.serverFest.fests.FestType;
 import at.gaderman.serverFest.fests.game.GameType;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
@@ -25,6 +26,11 @@ public class FixedDateScheduled extends ScheduledFest {
         this.timeStamp = timeStamp;
     }
 
+    private FixedDateScheduled(FestType festType, @Nullable GameType gameType, int minPlayers, LocalDateTime timeStamp) {
+        super(gameType, minPlayers);
+        this.timeStamp = timeStamp;
+    }
+
     private FixedDateScheduled(UUID uuid, @Nullable GameType gameType, int minPlayers, LocalDateTime timeStamp) {
         super(uuid, gameType, minPlayers);
         this.timeStamp = timeStamp;
@@ -35,6 +41,10 @@ public class FixedDateScheduled extends ScheduledFest {
      */
     public static FixedDateScheduled create(LocalDateTime timeStamp) {
         return ScheduledFest.create(() -> new FixedDateScheduled(null, timeStamp));
+    }
+
+    public static FixedDateScheduled create(FestType festType, @Nullable GameType gameType, int minPlayers, LocalDateTime timeStamp) {
+        return ScheduledFest.create(() -> new FixedDateScheduled(festType, gameType, minPlayers, timeStamp));
     }
 
     @Override
