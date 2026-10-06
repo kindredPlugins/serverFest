@@ -26,13 +26,13 @@ public class FixedDateScheduled extends ScheduledFest {
         this.timeStamp = timeStamp;
     }
 
-    private FixedDateScheduled(FestType festType, @Nullable GameType gameType, int minPlayers, LocalDateTime timeStamp) {
-        super(gameType, minPlayers);
+    private FixedDateScheduled(FestType festType, @Nullable GameType gameType, int minPlayers, int maxPlayers, LocalDateTime timeStamp) {
+        super(festType, gameType, minPlayers, maxPlayers);
         this.timeStamp = timeStamp;
     }
 
-    private FixedDateScheduled(UUID uuid, @Nullable GameType gameType, int minPlayers, LocalDateTime timeStamp) {
-        super(uuid, gameType, minPlayers);
+    private FixedDateScheduled(UUID uuid, FestType festType, @Nullable GameType gameType, int minPlayers, int maxPlayers, LocalDateTime timeStamp) {
+        super(uuid, festType, gameType, minPlayers, maxPlayers);
         this.timeStamp = timeStamp;
     }
 
@@ -43,8 +43,8 @@ public class FixedDateScheduled extends ScheduledFest {
         return ScheduledFest.create(() -> new FixedDateScheduled(null, timeStamp));
     }
 
-    public static FixedDateScheduled create(FestType festType, @Nullable GameType gameType, int minPlayers, LocalDateTime timeStamp) {
-        return ScheduledFest.create(() -> new FixedDateScheduled(festType, gameType, minPlayers, timeStamp));
+    public static FixedDateScheduled create(FestType festType, @Nullable GameType gameType, int minPlayers, int maxPlayers, LocalDateTime timeStamp) {
+        return ScheduledFest.create(() -> new FixedDateScheduled(festType, gameType, minPlayers, maxPlayers, timeStamp));
     }
 
     @Override
@@ -68,9 +68,10 @@ public class FixedDateScheduled extends ScheduledFest {
         config.set("timeStamp", timeStamp.toString());
     }
 
-    public static FixedDateScheduled deserialize(ConfigurationSection config, UUID uuid, @Nullable GameType gameType, int minPlayers) {
+    public static FixedDateScheduled deserialize(ConfigurationSection config, UUID uuid, FestType festType,
+                                                 @Nullable GameType gameType, int minPlayers, int maxPlayers) {
         LocalDateTime timeStamp = LocalDateTime.parse(config.getString("timeStamp"));
-        return new FixedDateScheduled(uuid, gameType, minPlayers, timeStamp);
+        return new FixedDateScheduled(uuid, festType, gameType, minPlayers, maxPlayers, timeStamp);
     }
 
     public LocalDateTime timeStamp() {

@@ -20,6 +20,9 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
+/**
+ * Active instance of a fest, this means the fest is already ongoing and houses a {@link FestGame}.
+ */
 public class Fest {
 
     public static final NamespacedKey FEST_OFFSET = new NamespacedKey(ServerFest.getPlugin(), "fest_offset");
@@ -28,6 +31,7 @@ public class Fest {
     //region Fields
 
     private final UUID uuid;
+    private final FestType festType;
     private final List<UUID> participantUUIDs;
     private final FestGame<?> game;
     private final ArenaInstance arenaInstance;
@@ -37,8 +41,9 @@ public class Fest {
 
     private TriggerListener triggerListener;
 
-    public Fest(GameType gameType) {
+    public Fest(FestType festType, GameType gameType) {
         this.uuid = UUID.randomUUID();
+        this.festType = festType;
         //TODO: change this later to give players actual choice of participation
         this.participantUUIDs = Bukkit.getOnlinePlayers().stream().map(Player::getUniqueId).collect(Collectors.toList());
 

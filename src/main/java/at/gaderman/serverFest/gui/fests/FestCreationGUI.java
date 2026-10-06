@@ -21,6 +21,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.time.temporal.ChronoUnit;
 
+//TODO: add polishing, display is not modern, not optimized, styling, ...
 public class FestCreationGUI extends ActionInventory {
 
     private static final FestType[] FEST_TYPES = FestType.values();
@@ -163,9 +164,9 @@ public class FestCreationGUI extends ActionInventory {
 
         defineInventoryAction(ACCEPT_SLOT, _ -> {
             if (recurring) {
-                RecurringDateScheduled.create(festType, gameType, minPlayers, time, unit, offset);
+                RecurringDateScheduled.create(festType, gameType, minPlayers, maxPlayers, time, unit, offset);
             } else {
-                FixedDateScheduled.create(festType, gameType, minPlayers, time);
+                FixedDateScheduled.create(festType, gameType, minPlayers, maxPlayers, time);
             }
 
             inventory.close();
