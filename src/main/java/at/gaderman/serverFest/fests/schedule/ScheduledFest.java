@@ -130,7 +130,8 @@ public abstract class ScheduledFest {
      * @see ScheduledFest#writeExtraConfig(ConfigurationSection)
      */
     public final void writeToConfig(ConfigurationSection config){
-        config.set("gameType", gameType);
+        if(gameType != null)
+            config.set("gameType", gameType.toString().toUpperCase());
         config.set("minPlayers", minPlayers);
 
         ConfigurationSection scheduleSection = config.getConfigurationSection("schedule");
@@ -157,7 +158,8 @@ public abstract class ScheduledFest {
         String type = config.getString("schedule.type");
 
         UUID uuid = UUID.fromString(config.getName());
-        GameType gameType = config.getObject("gameType", GameType.class, null);
+        String gameTypeString = config.getString("gameType", null);
+        GameType gameType = gameTypeString == null ? null : GameType.valueOf(gameTypeString);
         int minPlayers = config.getInt("minPlayers");
 
         ConfigurationSection scheduleSection = config.getConfigurationSection("schedule");

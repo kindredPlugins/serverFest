@@ -1,6 +1,7 @@
 package at.gaderman.serverFest.fests.schedule;
 
 import at.gaderman.serverFest.ServerFest;
+import at.gaderman.serverFest.fests.FestType;
 import at.gaderman.serverFest.fests.game.GameType;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
@@ -22,7 +23,11 @@ public class RecurringDateScheduled extends ScheduledFest {
     private long offset;
 
     private RecurringDateScheduled(LocalDateTime timeStamp, ChronoUnit timeUnit, long offset) {
-        super();
+       this(FestType.CASUAL, null, 2, timeStamp, timeUnit, offset);
+    }
+
+    private RecurringDateScheduled(FestType festType, GameType gameType, int minPlayers, LocalDateTime timeStamp, ChronoUnit timeUnit, long offset) {
+        super(gameType, minPlayers);
         this.timeStamp = timeStamp;
         this.timeUnit = timeUnit;
         this.offset = offset;
@@ -40,6 +45,13 @@ public class RecurringDateScheduled extends ScheduledFest {
      */
     public static RecurringDateScheduled create(LocalDateTime timeStamp, ChronoUnit timeUnit, long offset) {
         return ScheduledFest.create(() -> new RecurringDateScheduled(timeStamp, timeUnit, offset));
+    }
+
+    /**
+     * Creates a new instance of this object using {@link ScheduledFest#create(Supplier)}
+     */
+    public static RecurringDateScheduled create(FestType festType, GameType gameType, int minPlayers, LocalDateTime timeStamp, ChronoUnit timeUnit, long offset) {
+        return ScheduledFest.create(() -> new RecurringDateScheduled(festType, gameType, minPlayers, timeStamp, timeUnit, offset));
     }
 
     @Override
