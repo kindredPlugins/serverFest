@@ -1,5 +1,6 @@
 package at.gaderman.serverFest.command;
 
+import at.gaderman.serverFest.fests.game.GameType;
 import at.gaderman.serverFest.fests.schedule.FixedDateScheduled;
 import at.gaderman.serverFest.gui.fests.FestCreationGUI;
 import net.kyori.adventure.text.Component;
@@ -18,6 +19,7 @@ import org.jetbrains.annotations.Nullable;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class FestCommand implements CommandExecutor, TabCompleter {
@@ -32,6 +34,7 @@ public class FestCommand implements CommandExecutor, TabCompleter {
             case 1 -> {
                 switch (args[0]) {
                     case "dev" -> {
+                        //TODO: add only sender as participant and do not let others join
                         sendScheduleMessage(sender);
                         FixedDateScheduled.create(LocalDateTime.now().plus(10, ChronoUnit.SECONDS));
                         return true;
@@ -53,6 +56,18 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                     default -> {
                         return false;
                     }
+                }
+            }
+            case 2 -> {
+                if (args[0].equals("quick")) {
+                    try {
+                        GameType gameType = GameType.valueOf(args[1].toUpperCase());
+                        FixedDateScheduled.create(gameType, LocalDateTime.now().plusSeconds(5));
+                        sendScheduleMessage(sender);
+                    } catch (IllegalArgumentException exception) {
+                        sender.sendMessage(Component.text("Invalid gameType " + args[1], NamedTextColor.RED));
+                    }
+                    return true;
                 }
             }
         }
@@ -82,6 +97,14 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                 completions.add("dev");
                 completions.add("quick");
                 completions.add("create");
+            }
+            case 2 -> {
+                if (args[0].equals("quick")) {
+                    completions.addAll(Arrays.stream(GameType.values())
+                            .map(type -> type.name().toLowerCase())
+                            .filter(name -> name.startsWith(args[1]))
+                            .toList());
+                }
             }
         }
 

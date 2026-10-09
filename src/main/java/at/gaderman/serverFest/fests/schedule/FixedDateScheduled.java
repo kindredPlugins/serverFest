@@ -43,6 +43,10 @@ public class FixedDateScheduled extends ScheduledFest {
         return ScheduledFest.create(() -> new FixedDateScheduled(null, timeStamp));
     }
 
+    public static FixedDateScheduled create(GameType gameType, LocalDateTime timeStamp){
+        return ScheduledFest.create(() -> new FixedDateScheduled(gameType, timeStamp));
+    }
+
     public static FixedDateScheduled create(FestType festType, @Nullable GameType gameType, int minPlayers, int maxPlayers, LocalDateTime timeStamp) {
         return ScheduledFest.create(() -> new FixedDateScheduled(festType, gameType, minPlayers, maxPlayers, timeStamp));
     }
