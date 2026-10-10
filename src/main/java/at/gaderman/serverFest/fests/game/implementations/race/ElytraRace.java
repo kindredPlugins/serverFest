@@ -23,7 +23,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -40,7 +39,6 @@ public class ElytraRace extends RaceGame<ElytraRaceArenaLayout> implements Playe
     }
 
     private Set<Chunk> forceLoadedChunks;
-    private List<Block> placedBlocks = new ArrayList<>();
 
     //region Overrides
 
@@ -50,18 +48,7 @@ public class ElytraRace extends RaceGame<ElytraRaceArenaLayout> implements Playe
     @Override
     public Location determineOrigin() {
         Location origin = super.determineOrigin();
-        World world = fest.world();
-
-        int tries = 1;
-        origin.setY(100);
-
-//        while (world.getHighestBlockAt(origin).getY() > origin.getY() - 10) {
-//            origin.set(origin.getX() + 300, origin.getY(), origin.getZ());
-//            tries++;
-//        }
-//
-//        ServerFest.getPlugin().getLogger().info("Found ElytraRace start after " + tries + " tries");
-
+        origin.setY(Math.max(fest.world().getHighestBlockYAt(origin), 100));
         return origin;
     }
 
@@ -70,12 +57,20 @@ public class ElytraRace extends RaceGame<ElytraRaceArenaLayout> implements Playe
         World world = fest.world();
         Location origin = fest.origin();
 
+        for (int x = -5; x <= 5; x++)
+            for (int y = -5; y < 5; y++)
+                for (int z = -5; z <= 5; z++) {
+                    blockTracker.setBlock(origin.clone().add(x, y, z), Material.AIR);
+                }
+
         for (int x = -1; x <= 1; x++)
             for (int z = -1; z <= 1; z++) {
                 Location location = origin.clone().add(x, -1, z);
+                blockTracker.setBlock(location, Material.BAMBOO_BLOCK);
                 location.getBlock().setType(Material.BAMBOO_BLOCK);
-                placedBlocks.add(location.getBlock());
             }
+
+        blockTracker.save();
 
         CompletableFuture<Void> future = new CompletableFuture<>();
 
@@ -85,6 +80,9 @@ public class ElytraRace extends RaceGame<ElytraRaceArenaLayout> implements Playe
 
             for (CheckPoint checkPoint : checkPoints)
                 adjustGateLocation(checkPoint.location());
+
+            arenaLayout.trackSamples().clear();
+            arenaLayout.trackSamples().addAll(((ElytraRaceArenaDefinition) gameType().getArenaDefinition()).buildTrackSpline(arenaLayout.checkPoints()));
 
             checkPoints.getFirst().location().set(origin.getX(), origin.getY(), origin.getZ());
 
@@ -106,11 +104,6 @@ public class ElytraRace extends RaceGame<ElytraRaceArenaLayout> implements Playe
     protected void onStop() {
         if (forceLoadedChunks != null)
             forceLoadedChunks.forEach(chunk -> chunk.removePluginChunkTicket(ServerFest.getPlugin()));
-    }
-
-    @Override
-    protected CompletableFuture<Void> onReset() {
-        return super.onReset().thenRun(() -> placedBlocks.forEach(block -> block.setType(Material.AIR)));
     }
 
     @Override
@@ -215,7 +208,7 @@ public class ElytraRace extends RaceGame<ElytraRaceArenaLayout> implements Playe
 
             for (int x = -5; x <= 5 && clear; x++) {
                 for (int z = -5; z <= 5 && clear; z++) {
-                    for (int offsetY = 0; offsetY <= 5; offsetY++) {
+                    for (int offsetY = (int) (GATE_SIZE / -2); offsetY <= 5; offsetY++) {
                         Block block = world.getBlockAt(location.getBlockX() + x, y + offsetY, location.getBlockZ() + z);
                         if (!block.isPassable() || block.isLiquid()) {
                             clear = false;
@@ -228,7 +221,7 @@ public class ElytraRace extends RaceGame<ElytraRaceArenaLayout> implements Playe
             if (clear) {
                 location.setY(y == minY ? y : y + Math.random() * 10);
                 stopWatch.stop();
-                ServerFest.getPlugin().getLogger().info("Found a location after " + (y - minY) + " tries (" + stopWatch.getTime() + "ms)");
+                //ServerFest.getPlugin().getLogger().info("Found a location after " + (y - minY) + " tries (" + stopWatch.getTime() + "ms)");
                 return;
             }
         }
@@ -236,9 +229,14 @@ public class ElytraRace extends RaceGame<ElytraRaceArenaLayout> implements Playe
         int newY = location.getWorld().getHighestBlockAt(location).getY() + 10;
         location.setY(newY);
 
-        location.getWorld().createExplosion(location, 6);
+        for (int x = -5; x <= 5; x++)
+            for (int y = -5; y < 5; y++)
+                for (int z = -5; z <= 5; z++) {
+                    blockTracker.setBlock(location.clone().add(x, y, z), Material.AIR);
+                }
+        blockTracker.save();
         stopWatch.stop();
-        ServerFest.getPlugin().getLogger().info("Needed extra solution for checkpoint (" + stopWatch.getTime() + "ms)");
+        //ServerFest.getPlugin().getLogger().info("Needed extra solution for checkpoint (" + stopWatch.getTime() + "ms)");
     }
 
     //endregion

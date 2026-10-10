@@ -49,10 +49,13 @@ public class ElytraRaceArenaDefinition extends ArenaDefinition {
 
         double gateSize = ElytraRace.GATE_SIZE;
 
-        checkPoints.add(new CheckPoint(origin, gateSize, gateSize));
+        checkPoints.add(new CheckPoint(origin.clone().add(0, 2, 0), gateSize, gateSize));
 
         // How quickly it oscillates.
         double waveLength = 2;
+        double xAddition = 10;
+
+        int curveDirection = Math.random() < 0.5 ? 1 : -1;
 
         double lastZ = 0;
         for (int i = 1; i < gateCount + 1; i++) {
@@ -60,16 +63,16 @@ public class ElytraRaceArenaDefinition extends ArenaDefinition {
             lastZ = z;
 
             // Smooth left/right movement.
-            double x = Math.sin(i / waveLength) * WAVE_AMPLITUDE;
+            double x = curveDirection * Math.sin(i / waveLength) * WAVE_AMPLITUDE + (Math.random() * xAddition * 2 - xAddition);
 
             // Optional vertical movement.
-            double y = Math.random() * 20 - 10;
+            double y = Math.random() * 30 - 15;
 
             Location gateLocation = origin.clone().add(x, y, z);
             checkPoints.add(new CheckPoint(gateLocation, gateSize, gateSize));
         }
 
-        buildTrackSpline();
+        buildTrackSpline(this.checkPoints);
     }
 
     private final List<Vector> trackSamples = new ArrayList<>();
@@ -77,29 +80,31 @@ public class ElytraRaceArenaDefinition extends ArenaDefinition {
 
     private static final int SAMPLES_PER_SEGMENT = 32;
 
-    private void buildTrackSpline() {
+    public List<Vector> buildTrackSpline(List<CheckPoint> checkPoints) {
         trackSamples.clear();
         segmentStartIndex.clear();
 
-        List<Vector> checkPoints = this.checkPoints.stream()
+        List<Vector> points = checkPoints.stream()
                 .map(cp -> cp.location().toVector())
                 .toList();
 
-        int n = checkPoints.size();
+        int n = points.size();
         for (int i = 0; i < n - 1; i++) {
             segmentStartIndex.add(trackSamples.size());
 
-            Vector p0 = checkPoints.get(Math.max(i - 1, 0));
-            Vector p1 = checkPoints.get(i);
-            Vector p2 = checkPoints.get(i + 1);
-            Vector p3 = checkPoints.get(Math.min(i + 2, n - 1));
+            Vector p0 = points.get(Math.max(i - 1, 0));
+            Vector p1 = points.get(i);
+            Vector p2 = points.get(i + 1);
+            Vector p3 = points.get(Math.min(i + 2, n - 1));
 
             for (int s = 0; s < SAMPLES_PER_SEGMENT; s++) {
                 trackSamples.add(catmullRom(p0, p1, p2, p3, s / (double) SAMPLES_PER_SEGMENT));
             }
         }
-        trackSamples.add(checkPoints.get(n - 1));
+        trackSamples.add(points.get(n - 1));
         segmentStartIndex.add(trackSamples.size() - 1);
+
+        return trackSamples;
     }
 
     private Vector catmullRom(Vector p0, Vector p1, Vector p2, Vector p3, double t) {
