@@ -6,27 +6,24 @@ import at.gaderman.serverFest.fests.arenas.ArenaInstance;
 import at.gaderman.serverFest.fests.game.GameType;
 import at.gaderman.serverFest.fests.game.implementations.race.arena.RaceGameArenaLayout;
 import at.gaderman.serverFest.fests.game.implementations.race.data.CheckPoint;
+import at.gaderman.serverFest.fests.game.implementations.race.track.TrackBuilder;
+import at.gaderman.serverFest.fests.game.implementations.race.track.TrackPath;
+import at.gaderman.serverFest.fests.game.implementations.race.track.TrackTerrain;
 import at.gaderman.serverFest.fests.game.triggers.action.PlayerVehicleExitTrigger;
 import at.gaderman.serverFest.fests.game.triggers.damage.PlayerDamageTrigger;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.*;
 import org.bukkit.attribute.Attribute;
-import org.bukkit.block.Block;
 import org.bukkit.entity.*;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.vehicle.VehicleExitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
-import org.jspecify.annotations.NonNull;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDamageTrigger, PlayerVehicleExitTrigger {
 
@@ -42,7 +39,7 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
     @Override
     public Location determineOrigin() {
         Location origin = super.determineOrigin();
-        origin.setY(fest.world().getHighestBlockYAt(origin) + 1);
+        origin.setY(fest.world().getHighestBlockYAt(origin) + 2);
         return origin;
     }
 
@@ -56,6 +53,7 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
     @Override
     protected void onStop() {
         forcedChunks.forEach(chunk -> chunk.removePluginChunkTicket(ServerFest.getPlugin()));
+        forcedChunks.clear();
         fest.participants().forEach(Entity::leaveVehicle);
     }
 
@@ -76,14 +74,16 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
         player.playSound(player, Sound.ENTITY_PLAYER_LEVELUP, 1f, 2f);
     }
 
-    //region Player
+    //region Player and Mounts
+
+    private final Set<Chunk> forcedChunks = new HashSet<>();
 
     private void scheduleMountSwitcher(Player player, Vehicle vehicle) {
         boolean isHorse = vehicle instanceof Horse;
         final long[] lastSwitch = {System.currentTimeMillis()};
 
         vehicle.getScheduler().runAtFixedRate(ServerFest.getPlugin(), task -> {
-            if (!fest.game().isRunning() || !player.isValid()) {
+            if (!fest.game().isRunning() || !player.isValid() || !vehicle.isValid()) {
                 task.cancel();
                 return;
             }
@@ -92,39 +92,36 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
                 return;
 
             if (isHorse && vehicle.isInWater()) {
-                player.spawnParticle(Particle.WHITE_SMOKE, vehicle.getLocation(), 50, 0.5, 0.5, 0.5, 0.1f);
-                player.playSound(vehicle.getLocation(), Sound.ENTITY_ZOMBIE_VILLAGER_CONVERTED, 1f, 2f);
-
-                vehicle.remove();
-                spawnNautilusFor(player);
-
+                switchMount(player, vehicle, true);
                 lastSwitch[0] = System.currentTimeMillis();
-            }
-
-            if (!isHorse && vehicle.isOnGround() && !vehicle.isInWater()) {
-                player.spawnParticle(Particle.WHITE_SMOKE, vehicle.getLocation(), 50, 0.5, 0.5, 0.5, 0.1f);
-                player.playSound(vehicle.getLocation(), Sound.ENTITY_ZOMBIE_VILLAGER_CONVERTED, 1f, 2f);
-
-                vehicle.remove();
-                spawnHorseFor(player);
-
+            } else if (!isHorse && vehicle.isOnGround() && !vehicle.isInWater()) {
+                switchMount(player, vehicle, false);
                 lastSwitch[0] = System.currentTimeMillis();
             }
         }, null, 1, 1);
+    }
+
+    private void switchMount(Player player, Vehicle vehicle, boolean toNautilus) {
+        Location location = vehicle.getLocation();
+        player.spawnParticle(Particle.WHITE_SMOKE, location, 50, 0.5, 0.5, 0.5, 0.1f);
+        player.playSound(location, Sound.ENTITY_ZOMBIE_VILLAGER_CONVERTED, 1f, 2f);
+        vehicle.remove();
+
+        if (toNautilus)
+            spawnNautilusFor(player);
+        else
+            spawnHorseFor(player);
     }
 
     private void spawnHorseFor(Player player) {
         player.getWorld().spawn(player.getLocation(), Horse.class, horse -> {
             horse.setAdult();
             horse.setInvulnerable(true);
-
             horse.setTamed(true);
             horse.getEquipment().setItem(EquipmentSlot.SADDLE, ItemStack.of(Material.SADDLE));
             horse.addPassenger(player);
-
             horse.getAttribute(Attribute.MOVEMENT_SPEED).setBaseValue(0.3f);
             horse.getAttribute(Attribute.JUMP_STRENGTH).setBaseValue(1f);
-
             scheduleMountSwitcher(player, horse);
         });
     }
@@ -133,188 +130,165 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
         player.getWorld().spawn(player.getLocation(), Nautilus.class, nautilus -> {
             nautilus.setAdult();
             nautilus.setInvulnerable(true);
-
             nautilus.setTamed(true);
             nautilus.getEquipment().setItem(EquipmentSlot.SADDLE, ItemStack.of(Material.SADDLE));
             nautilus.addPassenger(player);
-
             scheduleMountSwitcher(player, nautilus);
         });
     }
 
     //endregion
 
-    //region Track
+    //region Track Setup
 
     public static final int CHECKPOINT_COUNT = 10;
-    public static final int TRACK_DIAMETER = 2;
-    public static final double GATE_SIZE = TRACK_DIAMETER * 2 + 3;
-
-    private final List<Chunk> forcedChunks = new ArrayList<>();
+    public static final int TRACK_HALF_WIDTH = TrackPath.HALF_WIDTH;
+    public static final double GATE_SIZE = TRACK_HALF_WIDTH * 2 + 3;
+    private static final int MIN_DEEP_WATER_DEPTH = 5;
 
     private void buildTrack(CompletableFuture<Void> future) {
         World world = fest.world();
-        Location origin = fest.origin().add(0, -1, 0);
+        int checkpointCount = Math.min(CHECKPOINT_COUNT, checkPoints.size());
 
-        buildTrackSection(future, world, origin, TRACK_DIAMETER, GATE_SIZE, CHECKPOINT_COUNT, 0);
-    }
-
-    private void buildTrackSection(CompletableFuture<Void> future, World world, Location lastLocation, int trackDiameter,
-                                   double gateSize, int checkPointCount, int index) {
-        if (index >= checkPointCount) {
-            future.complete(null);
+        if (checkpointCount == 0) {
+            future.completeExceptionally(new IllegalStateException("MountRace has no checkpoints to build."));
             return;
         }
 
-        CheckPoint checkPoint = checkPoints.get(index);
-        double newX = checkPoints.get(index).location().getX();
-        double newZ = checkPoints.get(index).location().getZ();
+        Location origin = fest.origin().clone();
+        List<Location> controls = createControls(origin, checkpointCount);
+        List<TrackPath.Point> previewPath = TrackPath.create(controls);
+        Set<ChunkPos> requiredChunks = findRequiredChunks(previewPath, controls);
 
-        Location newLocation = new Location(world, newX, lastLocation.getY(), newZ);
+        // All path and gate chunks are loaded before terrain is inspected or blocks are changed.
+        loadChunks(world, requiredChunks, loadedChunks -> {
+            try {
+                retainChunks(loadedChunks);
+                TrackTerrain terrain = new TrackTerrain(world, MIN_DEEP_WATER_DEPTH);
+                List<Location> resolvedControls = new ArrayList<>(controls.size());
+                resolvedControls.add(origin);
 
-        List<TrackPoint> initialPath = createPath(lastLocation, newLocation);
-        Set<ChunkPos> chunks = getRequiredChunks(initialPath);
-
-        loadChunks(world, chunks, resolvedChunks -> {
-            resolvedChunks.forEach(chunk -> chunk.addPluginChunkTicket(ServerFest.getPlugin()));
-            forcedChunks.addAll(resolvedChunks);
-
-            int highestY = world.getHighestBlockYAt(newLocation);
-            newLocation.setY(highestY + 1);
-
-            while ((newLocation.getBlock().isPassable() && !newLocation.getBlock().isLiquid()) ||
-                    newLocation.getBlock().getType().toString().contains("LEAVES"))
-                newLocation.setY(newLocation.getY() - 1);
-
-            newLocation.toCenterLocation();
-            checkPoint.location().set(newLocation.x(), newLocation.y(), newLocation.z());
-
-            createPath(lastLocation, newLocation).forEach(path -> {
-                BlockPos center = path.center();
-
-                Location centerLocation = new Location(world, center.x(), center.y(), center.z());
-                Block centerBlock = centerLocation.getBlock();
-
-                int maxY = world.getHighestBlockYAt(centerLocation);
-
-                if (Math.abs(center.y() - maxY) <= 2) {
-                    Block checkBlock = new Location(world, center.x(), maxY + 1, center.z()).getBlock();
-                    while (checkBlock.isPassable() && !checkBlock.isLiquid()) {
-                        maxY--;
-                        checkBlock = new Location(world, center.x(), maxY + 1, center.z()).getBlock();
-                    }
-
-                    center = new BlockPos(center.x(), maxY + 1, center.z());
+                for (int i = 0; i < checkpointCount; i++) {
+                    CheckPoint checkPoint = checkPoints.get(i);
+                    Location resolved = terrain.resolveCheckpoint(controls.get(i + 1));
+                    checkPoint.location().set(resolved.getX(), resolved.getY(), resolved.getZ());
+                    resolvedControls.add(resolved);
                 }
 
-                if (centerBlock.isLiquid()) {
-                    boolean isDeepWater = true;
-
-                    for (int y = 0; y < 5; y++) {
-                        Block beneath = centerLocation.clone().add(0, -y - 1, 0).getBlock();
-                        if (beneath.getType() != Material.WATER &&
-                                beneath.getType() != Material.KELP_PLANT &&
-                                beneath.getType() != Material.KELP &&
-                                beneath.getType() != Material.SEAGRASS &&
-                                beneath.getType() != Material.TALL_SEAGRASS) {
-                            isDeepWater = false;
-                            break;
-                        }
-                    }
-
-                    if (isDeepWater)
-                        return;
-                }
-
-                List<BlockPos> blocks = new ArrayList<>();
-                blocks.add(center);
-                blocks.addAll(path.sides());
-
-                boolean doTitleDrops = world.getGameRuleValue(GameRules.BLOCK_DROPS);
-                world.setGameRule(GameRules.BLOCK_DROPS, false);
-                for (BlockPos pos : blocks) {
-                    Location location = new Location(world, pos.x(), center.y(), pos.z());
-
-                    for (int y = 0; y < 25; y++) {
-                        blockTracker.setBlock(location.clone().add(0, y + 1, 0), Material.AIR);
-                    }
-
-                    blockTracker.setBlock(location.getBlock(), Material.SPRUCE_SLAB);
-                }
-                world.setGameRule(GameRules.BLOCK_DROPS, doTitleDrops);
-            });
-            blockTracker.save();
-
-            if (index != 0)
-                createGate(newLocation.clone().add(0, gateSize / 2 * 0.8, 0),
-                        gateSize, 0.6, index == checkPointCount - 1);
-
-            buildTrackSection(future, world, newLocation, trackDiameter, gateSize, checkPointCount, index + 1);
+                List<TrackPath.Point> path = TrackPath.create(resolvedControls);
+                TrackBuilder.build(world, path, terrain, blockTracker::setBlock);
+                createCheckpointGates(terrain, checkpointCount);
+                blockTracker.save();
+                future.complete(null);
+            } catch (Throwable throwable) {
+                future.completeExceptionally(throwable);
+            }
         });
     }
 
-    public static List<TrackPoint> createPath(Location from, Location to) {
-        List<TrackPoint> points = new ArrayList<>();
+    private List<Location> createControls(Location origin, int checkpointCount) {
+        List<Location> controls = new ArrayList<>(checkpointCount + 1);
+        controls.add(origin.clone().add(0, -1, 0));
 
-        Vector start = from.toVector();
-        Vector end = to.toVector();
-        Vector line = end.clone().subtract(start);
-
-        Vector lineXZ = line.clone().setY(0);
-        double length = lineXZ.length();
-
-        if (length == 0)
-            return points;
-
-        int steps = Math.max(1, (int) Math.ceil(length));
-
-        for (int i = 0; i <= steps; i++) {
-            double t = Math.min(1, i / (double) steps);
-
-            double x = from.getX() + (to.getX() - from.getX()) * t;
-            double z = from.getZ() + (to.getZ() - from.getZ()) * t;
-            int y = Location.locToBlock(from.getY() + (to.getY() - from.getY()) * t);
-
-            int centerX = Location.locToBlock(x);
-            int centerZ = Location.locToBlock(z);
-
-            BlockPos center = new BlockPos(centerX, y, centerZ);
-            List<BlockPos> sides = resolveSideBlocks(centerX, y, centerZ);
-
-            points.add(new TrackPoint(center, sides));
+        for (int i = 0; i < checkpointCount; i++) {
+            Location target = checkPoints.get(i).location().clone();
+            controls.add(target.toCenterLocation());
         }
 
-        return points;
+        return controls;
     }
 
-    private static @NonNull List<BlockPos> resolveSideBlocks(int centerX, int y, int centerZ) {
-        List<BlockPos> sides = new ArrayList<>();
+    private Set<ChunkPos> findRequiredChunks(List<TrackPath.Point> path, List<Location> controls) {
+        Set<ChunkPos> chunks = new HashSet<>();
+        for (TrackPath.ChunkCoordinate coordinate : TrackPath.requiredChunks(path))
+            chunks.add(new ChunkPos(coordinate.x(), coordinate.z()));
+        for (Location control : controls)
+            chunks.add(new ChunkPos(control.getBlockX() >> 4, control.getBlockZ() >> 4));
 
-        for (int offsetX = -TRACK_DIAMETER; offsetX <= TRACK_DIAMETER; offsetX++) {
-            for (int offsetZ = -TRACK_DIAMETER; offsetZ <= TRACK_DIAMETER; offsetZ++) {
-                if (offsetX == 0 && offsetZ == 0)
-                    continue;
+        int gateRadius = (int) Math.ceil(GATE_SIZE / 2) + 1;
+        for (int i = 2; i < controls.size(); i++) {
+            Location gate = controls.get(i);
+            int x = gate.getBlockX();
+            int z = gate.getBlockZ();
 
-                double distance = Math.sqrt(offsetX * offsetX + offsetZ * offsetZ);
-                if (distance > TRACK_DIAMETER)
-                    continue;
-
-                sides.add(new BlockPos(centerX + offsetX, y, centerZ + offsetZ));
+            for (int dx = -gateRadius; dx <= gateRadius; dx++) {
+                for (int dz = -gateRadius; dz <= gateRadius; dz++)
+                    chunks.add(new ChunkPos((x + dx) >> 4, (z + dz) >> 4));
             }
         }
-        return sides;
+
+        return chunks;
+    }
+
+    private void retainChunks(Collection<Chunk> chunks) {
+        for (Chunk chunk : chunks) {
+            if (forcedChunks.add(chunk))
+                chunk.addPluginChunkTicket(ServerFest.getPlugin());
+        }
+    }
+
+    private void createCheckpointGates(TrackTerrain terrain, int checkpointCount) {
+        for (int i = 1; i < checkpointCount; i++) {
+            Location location = checkPoints.get(i).location().clone();
+            TrackTerrain.ColumnInfo column = terrain.columnAt(location.getBlockX(), location.getBlockZ());
+
+            if (!column.deepWater())
+                location.add(0, GATE_SIZE / 2 * 0.8, 0);
+
+            createGate(location, GATE_SIZE, 0.6, i == checkpointCount - 1);
+        }
+    }
+
+    //endregion
+
+    //region Track Geometry Compatibility
+
+    public static List<TrackPoint> createPath(Location from, Location to) {
+        List<TrackPath.Point> points = TrackPath.create(List.of(from, to));
+        List<TrackPoint> result = new ArrayList<>(points.size());
+
+        for (int i = 0; i < points.size(); i++) {
+            TrackPath.Point point = points.get(i);
+            double[] normal = TrackPath.normalAt(points, i);
+            int centerX = (int) Math.floor(point.x());
+            int centerZ = (int) Math.floor(point.z());
+            int y = (int) Math.floor(point.y());
+            Set<BlockPos> sides = new LinkedHashSet<>();
+
+            for (int offset = -TRACK_HALF_WIDTH; offset <= TRACK_HALF_WIDTH; offset++) {
+                if (offset == 0)
+                    continue;
+
+                int x = (int) Math.floor(point.x() + normal[0] * offset);
+                int z = (int) Math.floor(point.z() + normal[1] * offset);
+                if (x != centerX || z != centerZ)
+                    sides.add(new BlockPos(x, y, z));
+            }
+
+            result.add(new TrackPoint(new BlockPos(centerX, y, centerZ), List.copyOf(sides)));
+        }
+
+        return result;
     }
 
     public static Set<ChunkPos> getRequiredChunks(List<TrackPoint> points) {
-        return points.stream()
-                .flatMap(point -> {
-                    List<BlockPos> blocks = new ArrayList<>();
-                    blocks.add(point.center());
-                    blocks.addAll(point.sides());
-                    return blocks.stream();
-                })
-                .map(block -> new ChunkPos(block.x() >> 4, block.z() >> 4))
-                .collect(Collectors.toSet());
+        Set<ChunkPos> chunks = new HashSet<>();
+        for (TrackPoint point : points) {
+            addChunk(chunks, point.center());
+            for (BlockPos side : point.sides())
+                addChunk(chunks, side);
+        }
+        return chunks;
+    }
+
+    private static void addChunk(Set<ChunkPos> chunks, BlockPos block) {
+        chunks.add(new ChunkPos(block.x() >> 4, block.z() >> 4));
+    }
+
+    public record TrackPoint(BlockPos center, List<BlockPos> sides) {
+    }
+
+    public record BlockPos(int x, int y, int z) {
     }
 
     //endregion
@@ -333,10 +307,4 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
     }
 
     //endregion
-
-    public record TrackPoint(BlockPos center, List<BlockPos> sides) {
-    }
-
-    public record BlockPos(int x, int y, int z) {
-    }
 }
