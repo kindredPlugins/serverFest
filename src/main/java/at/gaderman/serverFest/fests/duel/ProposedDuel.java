@@ -2,6 +2,7 @@ package at.gaderman.serverFest.fests.duel;
 
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.game.GameType;
+import at.gaderman.serverFest.gui.fests.DuelConfirmationGUI;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -144,8 +145,10 @@ public class ProposedDuel {
                 return;
             }
 
+            var duelGUI = new DuelConfirmationGUI(challenger, opponent);
             List.of(challenger, opponent).forEach(player -> {
-                //TODO: open DuelGUI
+                player.playSound(player, Sound.BLOCK_ENDER_CHEST_OPEN, 1f, 0.3f);
+                duelGUI.openInventory(player);
             });
         }, () -> {
             activeProposals.remove(duel);
