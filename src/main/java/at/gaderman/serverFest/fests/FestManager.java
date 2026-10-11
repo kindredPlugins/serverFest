@@ -1,6 +1,7 @@
 package at.gaderman.serverFest.fests;
 
 import at.gaderman.serverFest.ServerFest;
+import at.gaderman.serverFest.fests.schedule.FestCalendar;
 import at.gaderman.serverFest.management.WorldManager;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -48,7 +49,8 @@ public class FestManager {
     }
 
     public boolean isPlayerParticipatingInAnyFest(Player player) {
-        return this.fests.values().stream().anyMatch(fest -> fest.participantUUIDs().contains(player.getUniqueId()));
+        return FestCalendar.getInstance().calendar().stream().anyMatch(fest -> fest.isParticipating(player)) ||
+                this.fests.values().stream().anyMatch(fest -> fest.participantUUIDs().contains(player.getUniqueId()));
     }
 
     /**

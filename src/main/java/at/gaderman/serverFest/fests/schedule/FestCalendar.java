@@ -6,9 +6,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Holds all {@link ScheduledFest} instances, manages the config communication for them
@@ -71,5 +69,9 @@ public class FestCalendar {
         });
 
         ServerFest.getPlugin().getLogger().info("Scheduled fests have been loaded");
+    }
+
+    public List<ScheduledFest> calendar(){
+        return new ArrayList<>(calendar.values());
     }
 }

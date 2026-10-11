@@ -15,6 +15,7 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Arrays;
 import java.util.List;
 
 public class DuelConfirmationGUI extends ActionInventory {
@@ -44,8 +45,8 @@ public class DuelConfirmationGUI extends ActionInventory {
 
         inventory.setItem(4, duelIcon());
 
-        inventory.setItem(11, ItemUtils.getHeadOfPlayer(challenger));
-        inventory.setItem(15, ItemUtils.getHeadOfPlayer(opponent));
+        inventory.setItem(11, playerHead(challenger));
+        inventory.setItem(15, playerHead(opponent));
 
         updateGameType();
         defineInventoryAction(GAMETYPE_SLOT, event -> {
@@ -53,7 +54,7 @@ public class DuelConfirmationGUI extends ActionInventory {
             int nextSlot = ordinal + (event.isLeftClick() ? 1 : -1);
             if (nextSlot >= GameType.values().length)
                 gameType = null;
-            else if (nextSlot <= 0)
+            else if (nextSlot < 0)
                 gameType = GameType.values()[GameType.values().length - 1];
 
             else gameType = GameType.values()[nextSlot];
@@ -111,8 +112,8 @@ public class DuelConfirmationGUI extends ActionInventory {
             });
 
             challenger.getScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
-                Fest fest = new Fest(FestType.DUEL, gameType);
-                //TODO: make these two participants
+                Fest fest = new Fest(FestType.DUEL, gameType == null ? GameType.values()[(int) (Math.random() * GameType.values().length)] : gameType,
+                        Arrays.asList(challenger.getUniqueId(), opponent.getUniqueId()));
                 fest.start();
             }, () -> {
 
@@ -125,6 +126,14 @@ public class DuelConfirmationGUI extends ActionInventory {
         item.editMeta(meta -> {
             meta.itemName(Component.text("Duel", NamedTextColor.AQUA));
             meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+        });
+        return item;
+    }
+
+    private ItemStack playerHead(Player player) {
+        ItemStack item = ItemUtils.getHeadOfPlayer(player);
+        item.editMeta(meta -> {
+            meta.customName(Component.text(player.getName(), NamedTextColor.YELLOW));
         });
         return item;
     }
@@ -155,6 +164,9 @@ public class DuelConfirmationGUI extends ActionInventory {
     @Override
     protected void closeAction() {
         super.closeAction();
+
+        if (opponentAccepted && challengerAccepted)
+            return;
 
         inventory.close();
         List.of(challenger, opponent).forEach(player -> {

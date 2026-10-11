@@ -1,14 +1,13 @@
 package at.gaderman.serverFest.fests.duel;
 
 import at.gaderman.serverFest.ServerFest;
-import at.gaderman.serverFest.fests.game.GameType;
+import at.gaderman.serverFest.fests.FestManager;
 import at.gaderman.serverFest.gui.fests.DuelConfirmationGUI;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +26,6 @@ public class ProposedDuel {
     private final Player opponent;
     private int remainingTime;
     private boolean accepted;
-    private @Nullable GameType gameType;
 
     private ProposedDuel(Player challenger, Player opponent) {
         this.challenger = challenger;
@@ -39,7 +37,19 @@ public class ProposedDuel {
         sendDuelRequest();
     }
 
+    /**
+     * Creates a new ProposedDuel object if players can legally partake
+     * @throws IllegalArgumentException if a player is already participating in another fest
+     */
     public static ProposedDuel propose(Player challenger, Player opponent) {
+        FestManager festManager = FestManager.getInstance();
+        if(festManager.isPlayerParticipatingInAnyFest(challenger)) {
+            throw new IllegalArgumentException("Challenger is already participating in a Fest");
+        }
+        if(festManager.isPlayerParticipatingInAnyFest(opponent)) {
+            throw new IllegalArgumentException("Opponent is already participating in a Fest");
+        }
+
         return new ProposedDuel(challenger, opponent);
     }
 

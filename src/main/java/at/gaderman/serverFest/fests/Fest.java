@@ -10,15 +10,13 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
-import org.bukkit.persistence.PersistentDataContainer;
-import org.bukkit.persistence.PersistentDataType;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 /**
  * Active instance of a fest, this means the fest is already ongoing and houses a {@link FestGame}.
@@ -41,15 +39,16 @@ public class Fest {
 
     private TriggerListener triggerListener;
 
-    public Fest(FestType festType, GameType gameType) {
+    public Fest(FestType festType, @NotNull GameType gameType, List<UUID> participantUUIDs) {
         this.uuid = UUID.randomUUID();
         this.festType = festType;
         //TODO: change this later to give players actual choice of participation
-        this.participantUUIDs = Bukkit.getOnlinePlayers().stream().map(Player::getUniqueId).collect(Collectors.toList());
+        this.participantUUIDs = participantUUIDs;
 
         this.arenaInstance = ServerFest.arenaManager.requestArena(gameType);
         this.game = gameType.createNewInstance(this, arenaInstance);
 
+        //TODO: handle no ready arena in here but probably from outer scope
         arenaInstance.activateArena();
     }
 
