@@ -39,7 +39,7 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
     @Override
     public Location determineOrigin() {
         Location origin = super.determineOrigin();
-        origin.setY(fest.world().getHighestBlockYAt(origin) + 2);
+        origin.setY(fest.world().getHighestBlockYAt(origin) + 1);
         return origin;
     }
 
@@ -55,6 +55,11 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
         forcedChunks.forEach(chunk -> chunk.removePluginChunkTicket(ServerFest.getPlugin()));
         forcedChunks.clear();
         fest.participants().forEach(Entity::leaveVehicle);
+    }
+
+    @Override
+    protected CompletableFuture<Void> onReset() {
+        return super.onReset().thenRun(() -> mounts.forEach(Vehicle::remove));
     }
 
     @Override
@@ -77,6 +82,7 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
     //region Player and Mounts
 
     private final Set<Chunk> forcedChunks = new HashSet<>();
+    private final Set<Vehicle> mounts = new HashSet<>();
 
     private void scheduleMountSwitcher(Player player, Vehicle vehicle) {
         boolean isHorse = vehicle instanceof Horse;
@@ -105,6 +111,8 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
         Location location = vehicle.getLocation();
         player.spawnParticle(Particle.WHITE_SMOKE, location, 50, 0.5, 0.5, 0.5, 0.1f);
         player.playSound(location, Sound.ENTITY_ZOMBIE_VILLAGER_CONVERTED, 1f, 2f);
+
+        mounts.remove(vehicle);
         vehicle.remove();
 
         if (toNautilus)
@@ -122,7 +130,10 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
             horse.addPassenger(player);
             horse.getAttribute(Attribute.MOVEMENT_SPEED).setBaseValue(0.3f);
             horse.getAttribute(Attribute.JUMP_STRENGTH).setBaseValue(1f);
+            horse.setPersistent(false);
             scheduleMountSwitcher(player, horse);
+
+            mounts.add(horse);
         });
     }
 
@@ -133,7 +144,10 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
             nautilus.setTamed(true);
             nautilus.getEquipment().setItem(EquipmentSlot.SADDLE, ItemStack.of(Material.SADDLE));
             nautilus.addPassenger(player);
+            nautilus.setPersistent(false);
             scheduleMountSwitcher(player, nautilus);
+
+            mounts.add(nautilus);
         });
     }
 
@@ -155,7 +169,7 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
             return;
         }
 
-        Location origin = fest.origin().clone();
+        Location origin = fest.origin().clone().add(0, -1, 0);
         List<Location> controls = createControls(origin, checkpointCount);
         List<TrackPath.Point> previewPath = TrackPath.create(controls);
         Set<ChunkPos> requiredChunks = findRequiredChunks(previewPath, controls);
