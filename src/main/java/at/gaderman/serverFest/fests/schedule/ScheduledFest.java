@@ -128,13 +128,41 @@ public abstract class ScheduledFest {
         Bukkit.getOnlinePlayers().forEach(player -> {
             player.playSound(player, Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1.5f);
             player.sendMessage(ServerFest.CHAT_PREFIX
-                    .append(Component.text("A ", NamedTextColor.WHITE))
-                    .append(Component.text("fest ", NamedTextColor.GOLD))
-                    .append(Component.text("is starting in ", NamedTextColor.WHITE))
+                    .append(displayName())
+                    .append(Component.text(" is starting in ", NamedTextColor.WHITE))
                     .append(Component.text((minutes > 0 ? minutes : seconds), NamedTextColor.GRAY))
                     .append(Component.text((minutes > 0 ? " minutes(s)" : " second(s)"), NamedTextColor.WHITE))
             );
         });
+    }
+
+    public Component displayName() {
+        return Component.text(toPlayerFriendlyName(festType.name()) + " "
+                + (gameType == null ? "Random Fest" : toPlayerFriendlyName(gameType.name())), NamedTextColor.GOLD);
+    }
+
+    private static String toPlayerFriendlyName(String input) {
+        StringBuilder builder = new StringBuilder();
+
+        boolean bigLetter = true;
+        for (int i = 0; i < input.length(); i++) {
+            char c = input.charAt(i);
+
+            if (c == '_') {
+                bigLetter = true;
+                builder.append(' ');
+                continue;
+            }
+
+            if (bigLetter) {
+                builder.append((c + "").toUpperCase());
+                bigLetter = false;
+            } else {
+                builder.append((c + "").toLowerCase());
+            }
+        }
+
+        return builder.toString();
     }
 
     /**

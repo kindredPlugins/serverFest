@@ -39,6 +39,8 @@ public class Fest {
 
     private TriggerListener triggerListener;
 
+    //TODO: investigate statistic timeout, maybe future#thenAccept, we need a way to not get stuck if one chunk placement "fails", low budget servers can be stalled this way otherwise
+    //TODO: create FestRecruitment which will handle joining of participants
     public Fest(FestType festType, @NotNull GameType gameType, List<UUID> participantUUIDs) {
         this.uuid = UUID.randomUUID();
         this.festType = festType;

@@ -9,12 +9,16 @@ import at.gaderman.serverFest.fests.schedule.FestCalendar;
 import at.gaderman.serverFest.management.WorldManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class ServerFest extends JavaPlugin {
 
-    public static final Component CHAT_PREFIX = Component.text("[ServerFest] ", NamedTextColor.GREEN);
+    public static final Component CHAT_PREFIX = Component.text("[", NamedTextColor.GREEN)
+            .append(MiniMessage.miniMessage().deserialize("<sprite:\"minecraft:items\":item/firework_rocket>").color(NamedTextColor.WHITE))
+            //.append(Component.text("SF", NamedTextColor.GREEN))
+            .append(Component.text("] ", NamedTextColor.GREEN));
 
     public static ArenaManager arenaManager;
 
