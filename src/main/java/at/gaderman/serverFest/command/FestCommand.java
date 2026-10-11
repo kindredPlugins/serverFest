@@ -1,5 +1,7 @@
 package at.gaderman.serverFest.command;
 
+import at.gaderman.serverFest.fests.FestManager;
+import at.gaderman.serverFest.fests.duel.ProposedDuel;
 import at.gaderman.serverFest.fests.game.GameType;
 import at.gaderman.serverFest.fests.schedule.FixedDateScheduled;
 import at.gaderman.serverFest.gui.fests.FestCreationGUI;
@@ -20,6 +22,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 
 public class FestCommand implements CommandExecutor, TabCompleter {
@@ -53,9 +56,6 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                         new FestCreationGUI().openInventory((Player) sender);
                         return true;
                     }
-                    default -> {
-                        return false;
-                    }
                 }
             }
             case 2 -> {
@@ -69,12 +69,74 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                     }
                     return true;
                 }
+
+                if (args[0].equals("duel")) {
+                    if(!isPlayer) {
+                        sender.sendMessage(Component.text("Only available for players!", NamedTextColor.RED));
+                        return true;
+                    }
+
+                    Player player = (Player) sender;
+                    Player opponent = Bukkit.getPlayer(args[1]);
+
+                    if(opponent == null) {
+                        player.sendMessage(Component.text("That player is not online or does not exist!", NamedTextColor.RED));
+                        player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
+                        return true;
+                    }
+
+                    ProposedDuel.propose(player, opponent);
+                    return true;
+                }
+            }
+            case 3 -> {
+                if (args[0].equals("duel")) {
+                    if(!isPlayer) {
+                        sender.sendMessage(Component.text("Only available for players!", NamedTextColor.RED));
+                        return true;
+                    }
+                    Player player = (Player) sender;
+
+                    switch (args[1]) {
+                        case "accept" -> {
+                            Player challenger = Bukkit.getPlayer(args[2]);
+
+                            if(challenger == null) {
+                                player.sendMessage(Component.text("That player is not online or does not exist!", NamedTextColor.RED));
+                                player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
+                                return true;
+                            }
+
+                            //side effect call
+                            if(!ProposedDuel.acceptRequest(player, challenger)) {
+                                player.sendMessage(Component.text("You have no request for a duel from " + challenger.getName() + " or it expired!", NamedTextColor.RED));
+                                player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
+                            }
+                            return true;
+                        }
+
+                        case "decline" -> {
+                            Player challenger = Bukkit.getPlayer(args[2]);
+
+                            if(challenger == null) {
+                                player.sendMessage(Component.text("That player is not online or does not exist!", NamedTextColor.RED));
+                                player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
+                                return true;
+                            }
+
+                            //side effect call
+                            if(!ProposedDuel.declineRequest(player, challenger)) {
+                                player.sendMessage(Component.text("You have no request for a duel from " + challenger.getName() + " or it expired!", NamedTextColor.RED));
+                                player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
+                            }
+                            return true;
+                        }
+                    }
+                }
             }
         }
 
-        FixedDateScheduled.create(LocalDateTime.now().plus(10, ChronoUnit.SECONDS));
-        //RecurringDateScheduled.create(LocalDateTime.now().plus(5, ChronoUnit.SECONDS), ChronoUnit.MINUTES, 5);
-
+        sender.sendMessage(Component.text("Usage: /fest <dev|quick|create> [gameType]", NamedTextColor.RED));
         return false;
     }
 
@@ -97,6 +159,9 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                 completions.add("dev");
                 completions.add("quick");
                 completions.add("create");
+                completions.add("duel");
+
+                completions.removeIf(completion -> !completion.startsWith(args[0]));
             }
             case 2 -> {
                 if (args[0].equals("quick")) {
@@ -105,9 +170,17 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                             .filter(name -> name.startsWith(args[1]))
                             .toList());
                 }
+
+                if(args[0].equals("duel")) {
+                    Bukkit.getOnlinePlayers().forEach(player -> {
+                       if(!FestManager.getInstance().isPlayerParticipatingInAnyFest(player))
+                           completions.add(player.getName());
+                    });
+                    completions.removeIf(completion -> !completion.startsWith(args[1]));
+                }
             }
         }
 
-        return completions;
+        return completions.stream().sorted().toList();
     }
 }

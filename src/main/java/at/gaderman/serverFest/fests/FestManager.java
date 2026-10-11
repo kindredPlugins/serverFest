@@ -4,6 +4,7 @@ import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.management.WorldManager;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.jetbrains.annotations.Nullable;
@@ -44,6 +45,10 @@ public class FestManager {
 
     public List<Fest> getFests() {
         return new ArrayList<>(this.fests.values());
+    }
+
+    public boolean isPlayerParticipatingInAnyFest(Player player) {
+        return this.fests.values().stream().anyMatch(fest -> fest.participantUUIDs().contains(player.getUniqueId()));
     }
 
     /**
