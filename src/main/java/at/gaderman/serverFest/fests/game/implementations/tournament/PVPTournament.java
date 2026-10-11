@@ -149,7 +149,7 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
     //region Organization
 
     //TODO: for testing purposes to be able to play alone, remote later
-    private int bonusFaceOffs = 10;
+    private int bonusFaceOffs = fest.participants().size() > 1 ? 0 : 1;
 
     private void groupIntoFaceOffs() {
         List<Player> participants = fest.participants().stream()
@@ -162,13 +162,13 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
             activeFaceOffs.add(new FaceOff(participants.get(index), participants.get(index + 1)));
         }
 
-        for (int i = 0; i < bonusFaceOffs; i++) {
+        if(bonusFaceOffs > 0){
             activeFaceOffs.add(new FaceOff(participants.getFirst(), participants.getFirst()));
         }
         bonusFaceOffs--;
     }
 
-    private void startFaceOffs() {
+    private boolean checkIfFaceOffWinnerIsAlreadyDecided() {
         if (activeFaceOffs.isEmpty()) {
             List<Player> winners = fest.participants().stream().filter(participant -> {
                 TournamentData tournamentData = (TournamentData) getOrCreatePlayerData(participant.getUniqueId());
@@ -176,12 +176,21 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
             }).toList();
 
             if (winners.isEmpty()) {
+                //TODO: handle draw case I guess, what happens when last two players time out
                 stop();
-                return;
+                return true;
             }
 
             declareWinner(winners);
+            return true;
         }
+
+        return false;
+    }
+
+    private void startFaceOffs() {
+        if (checkIfFaceOffWinnerIsAlreadyDecided())
+            return;
 
         for (int i = 0; i < activeFaceOffs.size(); i++) {
             FaceOff faceOff = activeFaceOffs.get(i);
@@ -201,7 +210,99 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
                 quipWithKit(player);
             });
         }
+
+        startBattlePhase();
     }
+
+    /**
+     * Handles removing an active faceOff in a way where it will automatically trigger the next round if it was the last to finish
+     */
+    private void finishFaceOff(FaceOff faceOff) {
+        activeFaceOffs.remove(faceOff);
+
+        faceOff.players().forEach(both -> {
+            both.getScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
+                both.getInventory().clear();
+                both.teleportAsync(fest.origin().toCenterLocation());
+            }, null, 20);
+        });
+
+        if (activeFaceOffs.isEmpty()) {
+            int initialDelay = 30;
+            int delay = 100;
+
+            Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
+                groupIntoFaceOffs();
+
+                if (checkIfFaceOffWinnerIsAlreadyDecided())
+                    return;
+
+                fest.participants().forEach(participant -> {
+                    participant.playSound(participant, Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 0.35f);
+                    participant.resetTitle();
+                    participant.sendTitlePart(TitlePart.TITLE, Component.text("Round finish", NamedTextColor.GOLD));
+                    participant.sendTitlePart(TitlePart.SUBTITLE, Component.text("Continuing in " + delay / 20 + " seconds", NamedTextColor.GRAY));
+                });
+            }, initialDelay);
+
+            Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
+                if (activeFaceOffs.isEmpty())
+                    return;
+
+                startFaceOffs();
+            }, initialDelay + delay);
+        }
+    }
+
+    private static final int BATTLE_TIME = 30 * 20;
+    private int remainingBattleTicks;
+
+    private void startBattlePhase() {
+        remainingBattleTicks = BATTLE_TIME;
+
+        //TODO: add proper folia regions for players themselves
+        Bukkit.getGlobalRegionScheduler().runAtFixedRate(ServerFest.getPlugin(), task -> {
+            if (remainingBattleTicks <= 0) {
+
+                activeFaceOffs.stream().toList().forEach(faceOff -> {
+                    Player loser = null;
+
+                    if (faceOff.player1.getHealth() > faceOff.player2.getHealth())
+                        loser = faceOff.player1;
+                    else if (faceOff.player2.getHealth() > faceOff.player1.getHealth())
+                        loser = faceOff.player2;
+
+                    if (loser != null) {
+                        loser.kill();
+                        return;
+                    }
+
+                    finishFaceOff(faceOff);
+                });
+
+                task.cancel();
+                return;
+            }
+
+            if (activeFaceOffs.isEmpty()) {
+                task.cancel();
+                return;
+            }
+
+            if (remainingBattleTicks % 20 == 0 && remainingBattleTicks <= 100)
+                activeFaceOffs.stream().flatMap(faceOff -> faceOff.players().stream())
+                        .forEach(player -> {
+                            player.playSound(player, Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 0.1f);
+                            player.damage(1);
+                        });
+
+            remainingBattleTicks--;
+        }, 1, 1);
+    }
+
+    //endregion
+
+    //region Player Options
 
     private void quipWithKit(Player player) {
         resetPlayer(player);
@@ -226,7 +327,7 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
         player.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, PotionEffect.INFINITE_DURATION, 0, false, false));
     }
 
-    private void resetPlayer(Player player){
+    private void resetPlayer(Player player) {
         player.clearActivePotionEffects();
         player.clearActiveItem();
         player.getInventory().clear();
@@ -394,26 +495,7 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
                 .findFirst().orElse(null);
         if (faceOff == null) return;
 
-        activeFaceOffs.remove(faceOff);
-
-        if (activeFaceOffs.isEmpty()) {
-            int initialDelay = 20;
-            int delay = 100;
-
-            Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
-                fest.participants().forEach(participant -> {
-                    participant.playSound(participant, Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 0.35f);
-                    participant.resetTitle();
-                    participant.sendTitlePart(TitlePart.TITLE, Component.text("Round finish", NamedTextColor.GOLD));
-                    participant.sendTitlePart(TitlePart.SUBTITLE, Component.text("Continuing in " + delay / 20 + " seconds", NamedTextColor.GRAY));
-                });
-            }, initialDelay);
-
-            Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
-                groupIntoFaceOffs();
-                startFaceOffs();
-            }, initialDelay + delay);
-        }
+        finishFaceOff(faceOff);
 
         changeIntoSpectator(player);
 
@@ -442,12 +524,13 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
             firework.setTicksToDetonate(1);
         });
 
-        faceOff.players().forEach(both -> {
-            both.getScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
-                both.getInventory().clear();
-                both.teleportAsync(fest.origin().toCenterLocation());
-            }, null, 20);
-        });
+        //TODO: create a variable for initial faceOffs per round, arena can not be trusted apart form the first round
+        fest.participants().forEach(participant -> participant.sendMessage(
+                Component.text(winner.getName(), NamedTextColor.GOLD)
+                        .append(Component.text(" has won their duel (", NamedTextColor.GRAY))
+                        .append(Component.text(arenas.size() - activeFaceOffs.size(), NamedTextColor.GREEN))
+                        .append(Component.text("/" + arenas.size() + ")", NamedTextColor.GRAY))
+        ));
     }
 
     //endregion
