@@ -1,9 +1,11 @@
 package at.gaderman.serverFest.command;
 
 import at.gaderman.serverFest.fests.FestManager;
+import at.gaderman.serverFest.fests.FestType;
 import at.gaderman.serverFest.fests.duel.ProposedDuel;
 import at.gaderman.serverFest.fests.game.GameType;
-import at.gaderman.serverFest.fests.schedule.FixedDateScheduled;
+import at.gaderman.serverFest.fests.recruitment.FestRecruitment;
+import at.gaderman.serverFest.fests.recruitment.RecruitmentManager;
 import at.gaderman.serverFest.gui.fests.FestCreationGUI;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -18,11 +20,8 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 
 public class FestCommand implements CommandExecutor, TabCompleter {
@@ -39,12 +38,12 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                     case "dev" -> {
                         //TODO: add only sender as participant and do not let others join
                         sendScheduleMessage(sender);
-                        FixedDateScheduled.create(LocalDateTime.now().plus(10, ChronoUnit.SECONDS));
+                        FestRecruitment.requestRecruitment(10, FestType.CASUAL, null);
                         return true;
                     }
                     case "quick" -> {
                         sendScheduleMessage(sender);
-                        FixedDateScheduled.create(LocalDateTime.now().plus(30, ChronoUnit.SECONDS));
+                        FestRecruitment.requestRecruitment(60, FestType.CASUAL, null);
                         return true;
                     }
                     case "create" -> {
@@ -56,14 +55,35 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                         new FestCreationGUI().openInventory((Player) sender);
                         return true;
                     }
+                    case "join" -> {
+                        if (!isPlayer) {
+                            sender.sendMessage(Component.text("Only players can join a fest!", NamedTextColor.RED));
+                            return true;
+                        }
+
+                        Player player = (Player) sender;
+                        boolean joined = RecruitmentManager.getInstance().addPlayerToActiveRecruitment(player);
+
+                        if (!joined) {
+                            if (FestManager.getInstance().isPlayerParticipatingInAnyFest(player))
+                                player.sendMessage(Component.text("You are already participating in another fest!", NamedTextColor.RED));
+                            else
+                                player.sendMessage(Component.text("There is no active fest to join", NamedTextColor.RED));
+
+                            player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
+                            return true;
+                        }
+
+                        return true;
+                    }
                 }
             }
             case 2 -> {
-                if (args[0].equals("quick")) {
+                if (args[0].equals("quick") || args[0].equals("dev")) {
                     try {
                         GameType gameType = GameType.valueOf(args[1].toUpperCase());
-                        FixedDateScheduled.create(gameType, LocalDateTime.now().plusSeconds(5));
                         sendScheduleMessage(sender);
+                        FestRecruitment.requestRecruitment(args[0].equals("dev") ? 10 : 60, FestType.CASUAL, gameType);
                     } catch (IllegalArgumentException exception) {
                         sender.sendMessage(Component.text("Invalid gameType " + args[1], NamedTextColor.RED));
                     }
@@ -71,7 +91,7 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                 }
 
                 if (args[0].equals("duel")) {
-                    if(!isPlayer) {
+                    if (!isPlayer) {
                         sender.sendMessage(Component.text("Only available for players!", NamedTextColor.RED));
                         return true;
                     }
@@ -79,7 +99,7 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                     Player player = (Player) sender;
                     Player opponent = Bukkit.getPlayer(args[1]);
 
-                    if(opponent == null) {
+                    if (opponent == null) {
                         player.sendMessage(Component.text("That player is not online or does not exist!", NamedTextColor.RED));
                         player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
                         return true;
@@ -91,7 +111,7 @@ public class FestCommand implements CommandExecutor, TabCompleter {
             }
             case 3 -> {
                 if (args[0].equals("duel")) {
-                    if(!isPlayer) {
+                    if (!isPlayer) {
                         sender.sendMessage(Component.text("Only available for players!", NamedTextColor.RED));
                         return true;
                     }
@@ -101,14 +121,14 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                         case "accept" -> {
                             Player challenger = Bukkit.getPlayer(args[2]);
 
-                            if(challenger == null) {
+                            if (challenger == null) {
                                 player.sendMessage(Component.text("That player is not online or does not exist!", NamedTextColor.RED));
                                 player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
                                 return true;
                             }
 
                             //side effect call
-                            if(!ProposedDuel.acceptRequest(player, challenger)) {
+                            if (!ProposedDuel.acceptRequest(player, challenger)) {
                                 player.sendMessage(Component.text("You have no request for a duel from " + challenger.getName() + " or it expired!", NamedTextColor.RED));
                                 player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
                             }
@@ -118,14 +138,14 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                         case "decline" -> {
                             Player challenger = Bukkit.getPlayer(args[2]);
 
-                            if(challenger == null) {
+                            if (challenger == null) {
                                 player.sendMessage(Component.text("That player is not online or does not exist!", NamedTextColor.RED));
                                 player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
                                 return true;
                             }
 
                             //side effect call
-                            if(!ProposedDuel.declineRequest(player, challenger)) {
+                            if (!ProposedDuel.declineRequest(player, challenger)) {
                                 player.sendMessage(Component.text("You have no request for a duel from " + challenger.getName() + " or it expired!", NamedTextColor.RED));
                                 player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
                             }
@@ -164,17 +184,17 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                 completions.removeIf(completion -> !completion.startsWith(args[0]));
             }
             case 2 -> {
-                if (args[0].equals("quick")) {
+                if (args[0].equals("quick") || args[0].equals("dev")) {
                     completions.addAll(Arrays.stream(GameType.values())
                             .map(type -> type.name().toLowerCase())
                             .filter(name -> name.startsWith(args[1]))
                             .toList());
                 }
 
-                if(args[0].equals("duel")) {
+                if (args[0].equals("duel")) {
                     Bukkit.getOnlinePlayers().forEach(player -> {
-                       if(!FestManager.getInstance().isPlayerParticipatingInAnyFest(player))
-                           completions.add(player.getName());
+                        if (!FestManager.getInstance().isPlayerParticipatingInAnyFest(player))
+                            completions.add(player.getName());
                     });
                     completions.removeIf(completion -> !completion.startsWith(args[1]));
                 }

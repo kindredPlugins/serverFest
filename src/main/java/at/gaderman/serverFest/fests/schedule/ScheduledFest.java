@@ -4,6 +4,7 @@ import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.FestType;
 import at.gaderman.serverFest.fests.game.GameType;
+import at.gaderman.serverFest.fests.recruitment.FestRecruitment;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.title.TitlePart;
@@ -13,6 +14,7 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -87,38 +89,40 @@ public abstract class ScheduledFest {
             return;
         }
 
-        Fest festInstance = new Fest(festType, instanceType);
+        //TODO: inspect this properly, make a fixed constant for time left, this way fests still actually occur one minute late, may adjust it to trigger one minute before
+        FestRecruitment.requestRecruitment(60, festType, instanceType);
 
-        Bukkit.getOnlinePlayers().forEach(player -> {
-            player.playSound(player, Sound.ENTITY_ENDER_DRAGON_GROWL, 2f, 0.65f);
+//        Fest festInstance = new Fest(festType, instanceType, new ArrayList<>());
 
-            player.sendTitlePart(TitlePart.TITLE, festInstance.game().gameType().definition().iconName());
-            player.sendTitlePart(TitlePart.SUBTITLE, Component.text("will start in 5 minutes", NamedTextColor.YELLOW));
-        });
-
-        //TODO: change this back to 30 second mark after testing
-        final int[] timeLeft = {6}; // 30 seconds
-        sendStartInMessage(timeLeft[0]);
-
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                timeLeft[0]--;
-
-                if (timeLeft[0] / 60 > 0) {
-                    if (timeLeft[0] % 60 == 0)
-                        sendStartInMessage(timeLeft[0]);
-                } else {
-                    if (timeLeft[0] % 15 == 0 || timeLeft[0] == 10 || timeLeft[0] <= 5)
-                        sendStartInMessage(timeLeft[0]);
-
-                    if (timeLeft[0] <= 0) {
-                        cancel();
-                        festInstance.start();
-                    }
-                }
-            }
-        }.runTaskTimer(ServerFest.getPlugin(), 20L, 20L);
+//        Bukkit.getOnlinePlayers().forEach(player -> {
+//            player.playSound(player, Sound.ENTITY_ENDER_DRAGON_GROWL, 2f, 0.65f);
+//
+//            player.sendTitlePart(TitlePart.TITLE, festInstance.game().gameType().definition().iconName());
+//            player.sendTitlePart(TitlePart.SUBTITLE, Component.text("will start in 5 minutes", NamedTextColor.YELLOW));
+//        });
+//
+//        final int[] timeLeft = {6}; // 30 seconds
+//        sendStartInMessage(timeLeft[0]);
+//
+//        new BukkitRunnable() {
+//            @Override
+//            public void run() {
+//                timeLeft[0]--;
+//
+//                if (timeLeft[0] / 60 > 0) {
+//                    if (timeLeft[0] % 60 == 0)
+//                        sendStartInMessage(timeLeft[0]);
+//                } else {
+//                    if (timeLeft[0] % 15 == 0 || timeLeft[0] == 10 || timeLeft[0] <= 5)
+//                        sendStartInMessage(timeLeft[0]);
+//
+//                    if (timeLeft[0] <= 0) {
+//                        cancel();
+//                        festInstance.start();
+//                    }
+//                }
+//            }
+//        }.runTaskTimer(ServerFest.getPlugin(), 20L, 20L);
     }
 
     private void sendStartInMessage(int timeLeft) {
