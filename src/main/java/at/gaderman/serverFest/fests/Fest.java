@@ -6,6 +6,7 @@ import at.gaderman.serverFest.fests.game.FestGame;
 import at.gaderman.serverFest.fests.game.GameType;
 import at.gaderman.serverFest.fests.game.triggers.TriggerListener;
 import at.gaderman.serverFest.management.WorldManager;
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.*;
@@ -90,6 +91,11 @@ public class Fest {
     //region Methods
 
     public void start() {
+        if (participantUUIDs.isEmpty()) {
+            ServerFest.getPlugin().getLogger().info("Fest with id " + uuid + " failed due to no participants");
+            return;
+        }
+
         ServerFest.getPlugin().getLogger().info("Started fest with id " + uuid);
 
         this.triggerListener = new TriggerListener(this);
@@ -104,10 +110,18 @@ public class Fest {
 
         this.origin = adjustLocationToCenterOfChunk(game.determineOrigin());
 
-        game.setUpWorld().thenRun(game::start).thenRun(() -> {
-            origin.getChunk().removePluginChunkTicket(ServerFest.getPlugin());
-            //FestManager.getInstance().reserveChunkForNextFest();
-        });
+        ScheduledTask timeOutTask = Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
+            List<Player> participants = participants();
+
+            stop();
+
+            participants.forEach(player -> {
+                player.sendMessage(Component.text("The fest setup experienced a timeout, this can happen if chunks get stuck in a loading state." +
+                        " Its best to wait a bit since this can happen if the server was not ready loading this are yet.", NamedTextColor.RED));
+                player.playSound(player, Sound.ENTITY_WITHER_DEATH, 1, 0.5f);
+            });
+        }, 60 * 20);
+        game.setUpWorld().thenRun(game::start).thenRun(timeOutTask::cancel);
 
         CompletableFuture<?>[] teleports = participants().stream()
                 .map(player -> {

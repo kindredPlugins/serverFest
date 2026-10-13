@@ -8,6 +8,7 @@ import at.gaderman.serverFest.fests.game.GameType;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.title.TitlePart;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
@@ -70,13 +71,14 @@ public class FestRecruitment {
             }
 
             remainingTime--;
-        }, 1, 1);
+        }, 20, 20);
     }
 
-    private void startUpFest(){
+    private void startUpFest() {
         // only before fest startup will offline participants be cleared, everything after counts as direct fest leave
         participants.removeIf(uuid -> Bukkit.getPlayer(uuid) == null);
         new Fest(festType, gameType, participants).start();
+        RecruitmentManager.getInstance().relinquishRecruitment();
     }
 
     //endregion
@@ -96,6 +98,10 @@ public class FestRecruitment {
         return participants.remove(player.getUniqueId());
     }
 
+    public boolean isParticipant(Player player) {
+        return participants.contains(player.getUniqueId());
+    }
+
     //endregion
 
     //region Helpers
@@ -108,7 +114,8 @@ public class FestRecruitment {
             player.playSound(player, Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1.5f);
             player.sendMessage(ServerFest.CHAT_PREFIX
                     .append(displayName())
-                    .append(Component.text(" is starting in ", NamedTextColor.WHITE))
+                    .append(Component.text(" • ", NamedTextColor.DARK_GRAY))
+                    .append(Component.text("is starting in ", NamedTextColor.WHITE))
                     .append(Component.text((minutes > 0 ? minutes : seconds), NamedTextColor.GRAY))
                     .append(Component.text((minutes > 0 ? " minutes(s)" : " second(s)"), NamedTextColor.WHITE))
                     .append(participants.contains(player.getUniqueId()) ? Component.empty()
@@ -147,7 +154,8 @@ public class FestRecruitment {
         return Component.text(toPlayerFriendlyName(festType.name()) + " ")
                 .append((gameType == null
                         ? Component.text("Random Fest")
-                        : gameType.definition().iconName()).color(NamedTextColor.GOLD));
+                        : gameType.definition().iconName()).color(TextColor.color(0xD0D0D0)))
+                .color(TextColor.color(0xD0D0D0));
     }
 
     private static String toPlayerFriendlyName(String input) {

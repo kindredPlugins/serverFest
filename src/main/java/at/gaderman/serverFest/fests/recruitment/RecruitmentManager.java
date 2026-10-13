@@ -4,8 +4,8 @@ import at.gaderman.serverFest.ServerFest;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.LinkedList;
 import java.util.Queue;
-import java.util.concurrent.SynchronousQueue;
 
 /**
  * Manages {@link FestRecruitment}, ensuring only one recruitment can be active at a time, all recruitments have to be
@@ -21,7 +21,7 @@ public class RecruitmentManager {
     }
 
     private @Nullable FestRecruitment activeRecruitment;
-    private final Queue<FestRecruitment> recruitmentQueue = new SynchronousQueue<>();
+    private final Queue<FestRecruitment> recruitmentQueue = new LinkedList<>();
 
     private RecruitmentManager(){
 
@@ -57,5 +57,9 @@ public class RecruitmentManager {
             return false;
 
         return activeRecruitment.addParticipant(player);
+    }
+
+    public boolean isPlayerParticipant(Player player){
+        return activeRecruitment != null && activeRecruitment.isParticipant(player);
     }
 }

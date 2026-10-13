@@ -97,10 +97,23 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                     }
 
                     Player player = (Player) sender;
+
+                    if(FestManager.getInstance().isPlayerParticipatingInAnyFest(player)){
+                        player.sendMessage(Component.text("You cannot duel while participating in another fest!", NamedTextColor.RED));
+                        player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
+                        return true;
+                    }
+
                     Player opponent = Bukkit.getPlayer(args[1]);
 
                     if (opponent == null) {
                         player.sendMessage(Component.text("That player is not online or does not exist!", NamedTextColor.RED));
+                        player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
+                        return true;
+                    }
+
+                    if(FestManager.getInstance().isPlayerParticipatingInAnyFest(opponent)){
+                        player.sendMessage(Component.text("This player is already participating in another fest!", NamedTextColor.RED));
                         player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
                         return true;
                     }

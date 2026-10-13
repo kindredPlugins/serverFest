@@ -15,10 +15,10 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public final class ServerFest extends JavaPlugin {
 
-    public static final Component CHAT_PREFIX = Component.text("[", NamedTextColor.GREEN)
+    public static final Component CHAT_PREFIX = Component.text("[", NamedTextColor.DARK_GRAY)
             .append(MiniMessage.miniMessage().deserialize("<sprite:\"minecraft:items\":item/firework_rocket>").color(NamedTextColor.WHITE))
             //.append(Component.text("SF", NamedTextColor.GREEN))
-            .append(Component.text("] ", NamedTextColor.GREEN));
+            .append(Component.text("] ", NamedTextColor.DARK_GRAY));
 
     public static ArenaManager arenaManager;
 
