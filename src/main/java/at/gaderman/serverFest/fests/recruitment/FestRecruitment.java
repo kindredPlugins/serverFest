@@ -91,6 +91,7 @@ public class FestRecruitment {
 
         participants.add(player.getUniqueId());
         sendJoinMessage(player);
+        player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 0.5f);
         return true;
     }
 

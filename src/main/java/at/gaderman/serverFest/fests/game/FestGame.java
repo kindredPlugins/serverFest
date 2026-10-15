@@ -73,8 +73,11 @@ public abstract class FestGame<T extends ArenaLayout> {
      */
     public final void start() {
         running = true;
-        if (arenaBuildingBar != null)
-            arenaBuildingBar.viewers().forEach(viewer -> arenaBuildingBar.removeViewer((Audience) viewer));
+        if (arenaBuildingBar != null) {
+            List<Audience> viewers = new ArrayList<>();
+            arenaBuildingBar.viewers().forEach(viewer -> viewers.add((Audience) viewer));
+            viewers.forEach(arenaBuildingBar::removeViewer);
+        }
 
         onStart();
     }

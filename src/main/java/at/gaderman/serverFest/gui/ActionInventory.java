@@ -56,13 +56,17 @@ public class ActionInventory implements InventoryHolder, Listener {
             this.inventory = Bukkit.createInventory(this, size, inventoryName);
     }
 
-    public void defineInventoryAction(int slot, Consumer<InventoryClickEvent> action) {
+    public void defineInventoryAction(int slot, @NotNull Consumer<InventoryClickEvent> action) {
         inventoryActionsMap.put(slot, action);
     }
 
-    public void defineInventoryAction(int slot, Consumer<InventoryClickEvent> action, Sound sound, float volume, float pitch) {
+    public void defineInventoryAction(int slot, @NotNull Consumer<InventoryClickEvent> action, Sound sound, float volume, float pitch) {
         defineInventoryAction(slot, action
                 .andThen(event -> ((Player) event.getWhoClicked()).playSound(event.getWhoClicked(), sound, volume, pitch)));
+    }
+
+    public void removeInventoryAction(int slot){
+        inventoryActionsMap.remove(slot);
     }
 
     public ItemStack getFillItem() {

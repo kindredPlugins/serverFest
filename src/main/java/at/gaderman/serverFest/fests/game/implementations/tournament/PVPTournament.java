@@ -27,6 +27,7 @@ import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.FireworkMeta;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.NonNull;
 
@@ -55,6 +56,11 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
         groupIntoFaceOffs();
         createWaitingArena();
         return buildArenas();
+    }
+
+    @Override
+    protected Component startTitle() {
+        return Component.text("Waiting...", NamedTextColor.GOLD);
     }
 
     @Override
@@ -151,6 +157,13 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
             });
         }
 
+        fest.participants().stream().filter(player ->
+                        ((TournamentData) getOrCreatePlayerData(player.getUniqueId())).state() == PlayerTournamentState.WAITING)
+                .forEach(bye -> {
+                    bye.getInventory().setItem(0, FestItemProvider.SPEC_COMPASS);
+                    bye.sendMessage(Component.text("You are skipping this round but will return in the next battle round"));
+                });
+
         startBattlePhase();
     }
 
@@ -163,6 +176,7 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
         faceOff.players().forEach(both -> {
             both.getScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
                 both.getInventory().clear();
+                both.getInventory().setItem(0, FestItemProvider.SPEC_COMPASS);
                 both.teleportAsync(fest.origin().toCenterLocation());
             }, null, 20);
         });
@@ -245,7 +259,7 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
     //region Player Options
 
     private void addActionBarSchedule(Player player) {
-        TournamentData playeData = (TournamentData) getOrCreatePlayerData(player.getUniqueId());
+        TournamentData playerData = (TournamentData) getOrCreatePlayerData(player.getUniqueId());
 
         player.getScheduler().runAtFixedRate(ServerFest.getPlugin(), task -> {
             if (!fest.game().isRunning()) {
@@ -253,7 +267,7 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
                 return;
             }
 
-            PlayerTournamentState state = playeData.state();
+            PlayerTournamentState state = playerData.state();
 
             Component display = state == PlayerTournamentState.SPECTATOR
                     ? Component.text("Eliminated ", NamedTextColor.RED).append(Component.text("✦ ", NamedTextColor.DARK_GRAY))
@@ -273,7 +287,7 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
             }
 
             player.sendActionBar(display);
-        }, null, 1, 1);
+        }, null, 10, 10);
     }
 
     private void quipWithKit(Player player) {
@@ -297,8 +311,6 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
 
         player.getInventory().clear();
         player.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, PotionEffect.INFINITE_DURATION, 0, false, false));
-
-        player.getInventory().setItem(0, FestItemProvider.SPEC_COMPASS);
     }
 
     private void resetPlayer(Player player) {
@@ -314,6 +326,10 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
     //endregion
 
     //region exposure
+
+    public List<Player> battlingPlayers() {
+        return participantsOfState(PlayerTournamentState.BATTLE);
+    }
 
     /**
      * Requests a spectator teleport from visitor to toVisit and if successful, teleports the player
@@ -372,6 +388,7 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
     private static final int ARENA_WIDTH = 11;
     private static final int ARENA_LENGTH = 25;
     private static final int ARENA_HEIGHT = 7;
+    private static final int GALLERY_WIDTH = 5;
 
     private static final int ARENA_GAP = 10;
     private static final int ARENA_SPACING_X = ARENA_WIDTH + ARENA_GAP;
@@ -398,11 +415,8 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
 
             int columnsInRow = Math.min(columns, arenaCount - row * columns);
 
-            int xOffset = column * ARENA_SPACING_X
-                    - (columnsInRow - 1) * ARENA_SPACING_X / 2;
-
-            int zOffset = row * ARENA_SPACING_Z
-                    - (rows - 1) * ARENA_SPACING_Z / 2;
+            int xOffset = column * ARENA_SPACING_X - (columnsInRow - 1) * ARENA_SPACING_X / 2;
+            int zOffset = row * ARENA_SPACING_Z - (rows - 1) * ARENA_SPACING_Z / 2;
 
             Location arenaOrigin = origin.clone().add(xOffset, 0, zOffset);
             arenaCompletions.add(buildSingleArena(arenaOrigin));
@@ -419,7 +433,7 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
         int minX = origin.getBlockX();
         int minZ = origin.getBlockZ();
 
-        int maxX = minX + ARENA_WIDTH - 1;
+        int maxX = minX + ARENA_WIDTH + GALLERY_WIDTH - 1;
         int maxZ = minZ + ARENA_LENGTH - 1;
 
         int minChunkX = Math.floorDiv(minX, 16);
@@ -441,11 +455,16 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
 
         return chunksLoaded.thenRun(() -> {
             int xOffset = Math.floorDiv(ARENA_WIDTH, 2);
-            arenas.add(new Arena(
-                    origin.clone().add(xOffset, 1, ARENA_LENGTH * 0.8).toCenterLocation(),
-                    origin.clone().add(xOffset, 1, ARENA_LENGTH * 0.2).toCenterLocation(),
-                    origin.clone().add(ARENA_WIDTH + 2, 1, ARENA_LENGTH * 0.5).toCenterLocation()
-            ));
+            Location spectatorPoint = origin.clone()
+                    .add(ARENA_WIDTH + GALLERY_WIDTH / 2, 1, ARENA_LENGTH * 0.5)
+                    .toCenterLocation();
+            spectatorPoint.setDirection(new Vector(-1, 0, 0));
+
+            Location spawnOne = origin.clone().add(xOffset, 1, ARENA_LENGTH * 0.8).toCenterLocation();
+            Location spawnTwo = origin.clone().add(xOffset, 1, ARENA_LENGTH * 0.2).toCenterLocation();
+            spawnTwo.setYaw(180);
+
+            arenas.add(new Arena(spawnOne, spawnTwo, spectatorPoint));
 
             for (int x = 0; x < ARENA_WIDTH; x++) {
                 for (int z = 0; z < ARENA_LENGTH; z++) {
@@ -463,6 +482,25 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
                     }
                 }
             }
+
+            for (int x = 0; x < GALLERY_WIDTH; x++) {
+                for (int z = 0; z < ARENA_LENGTH; z++) {
+                    boolean edge = x == 0 || x == GALLERY_WIDTH - 1
+                            || z == 0 || z == ARENA_LENGTH - 1;
+                    Material floor = edge ? Material.DEEPSLATE_TILES : Material.POLISHED_BLACKSTONE;
+                    if (x == GALLERY_WIDTH / 2 && (z == 6 || z == ARENA_LENGTH - 1 - 6))
+                        floor = Material.SEA_LANTERN;
+
+                    blockTracker.setBlock(origin.clone().add(ARENA_WIDTH + x, 0, z), floor);
+
+                    if (x == GALLERY_WIDTH - 1 || z == 0 || z == ARENA_LENGTH - 1) {
+                        for (int y = 1; y <= 2; y++)
+                            blockTracker.setBlock(origin.clone().add(ARENA_WIDTH + x, y, z),
+                                    Material.GLASS_PANE);
+                    }
+                }
+            }
+
             blockTracker.save();
             updateArenaBuildingProgress();
         });
@@ -546,6 +584,16 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
 
         new ArenaSpectateGUI(this, activeFaceOffs).openInventory(player);
         player.playSound(player, Sound.BLOCK_CHEST_OPEN, 1f, 1.45f);
+    }
+
+    //endregion
+
+    //region Helpers
+
+    private List<Player> participantsOfState(PlayerTournamentState state) {
+        return fest.participants().stream().filter(player ->
+                        (((TournamentData) getOrCreatePlayerData(player.getUniqueId())).state() == state))
+                .toList();
     }
 
     //endregion

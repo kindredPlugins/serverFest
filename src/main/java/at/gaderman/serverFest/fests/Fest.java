@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Level;
 
 /**
  * Active instance of a fest, this means the fest is already ongoing and houses a {@link FestGame}.
@@ -121,7 +122,11 @@ public class Fest {
                 player.playSound(player, Sound.ENTITY_WITHER_DEATH, 1, 0.5f);
             });
         }, 60 * 20);
-        game.setUpWorld().thenRun(game::start).thenRun(timeOutTask::cancel);
+        game.setUpWorld().thenRun(game::start).thenRun(timeOutTask::cancel)
+                .whenComplete((_, throwable) -> {
+                    if (throwable != null)
+                        ServerFest.getPlugin().getLogger().log(Level.SEVERE, "Failed to set up or start fest " + uuid, throwable);
+                });
 
         CompletableFuture<?>[] teleports = participants().stream()
                 .map(player -> {
