@@ -21,6 +21,7 @@ import org.bukkit.event.vehicle.VehicleExitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -58,7 +59,7 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
     }
 
     @Override
-    protected CompletableFuture<Void> onReset() {
+    protected @NonNull CompletableFuture<Void> onReset() {
         return super.onReset().thenRun(() -> mounts.forEach(Vehicle::remove));
     }
 

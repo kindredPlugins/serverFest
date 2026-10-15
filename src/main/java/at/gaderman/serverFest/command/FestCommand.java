@@ -81,9 +81,12 @@ public class FestCommand implements CommandExecutor, TabCompleter {
             case 2 -> {
                 if (args[0].equals("quick") || args[0].equals("dev")) {
                     try {
+                        boolean isDev = args[0].equals("dev");
+
                         GameType gameType = GameType.valueOf(args[1].toUpperCase());
                         sendScheduleMessage(sender);
-                        FestRecruitment.requestRecruitment(args[0].equals("dev") ? 10 : 60, FestType.CASUAL, gameType);
+                        var recruitment = FestRecruitment.requestRecruitment(isDev ? 10 : 60, FestType.CASUAL, gameType);
+                        if(isPlayer && isDev) recruitment.addParticipant((Player) sender);
                     } catch (IllegalArgumentException exception) {
                         sender.sendMessage(Component.text("Invalid gameType " + args[1], NamedTextColor.RED));
                     }

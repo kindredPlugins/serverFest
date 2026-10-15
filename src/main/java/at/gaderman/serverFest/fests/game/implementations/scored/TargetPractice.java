@@ -109,7 +109,7 @@ public class TargetPractice extends ScoreGame<ArenaLayout> implements NoBlockMan
     // However, further versions could change something about TargetPractice which might not be cleared correctly then
     // So BlockTracker will still be used
     @Override
-    protected CompletableFuture<Void> onReset() {
+    protected @NonNull CompletableFuture<Void> onReset() {
         return CompletableFuture.completedFuture(null);
     }
 

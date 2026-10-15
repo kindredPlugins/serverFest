@@ -107,7 +107,8 @@ public class ArenaInstance {
     public void resetToReady(){
         arenaDefinition = gameType.getArenaDefinition();
         arenaLayout = arenaDefinition.generateLayout(origin);
-        state = ArenaState.READY;
+        state = ArenaState.WAITING;
+        generateArena();
 
         origin.getChunk().addPluginChunkTicket(ServerFest.getPlugin());
     }

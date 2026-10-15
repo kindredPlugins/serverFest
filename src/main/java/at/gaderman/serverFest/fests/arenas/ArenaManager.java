@@ -17,6 +17,8 @@ import static at.gaderman.serverFest.fests.Fest.OFFSET_INCREMENT;
 
 public class ArenaManager {
 
+    public static final int ARENA_AMOUNT = 3;
+
     private final List<ArenaInstance> arenas = new ArrayList<>();
     private final World festWorld;
 
@@ -29,7 +31,7 @@ public class ArenaManager {
     }
 
     private void setUp() {
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < ARENA_AMOUNT; i++) {
             Arrays.stream(GameType.values()).forEach(this::createArena);
         }
     }

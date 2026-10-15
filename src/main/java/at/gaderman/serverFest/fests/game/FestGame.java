@@ -6,7 +6,6 @@ import at.gaderman.serverFest.fests.arenas.ArenaInstance;
 import at.gaderman.serverFest.fests.arenas.ArenaLayout;
 import at.gaderman.serverFest.fests.game.definition.GameDefinition;
 import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
-import at.gaderman.serverFest.gui.BasicGUIElement;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
@@ -126,7 +125,7 @@ public abstract class FestGame<T extends ArenaLayout> {
     /**
      * The underlying reset method of each fest game, this will reset the arena so it can then be used for preceding games as well
      */
-    protected abstract CompletableFuture<Void> onReset();
+    protected abstract @NotNull CompletableFuture<Void> onReset();
 
     /**
      * Gets or creates player data for this fest for the given UUID

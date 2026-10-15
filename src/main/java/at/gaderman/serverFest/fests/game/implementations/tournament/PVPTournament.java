@@ -101,8 +101,8 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
     }
 
     @Override
-    protected CompletableFuture<Void> onReset() {
-        return null;
+    protected @NonNull CompletableFuture<Void> onReset() {
+        return CompletableFuture.completedFuture(null);
     }
 
     //TODO: common single winner interface instead of copypasta

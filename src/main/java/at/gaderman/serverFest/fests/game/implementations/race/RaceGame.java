@@ -62,7 +62,7 @@ public abstract class RaceGame<T extends RaceGameArenaLayout> extends FestGame<T
 
     @Override
     protected void onStart() {
-        final int[] timeLeft = {7}; // 7 seconds
+        final int[] timeLeft = {10}; // 10 seconds
         new BukkitRunnable() {
             @Override
             public void run() {
@@ -141,7 +141,7 @@ public abstract class RaceGame<T extends RaceGameArenaLayout> extends FestGame<T
     protected abstract void onPassCheckPoint(Player player, int checkPoint);
 
     @Override
-    protected CompletableFuture<Void> onReset() {
+    protected @NonNull CompletableFuture<Void> onReset() {
         CompletableFuture<Void> future = new CompletableFuture<>();
         visualEntities.forEach(Entity::remove);
         future.complete(null);
