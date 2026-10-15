@@ -2,12 +2,7 @@ package at.gaderman.serverFest.fests.game.implementations.race.track;
 
 import org.bukkit.Location;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Resolves the exact points along two checkPoints/controls for creating the actual track blocks and uses tangents

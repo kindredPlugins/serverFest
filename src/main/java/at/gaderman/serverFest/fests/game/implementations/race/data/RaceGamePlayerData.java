@@ -1,14 +1,12 @@
 package at.gaderman.serverFest.fests.game.implementations.race.data;
 
-import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
+import at.gaderman.serverFest.fests.game.interfaces.BossBarPlayerData;
 import net.kyori.adventure.bossbar.BossBar;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.entity.Player;
 
 import java.util.UUID;
 
-public class RaceGamePlayerData implements FestPlayerData {
+public class RaceGamePlayerData implements BossBarPlayerData {
     private final UUID uuid;
 
     public RaceGamePlayerData(UUID uuid) {
@@ -20,13 +18,8 @@ public class RaceGamePlayerData implements FestPlayerData {
     private BossBar bossBar;
 
     @Override
-    public void reset() {
-        Player player = Bukkit.getPlayer(uuid);
-        if(player == null)
-            return;
-
-        if(bossBar != null)
-            bossBar.removeViewer(player);
+    public UUID uuid() {
+        return uuid;
     }
 
     public int currentCheckPoint(){
@@ -45,9 +38,12 @@ public class RaceGamePlayerData implements FestPlayerData {
         return this;
     }
 
+    @Override
     public BossBar bossBar() {
         return bossBar;
     }
+
+    @Override
     public BossBar setBossBar(BossBar bossBar) {
         this.bossBar = bossBar;
         return bossBar;

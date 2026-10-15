@@ -69,9 +69,7 @@ public class TargetPractice extends ScoreGame<ArenaLayout> implements NoBlockMan
     }
 
     @Override
-    protected void onWinner(List<Player> winner) {
-        super.onWinner(winner);
-
+    protected void afterWinner(List<Player> winner) {
         List<Player> players = fest.participants();
         fest.world().getEntitiesByClass(Arrow.class).forEach(arrow -> {
             if (arrow.getShooter() instanceof Player shooter && players.contains(shooter))

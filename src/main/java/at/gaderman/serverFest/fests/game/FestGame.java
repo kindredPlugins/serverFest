@@ -1,5 +1,6 @@
 package at.gaderman.serverFest.fests.game;
 
+import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.arenas.ArenaBlockTracker;
 import at.gaderman.serverFest.fests.arenas.ArenaInstance;
@@ -10,10 +11,12 @@ import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.Chunk;
-import org.bukkit.Location;
-import org.bukkit.World;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.title.TitlePart;
+import org.bukkit.*;
+import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.meta.FireworkMeta;
 import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.NonNull;
 
@@ -66,7 +69,7 @@ public abstract class FestGame<T extends ArenaLayout> {
     }
 
     /**
-     * Start the game, setting its status to running and calling the implementing games {@link #onStart()}
+     * Start the game, setting its status to running and starting the shared countdown.
      */
     public final void start() {
         running = true;
@@ -77,9 +80,39 @@ public abstract class FestGame<T extends ArenaLayout> {
     }
 
     /**
-     * Called when the game is started so usually after the world has been set up
+     * Called after the game countdown completes.
      */
-    protected abstract void onStart();
+    protected final void onStart() {
+        final int[] timeLeft = {countdownSeconds()};
+        Bukkit.getGlobalRegionScheduler().runAtFixedRate(ServerFest.getPlugin(), task -> {
+            timeLeft[0]--;
+
+            if (timeLeft[0] <= 5)
+                sendCountdownTitle(timeLeft[0]);
+
+            if (timeLeft[0] <= 0) {
+                task.cancel();
+
+                fest.participants().forEach(participant -> {
+                    participant.setWorldBorder(fest.world().getWorldBorder());
+                    participant.playSound(participant, Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 1f, 1f);
+                    participant.sendTitlePart(TitlePart.TITLE, startTitle());
+                });
+                onCountdownComplete();
+            }
+        }, 20, 20);
+    }
+
+    protected int countdownSeconds() {
+        return 10;
+    }
+
+    protected Component startTitle() {
+        return Component.text("Race!", NamedTextColor.GOLD);
+    }
+
+    protected void onCountdownComplete() {
+    }
 
     /**
      * Called by the underlying fest game when it declares one or multiple winner, will then trigger {@link #onWinner(List)}
@@ -88,13 +121,82 @@ public abstract class FestGame<T extends ArenaLayout> {
         this.winners.addAll(winners);
         running = false;
         onWinner(winners);
+        afterWinner(winners);
     }
 
     /**
-     * The real after winner implementation unique to each fest, at this point the game is no longer running, so it mostly follows
-     * with a sort of transition before the game is stopped truly
+     * Announces the winner and schedules the game to stop after the announcement.
      */
-    protected abstract void onWinner(List<Player> winner);
+    protected final void onWinner(List<Player> winners) {
+        Player singleWinner = winners.getFirst();
+        Component subtitle = winnerAnnouncementSubtitle(singleWinner);
+
+        fest.participants().forEach(participant -> {
+            boolean isWinner = winners.contains(participant);
+            participant.resetTitle();
+
+            if (isWinner) {
+                participant.sendTitlePart(TitlePart.TITLE, winnerAnnouncementTitle());
+                participant.getWorld().playSound(participant, winnerCelebrationSound(), 1f, 1.3f);
+
+                participant.getWorld().spawn(participant.getLocation(), Firework.class, firework -> {
+                    FireworkMeta meta = firework.getFireworkMeta();
+                    meta.addEffect(FireworkEffect.builder()
+                            .withColor(Color.GREEN)
+                            .with(FireworkEffect.Type.CREEPER)
+                            .withFlicker()
+                            .withTrail()
+                            .withFade(Color.LIME)
+                            .build());
+
+                    firework.setFireworkMeta(meta);
+                    configureWinnerFirework(firework);
+                });
+            } else {
+                participant.sendTitlePart(TitlePart.TITLE, nonWinnerAnnouncementTitle(singleWinner));
+                participant.playSound(participant, Sound.ENTITY_WITHER_DEATH, 1f, 1.3f);
+            }
+
+            participant.sendTitlePart(TitlePart.SUBTITLE, subtitle);
+        });
+
+        Bukkit.getServer().getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> stop(), 200);
+    }
+
+    protected Component winnerAnnouncementTitle() {
+        return Component.text("Winner!", NamedTextColor.GOLD);
+    }
+
+    protected Component nonWinnerAnnouncementTitle(Player winner) {
+        return winner.displayName().color(NamedTextColor.AQUA)
+                .append(Component.text(" has won!", NamedTextColor.GREEN));
+    }
+
+    protected Component winnerAnnouncementSubtitle(Player winner) {
+        return MiniMessage.miniMessage().deserialize("<head:" + winner.getUniqueId() + "> ")
+                .append(winner.name().color(NamedTextColor.GOLD))
+                .append(Component.text(" has won!", NamedTextColor.GREEN));
+    }
+
+    protected Sound winnerCelebrationSound() {
+        return Sound.MUSIC_DISC_PIGSTEP;
+    }
+
+    protected void configureWinnerFirework(Firework firework) {
+    }
+
+    /**
+     * Game-specific winner side effects run after the shared announcement has been sent.
+     */
+    protected void afterWinner(List<Player> winners) {
+    }
+
+    protected final void sendCountdownTitle(long timeLeft) {
+        fest.participants().forEach(participant -> {
+            participant.playSound(participant, Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1.5f);
+            participant.sendTitlePart(TitlePart.TITLE, Component.text(timeLeft, NamedTextColor.GREEN));
+        });
+    }
 
     /**
      * Stop the game either forcefully or because the underlying fest has completed

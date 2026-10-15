@@ -1,13 +1,11 @@
 package at.gaderman.serverFest.fests.game.implementations.scored.data;
 
-import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
+import at.gaderman.serverFest.fests.game.interfaces.BossBarPlayerData;
 import net.kyori.adventure.bossbar.BossBar;
-import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
 
 import java.util.UUID;
 
-public class ScoreGamePlayerData implements FestPlayerData {
+public class ScoreGamePlayerData implements BossBarPlayerData {
     private final UUID uuid;
 
     public ScoreGamePlayerData(UUID uuid) {
@@ -18,13 +16,8 @@ public class ScoreGamePlayerData implements FestPlayerData {
     private BossBar bossBar;
 
     @Override
-    public void reset() {
-        Player player = Bukkit.getPlayer(uuid);
-        if(player == null)
-            return;
-
-        if(bossBar != null)
-            bossBar.removeViewer(player);
+    public UUID uuid() {
+        return uuid;
     }
 
     public int score(){
@@ -34,9 +27,12 @@ public class ScoreGamePlayerData implements FestPlayerData {
         this.score = score;
     }
 
+    @Override
     public BossBar bossBar() {
         return bossBar;
     }
+
+    @Override
     public BossBar setBossBar(BossBar bossBar) {
         this.bossBar = bossBar;
         return bossBar;

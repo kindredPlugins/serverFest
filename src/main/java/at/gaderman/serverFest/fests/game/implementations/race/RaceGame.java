@@ -3,8 +3,8 @@ package at.gaderman.serverFest.fests.game.implementations.race;
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.arenas.ArenaInstance;
-import at.gaderman.serverFest.fests.game.implementations.race.arena.RaceGameArenaLayout;
 import at.gaderman.serverFest.fests.game.FestGame;
+import at.gaderman.serverFest.fests.game.implementations.race.arena.RaceGameArenaLayout;
 import at.gaderman.serverFest.fests.game.implementations.race.data.CheckPoint;
 import at.gaderman.serverFest.fests.game.implementations.race.data.RaceGamePlayerData;
 import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
@@ -15,18 +15,13 @@ import at.gaderman.serverFest.fests.game.triggers.prefabs.NoItemInventoryManipul
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.title.Title;
-import net.kyori.adventure.title.TitlePart;
 import org.bukkit.*;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.meta.FireworkMeta;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
-import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
 import org.jspecify.annotations.NonNull;
@@ -61,82 +56,13 @@ public abstract class RaceGame<T extends RaceGameArenaLayout> extends FestGame<T
     }
 
     @Override
-    protected void onStart() {
-        final int[] timeLeft = {10}; // 10 seconds
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                timeLeft[0]--;
-
-                if (timeLeft[0] <= 5)
-                    sendTitle(timeLeft[0]);
-
-                if (timeLeft[0] <= 0) {
-                    cancel();
-
-                    fest.participants().forEach(participant -> {
-                        participant.setWorldBorder(fest.world().getWorldBorder());
-                        participant.playSound(participant, Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 1f, 1f);
-                        participant.sendTitlePart(TitlePart.TITLE, Component.text("Race!", NamedTextColor.GOLD));
-
-                        updateBossbar(participant);
-                    });
-                    activateCheckPointDetection();
-                    kickOff();
-                }
-
-            }
-        }.runTaskTimer(ServerFest.getPlugin(), 20L, 20L);
-    }
-
-    private void sendTitle(long timeLeft) {
-        fest.participants().forEach(participant -> {
-            participant.playSound(participant, Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1.5f);
-            participant.sendTitlePart(TitlePart.TITLE, Component.text(timeLeft, NamedTextColor.GREEN));
-        });
+    protected void onCountdownComplete() {
+        fest.participants().forEach(this::updateBossbar);
+        activateCheckPointDetection();
+        kickOff();
     }
 
     protected abstract void kickOff();
-
-    @Override
-    protected void onWinner(List<Player> winner) {
-        Player singleWinner = winner.getFirst();
-
-        fest.participants().forEach(participant -> {
-            boolean isWinner = winner.contains(participant);
-            participant.resetTitle();
-
-            if (isWinner) {
-                participant.sendTitlePart(TitlePart.TITLE, Component.text("Winner!", NamedTextColor.GOLD));
-                participant.getWorld().playSound(participant, Sound.MUSIC_DISC_PIGSTEP, 1f, 1.3f);
-
-                participant.getWorld().spawn(participant.getLocation(), Firework.class, firework -> {
-                    FireworkMeta meta = firework.getFireworkMeta();
-                    meta.addEffect(FireworkEffect.builder()
-                            .withColor(Color.GREEN)
-                            .with(FireworkEffect.Type.CREEPER)
-                            .withFlicker()
-                            .withTrail()
-                            .withFade(Color.LIME)
-                            .build());
-
-                    firework.setFireworkMeta(meta);
-                });
-            } else {
-                participant.sendTitlePart(TitlePart.TITLE, winner.getFirst().displayName().color(NamedTextColor.AQUA)
-                        .append(Component.text(" has won!", NamedTextColor.GREEN)));
-                participant.playSound(participant, Sound.ENTITY_WITHER_DEATH, 1f, 1.3f);
-            }
-
-            participant.sendTitlePart(TitlePart.SUBTITLE, MiniMessage.miniMessage().deserialize("<head:" + singleWinner.getUniqueId() + "> ")
-                    .append(singleWinner.name().color(NamedTextColor.GOLD))
-                    .append(Component.text(" has won!", NamedTextColor.GREEN)));
-        });
-
-        Bukkit.getServer().getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
-            stop();
-        }, 200);
-    }
 
     protected abstract void onPassCheckPoint(Player player, int checkPoint);
 
@@ -242,20 +168,12 @@ public abstract class RaceGame<T extends RaceGameArenaLayout> extends FestGame<T
     private void updateBossbar(Player participant) {
         RaceGamePlayerData playerData = (RaceGamePlayerData) getOrCreatePlayerData(participant.getUniqueId());
 
-        if (playerData.bossBar() == null) {
-            BossBar bossBar = BossBar.bossBar(Component.text(""), 0.0f, BossBar.Color.GREEN, BossBar.Overlay.PROGRESS);
-            bossBar.addViewer(participant);
-            playerData.setBossBar(bossBar);
-        }
-
-        BossBar bossBar = playerData.bossBar();
-        bossBar.name(Component.text("Checkpoint ", NamedTextColor.GREEN)
+        Component title = Component.text("Checkpoint ", NamedTextColor.GREEN)
                 .append(Component.text(playerData.currentCheckPoint(), NamedTextColor.GOLD))
-                .append(Component.text("/" + (checkPoints.size() - 1), NamedTextColor.GRAY))
-        );
+                .append(Component.text("/" + (checkPoints.size() - 1), NamedTextColor.GRAY));
 
         float progress = 1.0f * playerData.currentCheckPoint() / (checkPoints.size() - 1);
-        bossBar.progress(Math.clamp(progress, 0, 1));
+        playerData.updateBossBar(participant, title, progress, BossBar.Color.GREEN);
     }
 
     protected void createGate(Location center, double size, double thickness, boolean finish) {

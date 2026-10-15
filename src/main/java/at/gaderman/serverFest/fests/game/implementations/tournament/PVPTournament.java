@@ -11,7 +11,6 @@ import at.gaderman.serverFest.fests.game.triggers.action.PlayerDeathTrigger;
 import at.gaderman.serverFest.fests.game.triggers.damage.PlayerDamageTrigger;
 import at.gaderman.serverFest.fests.game.triggers.prefabs.NoBlockManipulationPrefab;
 import at.gaderman.serverFest.fests.items.FestItemProvider;
-import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -28,7 +27,6 @@ import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.FireworkMeta;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
-import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.NonNull;
 
@@ -67,39 +65,7 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
     }
 
     @Override
-    protected void onStart() {
-        final int[] timeLeft = {7}; // 7 seconds
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                timeLeft[0]--;
-
-                if (timeLeft[0] <= 5)
-                    sendTitle(timeLeft[0]);
-
-                if (timeLeft[0] <= 0) {
-                    cancel();
-
-                    fest.participants().forEach(participant -> {
-                        participant.setWorldBorder(fest.world().getWorldBorder());
-                        participant.playSound(participant, Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 1f, 1f);
-                        participant.sendTitlePart(TitlePart.TITLE, Component.text("Race!", NamedTextColor.GOLD));
-                    });
-                    kickOff();
-                }
-
-            }
-        }.runTaskTimer(ServerFest.getPlugin(), 20L, 20L);
-    }
-
-    private void sendTitle(long timeLeft) {
-        fest.participants().forEach(participant -> {
-            participant.playSound(participant, Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1.5f);
-            participant.sendTitlePart(TitlePart.TITLE, Component.text(timeLeft, NamedTextColor.GREEN));
-        });
-    }
-
-    private void kickOff() {
+    protected void onCountdownComplete() {
         startFaceOffs();
     }
 
@@ -111,47 +77,6 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
     @Override
     protected @NonNull CompletableFuture<Void> onReset() {
         return CompletableFuture.completedFuture(null);
-    }
-
-    //TODO: common single winner interface instead of copypasta
-    @Override
-    protected void onWinner(List<Player> winners) {
-        Player singleWinner = winners.getFirst();
-
-        fest.participants().forEach(participant -> {
-            boolean isWinner = winners.contains(participant);
-            participant.resetTitle();
-
-            if (isWinner) {
-                participant.sendTitlePart(TitlePart.TITLE, Component.text("Winner!", NamedTextColor.GOLD));
-                participant.getWorld().playSound(participant, Sound.MUSIC_DISC_PIGSTEP, 1f, 1.3f);
-
-                participant.getWorld().spawn(participant.getLocation(), Firework.class, firework -> {
-                    FireworkMeta meta = firework.getFireworkMeta();
-                    meta.addEffect(FireworkEffect.builder()
-                            .withColor(Color.GREEN)
-                            .with(FireworkEffect.Type.CREEPER)
-                            .withFlicker()
-                            .withTrail()
-                            .withFade(Color.LIME)
-                            .build());
-
-                    firework.setFireworkMeta(meta);
-                });
-            } else {
-                participant.sendTitlePart(TitlePart.TITLE, winners.getFirst().displayName().color(NamedTextColor.AQUA)
-                        .append(Component.text(" has won!", NamedTextColor.GREEN)));
-                participant.playSound(participant, Sound.ENTITY_WITHER_DEATH, 1f, 1.3f);
-            }
-
-            participant.sendTitlePart(TitlePart.SUBTITLE, MiniMessage.miniMessage().deserialize("<head:" + singleWinner.getUniqueId() + "> ")
-                    .append(singleWinner.name().color(NamedTextColor.GOLD))
-                    .append(Component.text(" has won!", NamedTextColor.GREEN)));
-        });
-
-        Bukkit.getServer().getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
-            stop();
-        }, 200);
     }
 
     //region Organization
