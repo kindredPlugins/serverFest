@@ -10,6 +10,8 @@ import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
 import at.gaderman.serverFest.fests.game.triggers.action.PlayerDeathTrigger;
 import at.gaderman.serverFest.fests.game.triggers.damage.PlayerDamageTrigger;
 import at.gaderman.serverFest.fests.game.triggers.prefabs.NoBlockManipulationPrefab;
+import at.gaderman.serverFest.fests.items.FestItemProvider;
+import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -20,6 +22,7 @@ import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.FireworkMeta;
@@ -29,9 +32,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.NonNull;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManipulationPrefab,
@@ -39,6 +40,8 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
 
     private final List<FaceOff> activeFaceOffs = new ArrayList<>();
     private final List<Arena> arenas = new ArrayList<>();
+
+    private int arenasUsedForRound;
 
     public PVPTournament(Fest fest, ArenaInstance arenaInstance) {
         super(fest, arenaInstance);
@@ -54,6 +57,13 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
         groupIntoFaceOffs();
         createWaitingArena();
         return buildArenas();
+    }
+
+    @Override
+    public void onPlayersJoinedWorld() {
+        super.onPlayersJoinedWorld();
+
+        fest.participants().forEach(this::addActionBarSchedule);
     }
 
     @Override
@@ -74,8 +84,6 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
                         participant.setWorldBorder(fest.world().getWorldBorder());
                         participant.playSound(participant, Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 1f, 1f);
                         participant.sendTitlePart(TitlePart.TITLE, Component.text("Race!", NamedTextColor.GOLD));
-
-                        //updateBossbar(participant);
                     });
                     kickOff();
                 }
@@ -148,6 +156,8 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
 
     //region Organization
 
+    private final Map<FaceOff, Arena> arenaPerDuelMap = new HashMap<>();
+
     //TODO: for testing purposes to be able to play alone, remote later
     private int bonusFaceOffs = fest.participants().size() > 1 ? 0 : 1;
 
@@ -162,10 +172,12 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
             activeFaceOffs.add(new FaceOff(participants.get(index), participants.get(index + 1)));
         }
 
-        if(bonusFaceOffs > 0){
+        if (bonusFaceOffs > 0) {
             activeFaceOffs.add(new FaceOff(participants.getFirst(), participants.getFirst()));
         }
         bonusFaceOffs--;
+
+        arenasUsedForRound = activeFaceOffs.size();
     }
 
     private boolean checkIfFaceOffWinnerIsAlreadyDecided() {
@@ -192,9 +204,12 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
         if (checkIfFaceOffWinnerIsAlreadyDecided())
             return;
 
+        arenaPerDuelMap.clear();
+
         for (int i = 0; i < activeFaceOffs.size(); i++) {
             FaceOff faceOff = activeFaceOffs.get(i);
             Arena arena = arenas.get(i);
+            arenaPerDuelMap.put(faceOff, arena);
 
             faceOff.player1.teleport(arena.player1Spawn);
             faceOff.player2.teleport(arena.player2Spawn);
@@ -304,6 +319,38 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
 
     //region Player Options
 
+    private void addActionBarSchedule(Player player) {
+        TournamentData playeData = (TournamentData) getOrCreatePlayerData(player.getUniqueId());
+
+        player.getScheduler().runAtFixedRate(ServerFest.getPlugin(), task -> {
+            if (!fest.game().isRunning()) {
+                task.cancel();
+                return;
+            }
+
+            PlayerTournamentState state = playeData.state();
+
+            Component display = state == PlayerTournamentState.SPECTATOR
+                    ? Component.text("Eliminated ", NamedTextColor.RED).append(Component.text("✦ ", NamedTextColor.DARK_GRAY))
+                    : Component.empty();
+
+            if (state == PlayerTournamentState.WAITING) {
+
+                if (activeFaceOffs.isEmpty())
+                    display = display.append(Component.text("Waiting for", NamedTextColor.GRAY))
+                            .append(Component.text("next round", NamedTextColor.GOLD));
+
+                else display = display.append(Component.text("Waiting for", NamedTextColor.GRAY))
+                        .append(Component.text("duels ", NamedTextColor.BLUE))
+                        .append(Component.text("to finish (", NamedTextColor.GRAY))
+                        .append(Component.text(arenasUsedForRound - activeFaceOffs.size(), NamedTextColor.GOLD))
+                        .append(Component.text("/" + arenasUsedForRound + ")", NamedTextColor.GRAY));
+            }
+
+            player.sendActionBar(display);
+        }, null, 1, 1);
+    }
+
     private void quipWithKit(Player player) {
         resetPlayer(player);
 
@@ -325,6 +372,8 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
 
         player.getInventory().clear();
         player.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, PotionEffect.INFINITE_DURATION, 0, false, false));
+
+        player.getInventory().setItem(0, FestItemProvider.SPEC_COMPASS);
     }
 
     private void resetPlayer(Player player) {
@@ -335,6 +384,32 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
         player.setHealth(20);
         player.setSaturation(4);
         player.setFoodLevel(20);
+    }
+
+    //endregion
+
+    //region exposure
+
+    /**
+     * Requests a spectator teleport from visitor to toVisit and if successful, teleports the player
+     * to the spectator area of the arena. Called from {@link ArenaSpectateGUI} to connect GUI
+     * with the actual game.
+     */
+    public boolean requestArenaVisitFor(Player visitor, Player toVisit) {
+        if (!fest.participantUUIDs().contains(visitor.getUniqueId())
+                || !fest.participantUUIDs().contains(toVisit.getUniqueId())) {
+            return false;
+        }
+
+        FaceOff target = activeFaceOffs.stream()
+                .filter(faceOff -> faceOff.players().contains(toVisit))
+                .findFirst().orElse(null);
+        if (target == null)
+            return false;
+
+        visitor.playSound(visitor, Sound.ENTITY_ENDERMAN_TELEPORT, 30f, 1f);
+        visitor.teleportAsync(arenaPerDuelMap.get(target).spectatorPoint);
+        return true;
     }
 
     //endregion
@@ -373,7 +448,7 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
     private static final int ARENA_LENGTH = 25;
     private static final int ARENA_HEIGHT = 7;
 
-    private static final int ARENA_GAP = 2;
+    private static final int ARENA_GAP = 10;
     private static final int ARENA_SPACING_X = ARENA_WIDTH + ARENA_GAP;
     private static final int ARENA_SPACING_Z = ARENA_LENGTH + ARENA_GAP;
 
@@ -443,7 +518,8 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
             int xOffset = Math.floorDiv(ARENA_WIDTH, 2);
             arenas.add(new Arena(
                     origin.clone().add(xOffset, 1, ARENA_LENGTH * 0.8).toCenterLocation(),
-                    origin.clone().add(xOffset, 1, ARENA_LENGTH * 0.2).toCenterLocation()
+                    origin.clone().add(xOffset, 1, ARENA_LENGTH * 0.2).toCenterLocation(),
+                    origin.clone().add(ARENA_WIDTH + 2, 1, ARENA_LENGTH * 0.5).toCenterLocation()
             ));
 
             for (int x = 0; x < ARENA_WIDTH; x++) {
@@ -533,6 +609,20 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
         ));
     }
 
+    @Override
+    public void onInteract(PlayerInteractEvent event, Player player) {
+        ItemStack item = event.getItem();
+
+        if (!event.getAction().isRightClick())
+            return;
+
+        if (item == null || !item.equals(FestItemProvider.SPEC_COMPASS))
+            return;
+
+        new ArenaSpectateGUI(this, activeFaceOffs).openInventory(player);
+        player.playSound(player, Sound.BLOCK_CHEST_OPEN, 1f, 1.45f);
+    }
+
     //endregion
 
     @Override
@@ -540,12 +630,12 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
         return new TournamentData(uuid);
     }
 
-    private record FaceOff(Player player1, Player player2) {
+    public record FaceOff(Player player1, Player player2) {
         public List<Player> players() {
             return List.of(player1, player2);
         }
     }
 
-    private record Arena(Location player1Spawn, Location player2Spawn) {
+    public record Arena(Location player1Spawn, Location player2Spawn, Location spectatorPoint) {
     }
 }
