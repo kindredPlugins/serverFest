@@ -138,9 +138,8 @@ public class Fest {
     }
 
     public void onLeave(Player player) {
-        game.onLeave(player);
-
         participantUUIDs.remove(player.getUniqueId());
+        game.onLeave(player);
 
         participants().forEach(participant -> participant.sendMessage(
                         player.name().color(NamedTextColor.RED)

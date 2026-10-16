@@ -9,6 +9,9 @@ import at.gaderman.serverFest.fests.game.GameType;
 import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
 import at.gaderman.serverFest.fests.game.triggers.action.PlayerDeathTrigger;
 import at.gaderman.serverFest.fests.game.triggers.damage.PlayerDamageTrigger;
+import at.gaderman.serverFest.fests.game.triggers.inventory.PlayerDropItemTrigger;
+import at.gaderman.serverFest.fests.game.triggers.inventory.PlayerInventoryClickTrigger;
+import at.gaderman.serverFest.fests.game.triggers.inventory.PlayerPickupItemTrigger;
 import at.gaderman.serverFest.fests.game.triggers.prefabs.NoBlockManipulationPrefab;
 import at.gaderman.serverFest.fests.items.FestItemProvider;
 import net.kyori.adventure.text.Component;
@@ -18,9 +21,13 @@ import net.kyori.adventure.title.TitlePart;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Firework;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
@@ -29,18 +36,20 @@ import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jspecify.annotations.NonNull;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManipulationPrefab,
-        PlayerDamageTrigger, PlayerDeathTrigger {
+        PlayerDamageTrigger, PlayerDeathTrigger, PlayerPickupItemTrigger, PlayerDropItemTrigger, PlayerInventoryClickTrigger {
 
     private final List<FaceOff> activeFaceOffs = new ArrayList<>();
     private final List<Arena> arenas = new ArrayList<>();
 
     private int arenasUsedForRound;
+    private boolean isBattlePhase;
 
     public PVPTournament(Fest fest, ArenaInstance arenaInstance) {
         super(fest, arenaInstance);
@@ -85,6 +94,11 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
         return CompletableFuture.completedFuture(null);
     }
 
+    @Override
+    protected Sound winnerCelebrationSound() {
+        return Sound.MUSIC_DISC_CREATOR;
+    }
+
     //region Organization
 
     private final Map<FaceOff, Arena> arenaPerDuelMap = new HashMap<>();
@@ -93,6 +107,8 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
     private int bonusFaceOffs = fest.participants().size() > 1 ? 0 : 1;
 
     private void groupIntoFaceOffs() {
+        activeFaceOffs.clear();
+
         List<Player> participants = fest.participants().stream()
                 .filter(player -> ((TournamentData) getOrCreatePlayerData(player.getUniqueId())).state() == PlayerTournamentState.WAITING)
                 .toList();
@@ -134,6 +150,7 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
         if (checkIfFaceOffWinnerIsAlreadyDecided())
             return;
 
+        isBattlePhase = true;
         arenaPerDuelMap.clear();
 
         for (int i = 0; i < activeFaceOffs.size(); i++) {
@@ -172,8 +189,11 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
     private void finishFaceOff(FaceOff faceOff) {
         activeFaceOffs.remove(faceOff);
 
-        faceOff.players().forEach(both -> {
+        faceOff.activePlayers(fest).forEach(both -> {
             both.getScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
+                if (!isRunning())
+                    return;
+
                 both.getInventory().clear();
                 both.getInventory().setItem(0, FestItemProvider.SPEC_COMPASS);
                 both.teleportAsync(fest.origin().toCenterLocation());
@@ -185,6 +205,11 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
             int delay = 100;
 
             Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
+                isBattlePhase = false;
+
+                if (!isRunning())
+                    return;
+
                 groupIntoFaceOffs();
 
                 if (checkIfFaceOffWinnerIsAlreadyDecided())
@@ -199,7 +224,7 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
             }, initialDelay);
 
             Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
-                if (activeFaceOffs.isEmpty())
+                if (activeFaceOffs.isEmpty() || !isRunning())
                     return;
 
                 startFaceOffs();
@@ -257,11 +282,32 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
 
     //region Player Options
 
+
+    @Override
+    public void onLeave(Player player) {
+        super.onLeave(player);
+
+        if (!isRunning())
+            return;
+
+        FaceOff faceOff = faceOffOfPlayer(player);
+        if (faceOff == null)
+            return;
+
+        if (isBattlePhase) {
+            Player winner = player.equals(faceOff.player1) ? faceOff.player2 : faceOff.player1;
+            finishFaceOff(faceOff);
+            playWinDuel(winner);
+        } else {
+            groupIntoFaceOffs();
+        }
+    }
+
     private void addActionBarSchedule(Player player) {
         TournamentData playerData = (TournamentData) getOrCreatePlayerData(player.getUniqueId());
 
         player.getScheduler().runAtFixedRate(ServerFest.getPlugin(), task -> {
-            if (!fest.game().isRunning()) {
+            if (!isRunning()) {
                 task.cancel();
                 return;
             }
@@ -272,27 +318,28 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
                     ? Component.text("Eliminated ", NamedTextColor.RED).append(Component.text("✦ ", NamedTextColor.DARK_GRAY))
                     : Component.empty();
 
-            if (state == PlayerTournamentState.WAITING) {
+            if (state != PlayerTournamentState.BATTLE) {
 
-                if (activeFaceOffs.isEmpty())
+                if (isBattlePhase)
+                    display = display.append(Component.text("Waiting for ", NamedTextColor.GRAY))
+                            .append(Component.text("duels ", NamedTextColor.BLUE))
+                            .append(Component.text("to finish (", NamedTextColor.GRAY))
+                            .append(Component.text(arenasUsedForRound - activeFaceOffs.size(), NamedTextColor.GOLD))
+                            .append(Component.text("/" + arenasUsedForRound + ")", NamedTextColor.GRAY));
+
+                else
                     display = display.append(Component.text("Waiting for ", NamedTextColor.GRAY))
                             .append(Component.text("next round", NamedTextColor.GOLD));
-
-                else display = display.append(Component.text("Waiting for ", NamedTextColor.GRAY))
-                        .append(Component.text("duels ", NamedTextColor.BLUE))
-                        .append(Component.text("to finish (", NamedTextColor.GRAY))
-                        .append(Component.text(arenasUsedForRound - activeFaceOffs.size(), NamedTextColor.GOLD))
-                        .append(Component.text("/" + arenasUsedForRound + ")", NamedTextColor.GRAY));
             }
 
             player.sendActionBar(display);
-        }, null, 10, 10);
+        }, null, 5, 5);
     }
 
     private void quipWithKit(Player player) {
         resetPlayer(player);
 
-        //TODO: add some sort of kit object or something that decides the kit which implemens filing inv
+        //TODO: add some sort of kit object or something that decides the kit which implements filing inv
         PlayerInventory inv = player.getInventory();
         inv.setItem(0, ItemStack.of(Material.DIAMOND_SWORD));
 
@@ -302,6 +349,32 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
         inv.setBoots(ItemStack.of(Material.DIAMOND_BOOTS));
 
         inv.setItem(8, ItemStack.of(Material.BREAD, 16));
+    }
+
+    private void playWinDuel(Player winner) {
+        ((TournamentData) getOrCreatePlayerData(winner.getUniqueId())).setState(PlayerTournamentState.WAITING);
+
+        winner.sendTitlePart(TitlePart.TITLE, Component.empty());
+        winner.sendTitlePart(TitlePart.SUBTITLE, Component.text("Duel won!", NamedTextColor.GREEN));
+        winner.playSound(winner, Sound.ENTITY_PLAYER_LEVELUP, 1, 1);
+
+        winner.getWorld().spawn(winner.getEyeLocation(), Firework.class, firework -> {
+            FireworkMeta meta = firework.getFireworkMeta();
+            meta.addEffect(FireworkEffect.builder()
+                    .withColor(Color.BLUE)
+                    .withFade(Color.AQUA)
+                    .withFlicker()
+                    .build());
+            firework.setFireworkMeta(meta);
+            firework.setTicksToDetonate(1);
+        });
+
+        fest.participants().forEach(participant -> participant.sendMessage(
+                Component.text(winner.getName(), NamedTextColor.GOLD)
+                        .append(Component.text(" has won their duel (", NamedTextColor.GRAY))
+                        .append(Component.text(arenasUsedForRound - activeFaceOffs.size(), NamedTextColor.GREEN))
+                        .append(Component.text("/" + arenas.size() + ")", NamedTextColor.GRAY))
+        ));
     }
 
     private void changeIntoSpectator(Player player) {
@@ -584,8 +657,6 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
         changeIntoSpectator(player);
 
         Player winner = faceOff.player1.equals(player) ? faceOff.player2 : faceOff.player1;
-        TournamentData winnerData = (TournamentData) getOrCreatePlayerData(winner.getUniqueId());
-        winnerData.setState(PlayerTournamentState.WAITING);
 
         player.sendTitlePart(TitlePart.TITLE, Component.text("Eliminated", NamedTextColor.RED));
         player.sendTitlePart(TitlePart.SUBTITLE, MiniMessage.miniMessage()
@@ -593,28 +664,7 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
                         "<gray>won the duel"));
         player.playSound(player, Sound.ENTITY_BAT_DEATH, 1f, 0.25f);
 
-        winner.sendTitlePart(TitlePart.TITLE, Component.empty());
-        winner.sendTitlePart(TitlePart.SUBTITLE, Component.text("Duel won!", NamedTextColor.GREEN));
-        winner.playSound(player, Sound.ENTITY_PLAYER_LEVELUP, 1, 1);
-
-        winner.getWorld().spawn(winner.getEyeLocation(), Firework.class, firework -> {
-            FireworkMeta meta = firework.getFireworkMeta();
-            meta.addEffect(FireworkEffect.builder()
-                    .withColor(Color.BLUE)
-                    .withFade(Color.AQUA)
-                    .withFlicker()
-                    .build());
-            firework.setFireworkMeta(meta);
-            firework.setTicksToDetonate(1);
-        });
-
-        //TODO: create a variable for initial faceOffs per round, arena can not be trusted apart form the first round
-        fest.participants().forEach(participant -> participant.sendMessage(
-                Component.text(winner.getName(), NamedTextColor.GOLD)
-                        .append(Component.text(" has won their duel (", NamedTextColor.GRAY))
-                        .append(Component.text(arenas.size() - activeFaceOffs.size(), NamedTextColor.GREEN))
-                        .append(Component.text("/" + arenas.size() + ")", NamedTextColor.GRAY))
-        ));
+        playWinDuel(winner);
     }
 
     @Override
@@ -631,14 +681,45 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
         player.playSound(player, Sound.BLOCK_CHEST_OPEN, 1f, 1.45f);
     }
 
+    @Override
+    public void onPlayerPickupItem(EntityPickupItemEvent event, Player player, Item item) {
+        if (stateOf(player) == PlayerTournamentState.BATTLE)
+            return;
+
+        event.setCancelled(true);
+    }
+
+    @Override
+    public void onPlayerDropItem(PlayerDropItemEvent event, Player player, Item item) {
+        if (stateOf(player) == PlayerTournamentState.BATTLE)
+            return;
+
+        event.setCancelled(true);
+    }
+
+    @Override
+    public void onInventoryClick(InventoryClickEvent event, Player player) {
+        if (stateOf(player) == PlayerTournamentState.BATTLE)
+            return;
+
+        event.setCancelled(true);
+    }
+
     //endregion
 
     //region Helpers
 
+    private PlayerTournamentState stateOf(Player player) {
+        return ((TournamentData) getOrCreatePlayerData(player.getUniqueId())).state();
+    }
+
     private List<Player> participantsOfState(PlayerTournamentState state) {
-        return fest.participants().stream().filter(player ->
-                        (((TournamentData) getOrCreatePlayerData(player.getUniqueId())).state() == state))
+        return fest.participants().stream().filter(player -> stateOf(player) == state)
                 .toList();
+    }
+
+    private @Nullable FaceOff faceOffOfPlayer(Player player) {
+        return activeFaceOffs.stream().filter(faceOff -> faceOff.players().contains(player)).findFirst().orElse(null);
     }
 
     //endregion
@@ -651,6 +732,10 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
     public record FaceOff(Player player1, Player player2) {
         public List<Player> players() {
             return List.of(player1, player2);
+        }
+
+        public List<Player> activePlayers(Fest fest) {
+            return players().stream().filter(player -> fest.participantUUIDs().contains(player.getUniqueId())).toList();
         }
     }
 

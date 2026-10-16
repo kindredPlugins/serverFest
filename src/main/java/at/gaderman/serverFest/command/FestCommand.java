@@ -39,7 +39,8 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                     case "dev" -> {
                         //TODO: add only sender as participant and do not let others join
                         sendScheduleMessage(sender);
-                        FestRecruitment.requestRecruitment(10, FestType.CASUAL, null);
+                        var recruitment = FestRecruitment.requestRecruitment(10, FestType.CASUAL, null);
+                        if(isPlayer) recruitment.addParticipant((Player) sender);
                         return true;
                     }
                     case "quick" -> {
