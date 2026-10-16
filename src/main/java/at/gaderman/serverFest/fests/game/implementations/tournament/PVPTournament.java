@@ -52,10 +52,16 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
     }
 
     @Override
+    public Location determineOrigin() {
+        Location origin = super.determineOrigin();
+        origin.setY(300);
+        return origin;
+    }
+
+    @Override
     public CompletableFuture<Void> setUpWorld() {
         groupIntoFaceOffs();
-        createWaitingArena();
-        return buildArenas();
+        return createWaitingArena().thenCompose(ignored -> buildArenas());
     }
 
     @Override
@@ -64,15 +70,9 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
     }
 
     @Override
-    public void onPlayersJoinedWorld() {
-        super.onPlayersJoinedWorld();
-
-        fest.participants().forEach(this::addActionBarSchedule);
-    }
-
-    @Override
     protected void onCountdownComplete() {
         startFaceOffs();
+        fest.participants().forEach(this::addActionBarSchedule);
     }
 
     @Override
@@ -103,10 +103,10 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
             activeFaceOffs.add(new FaceOff(participants.get(index), participants.get(index + 1)));
         }
 
-        if (bonusFaceOffs > 0) {
+        while (bonusFaceOffs > 0) {
             activeFaceOffs.add(new FaceOff(participants.getFirst(), participants.getFirst()));
+            bonusFaceOffs--;
         }
-        bonusFaceOffs--;
 
         arenasUsedForRound = activeFaceOffs.size();
     }
@@ -276,10 +276,10 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
             if (state == PlayerTournamentState.WAITING) {
 
                 if (activeFaceOffs.isEmpty())
-                    display = display.append(Component.text("Waiting for", NamedTextColor.GRAY))
+                    display = display.append(Component.text("Waiting for ", NamedTextColor.GRAY))
                             .append(Component.text("next round", NamedTextColor.GOLD));
 
-                else display = display.append(Component.text("Waiting for", NamedTextColor.GRAY))
+                else display = display.append(Component.text("Waiting for ", NamedTextColor.GRAY))
                         .append(Component.text("duels ", NamedTextColor.BLUE))
                         .append(Component.text("to finish (", NamedTextColor.GRAY))
                         .append(Component.text(arenasUsedForRound - activeFaceOffs.size(), NamedTextColor.GOLD))
@@ -357,45 +357,75 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
 
     //region Arenas
 
-    public void createWaitingArena() {
-        int size = 10;
-
+    private CompletableFuture<Void> createWaitingArena() {
         World world = fest.world();
-        Location origin = fest.origin().clone().add(-size / 2, -1, -size / 2);
+        Location origin = fest.origin().clone().add(-HUB_WIDTH / 2, -1, -HUB_LENGTH / 2);
+        int minChunkX = Math.floorDiv(origin.getBlockX(), 16);
+        int maxChunkX = Math.floorDiv(origin.getBlockX() + HUB_WIDTH - 1, 16);
+        int minChunkZ = Math.floorDiv(origin.getBlockZ(), 16);
+        int maxChunkZ = Math.floorDiv(origin.getBlockZ() + HUB_LENGTH - 1, 16);
+        List<CompletableFuture<Chunk>> chunkRequests = new ArrayList<>();
 
-        List<Material> possibleDecoBlocks = Tag.GLAZED_TERRACOTTA.getValues().stream().toList();
-
-        for (int x = 0; x < size; x++) {
-            for (int y = 0; y < size; y++) {
-                for (int z = 0; z < size; z++) {
-                    Block block = world.getBlockAt(origin.getBlockX() + x, origin.getBlockY() + y, origin.getBlockZ() + z);
-
-                    if (x != 0 && x != size - 1 &&
-                            y != 0 && y != size - 1 &&
-                            z != 0 && z != size - 1) {
-                        blockTracker.setBlock(block, Material.AIR);
-                        continue;
-                    }
-
-                    Material material = possibleDecoBlocks.get((int) (Math.random() * possibleDecoBlocks.size()));
-                    blockTracker.setBlock(block, material);
-                }
+        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
+            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
+                chunkRequests.add(world.getChunkAtAsync(chunkX, chunkZ, true));
             }
         }
-        blockTracker.save();
+
+        return CompletableFuture.allOf(chunkRequests.toArray(CompletableFuture[]::new)).thenRun(() -> {
+            for (int x = 0; x < HUB_WIDTH; x++) {
+                for (int y = 0; y < HUB_HEIGHT; y++) {
+                    for (int z = 0; z < HUB_LENGTH; z++) {
+                        Block block = world.getBlockAt(origin.getBlockX() + x, origin.getBlockY() + y,
+                                origin.getBlockZ() + z);
+                        boolean wall = x == 0 || x == HUB_WIDTH - 1 || z == 0 || z == HUB_LENGTH - 1;
+                        Material material;
+
+                        if (y == 0) {
+                            boolean perimeter = x == 0 || x == HUB_WIDTH - 1
+                                    || z == 0 || z == HUB_LENGTH - 1;
+                            material = perimeter ? Material.DEEPSLATE_TILES : Material.GLASS;
+                        } else if (y == HUB_HEIGHT - 1) {
+                            boolean ceilingLight = (x == HUB_WIDTH / 2 - 1 || x == HUB_WIDTH / 2)
+                                    && (z == HUB_LENGTH / 2 - 1 || z == HUB_LENGTH / 2);
+                            material = ceilingLight ? Material.SEA_LANTERN : Material.DEEPSLATE_TILES;
+                        } else if (!wall) {
+                            material = Material.AIR;
+                        } else {
+                            boolean corner = (x == 0 || x == HUB_WIDTH - 1)
+                                    && (z == 0 || z == HUB_LENGTH - 1);
+                            int wallPosition = x == 0 || x == HUB_WIDTH - 1 ? z : x;
+                            int wallLength = x == 0 || x == HUB_WIDTH - 1 ? HUB_LENGTH : HUB_WIDTH;
+                            boolean glassOpening = y >= 2 && y <= HUB_HEIGHT - 3
+                                    && wallPosition >= 2 && wallPosition <= wallLength - 3;
+                            material = glassOpening && !corner ? Material.GLASS : Material.DEEPSLATE_TILES;
+                        }
+
+                        blockTracker.setBlock(block, material);
+                    }
+                }
+            }
+            blockTracker.save();
+        });
     }
 
     private static final int ARENA_WIDTH = 11;
     private static final int ARENA_LENGTH = 25;
     private static final int ARENA_HEIGHT = 7;
     private static final int GALLERY_WIDTH = 5;
+    private static final int HUB_WIDTH = ARENA_WIDTH + GALLERY_WIDTH;
+    private static final int HUB_LENGTH = ARENA_LENGTH;
+    private static final int HUB_HEIGHT = 10;
+    private static final int ARENA_VERTICAL_SEPARATION = 12;
 
     private static final int ARENA_GAP = 10;
     private static final int ARENA_SPACING_X = ARENA_WIDTH + ARENA_GAP;
     private static final int ARENA_SPACING_Z = ARENA_LENGTH + ARENA_GAP;
 
     private CompletableFuture<Void> buildArenas() {
-        Location origin = fest.origin().clone().add(100, 0, 0);
+        Location center = fest.origin();
+        int hubFloorY = center.getBlockY() - 1;
+        int arenaFloorY = hubFloorY - ARENA_VERTICAL_SEPARATION;
 
         int arenaCount = activeFaceOffs.size();
 
@@ -406,6 +436,8 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
 
         int columns = (int) Math.ceil(Math.sqrt(arenaCount));
         int rows = (int) Math.ceil((double) arenaCount / columns);
+        int arrayDepth = rows * ARENA_LENGTH + (rows - 1) * ARENA_GAP;
+        int firstRowZ = center.getBlockZ() - arrayDepth / 2;
 
         List<CompletableFuture<Void>> arenaCompletions = new ArrayList<>(arenaCount);
 
@@ -414,11 +446,13 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
             int column = i % columns;
 
             int columnsInRow = Math.min(columns, arenaCount - row * columns);
+            int rowWidth = columnsInRow * (ARENA_WIDTH + GALLERY_WIDTH)
+                    + (columnsInRow - 1) * (ARENA_SPACING_X - (ARENA_WIDTH + GALLERY_WIDTH));
+            int firstArenaX = center.getBlockX() - rowWidth / 2;
+            int arenaX = firstArenaX + column * ARENA_SPACING_X;
+            int arenaZ = firstRowZ + row * ARENA_SPACING_Z;
 
-            int xOffset = column * ARENA_SPACING_X - (columnsInRow - 1) * ARENA_SPACING_X / 2;
-            int zOffset = row * ARENA_SPACING_Z - (rows - 1) * ARENA_SPACING_Z / 2;
-
-            Location arenaOrigin = origin.clone().add(xOffset, 0, zOffset);
+            Location arenaOrigin = new Location(center.getWorld(), arenaX, arenaFloorY, arenaZ);
             arenaCompletions.add(buildSingleArena(arenaOrigin));
         }
 
@@ -462,14 +496,15 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
 
             Location spawnOne = origin.clone().add(xOffset, 1, ARENA_LENGTH * 0.8).toCenterLocation();
             Location spawnTwo = origin.clone().add(xOffset, 1, ARENA_LENGTH * 0.2).toCenterLocation();
-            spawnTwo.setYaw(180);
+            spawnOne.setYaw(180);
 
             arenas.add(new Arena(spawnOne, spawnTwo, spectatorPoint));
 
             for (int x = 0; x < ARENA_WIDTH; x++) {
                 for (int z = 0; z < ARENA_LENGTH; z++) {
                     Location location = origin.clone().add(x, 0, z);
-                    blockTracker.setBlock(location, Material.POLISHED_BLACKSTONE);
+                    Material floor = getFloor(x, z, xOffset);
+                    blockTracker.setBlock(location, floor);
 
                     for (int y = 1; y < ARENA_HEIGHT; y++) {
                         boolean wall = x == 0 || x == ARENA_WIDTH - 1;
@@ -504,6 +539,17 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
             blockTracker.save();
             updateArenaBuildingProgress();
         });
+    }
+
+    private static @NonNull Material getFloor(int x, int z, int xOffset) {
+        boolean perimeter = x == 0 || x == ARENA_WIDTH - 1
+                || z == 0 || z == ARENA_LENGTH - 1;
+        boolean spawnAccent = x >= xOffset - 1 && x <= xOffset + 1
+                && (Math.abs(z - (int) (ARENA_LENGTH * 0.8)) <= 1
+                || Math.abs(z - (int) (ARENA_LENGTH * 0.2)) <= 1);
+        return perimeter
+                ? Material.DEEPSLATE_TILES
+                : spawnAccent ? Material.POLISHED_BLACKSTONE_BRICKS : Material.POLISHED_BLACKSTONE;
     }
 
     private void updateArenaBuildingProgress() {
