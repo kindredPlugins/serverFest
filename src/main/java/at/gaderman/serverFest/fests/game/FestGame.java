@@ -18,6 +18,7 @@ import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.meta.FireworkMeta;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jspecify.annotations.NonNull;
 
 import java.util.*;
@@ -129,9 +130,10 @@ public abstract class FestGame<T extends ArenaLayout> {
 
     /**
      * Announces the winner and schedules the game to stop after the announcement.
+     * If the list is empty it will count as a draw
      */
     protected final void onWinner(List<Player> winners) {
-        Player singleWinner = winners.getFirst();
+        Player singleWinner = winners.isEmpty() ? null : winners.getFirst();
         Component subtitle = winnerAnnouncementSubtitle(singleWinner);
 
         fest.participants().forEach(participant -> {
@@ -170,12 +172,18 @@ public abstract class FestGame<T extends ArenaLayout> {
         return Component.text("Winner!", NamedTextColor.GOLD);
     }
 
-    protected Component nonWinnerAnnouncementTitle(Player winner) {
+    protected Component nonWinnerAnnouncementTitle(@Nullable Player winner) {
+        if (winner == null)
+            return Component.text("Draw", NamedTextColor.BLUE);
+
         return winner.displayName().color(NamedTextColor.AQUA)
                 .append(Component.text(" has won!", NamedTextColor.GREEN));
     }
 
-    protected Component winnerAnnouncementSubtitle(Player winner) {
+    protected Component winnerAnnouncementSubtitle(@Nullable Player winner) {
+        if (winner == null) {
+            return Component.text("No winner", NamedTextColor.GOLD);
+        }
         return MiniMessage.miniMessage().deserialize("<head:" + winner.getUniqueId() + "> ")
                 .append(winner.name().color(NamedTextColor.GOLD))
                 .append(Component.text(" has won!", NamedTextColor.GREEN));
@@ -251,6 +259,13 @@ public abstract class FestGame<T extends ArenaLayout> {
     public boolean isRunning() {
         return running;
     }
+
+    /**
+     * Further handle a player leaving the fest. This can be both from either quitting Minecraft completely
+     * or simply leaving the fest via /fest quit.
+     * Some fests need to adjust when a player leaves, like in a duel.
+     */
+    public void onLeave(Player player){}
 
     //region Helper methods
 

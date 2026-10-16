@@ -41,12 +41,9 @@ public class Fest {
 
     private TriggerListener triggerListener;
 
-    //TODO: investigate statistic timeout, maybe future#thenAccept, we need a way to not get stuck if one chunk placement "fails", low budget servers can be stalled this way otherwise
-    //TODO: create FestRecruitment which will handle joining of participants
     public Fest(FestType festType, @NotNull GameType gameType, List<UUID> participantUUIDs) {
         this.uuid = UUID.randomUUID();
         this.festType = festType;
-        //TODO: change this later to give players actual choice of participation
         this.participantUUIDs = participantUUIDs;
 
         this.arenaInstance = ServerFest.arenaManager.requestArena(gameType);
@@ -102,10 +99,6 @@ public class Fest {
         this.triggerListener = new TriggerListener(this);
         FestManager.getInstance().registerFest(this);
 
-//        world = WorldManager.getInstance().createChallengeWorldCreator(
-//                        new NamespacedKey(ServerFest.getPlugin(), uuid.toString()))
-//                .createWorld();
-
         world = WorldManager.getInstance().loadOrCreateFestWorld();
         world.setGameRule(GameRules.SPAWN_MOBS, false);
 
@@ -145,6 +138,8 @@ public class Fest {
     }
 
     public void onLeave(Player player) {
+        game.onLeave(player);
+
         participantUUIDs.remove(player.getUniqueId());
 
         participants().forEach(participant -> participant.sendMessage(
@@ -154,6 +149,11 @@ public class Fest {
         );
 
         SaveStateManagement.restorePlayerState(player);
+
+        if(participantUUIDs.isEmpty()){
+            ServerFest.getPlugin().getLogger().info("Terminating fest " + uuid + " as all players left the fest.");
+            game.stop();
+        }
     }
 
     private static Location adjustLocationToCenterOfChunk(Location location) {

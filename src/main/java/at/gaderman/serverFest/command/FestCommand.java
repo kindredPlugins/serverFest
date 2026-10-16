@@ -1,5 +1,6 @@
 package at.gaderman.serverFest.command;
 
+import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.FestManager;
 import at.gaderman.serverFest.fests.FestType;
 import at.gaderman.serverFest.fests.duel.ProposedDuel;
@@ -53,6 +54,27 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                         }
 
                         new FestCreationGUI().openInventory((Player) sender);
+                        return true;
+                    }
+                    case "quit" -> {
+                        if(!isPlayer){
+                            sender.sendMessage(Component.text("Only players can use this command!", NamedTextColor.RED));
+                            return true;
+                        }
+
+                        Player player = (Player) sender;
+                        Fest activeFest = FestManager.getInstance().getFests().stream()
+                                .filter(fest -> fest.participantUUIDs().contains(player.getUniqueId()))
+                                .findFirst().orElse(null);
+
+                        if(activeFest == null){
+                            player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
+                            player.sendMessage(Component.text("You are not in any fest to quit from!", NamedTextColor.RED));
+                            return true;
+                        }
+
+                        activeFest.onLeave(player);
+                        player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BELL, 1, 1);
                         return true;
                     }
                     case "join" -> {

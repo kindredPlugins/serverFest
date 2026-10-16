@@ -119,8 +119,7 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
             }).toList();
 
             if (winners.isEmpty()) {
-                //TODO: handle draw case I guess, what happens when last two players time out
-                stop();
+                declareWinner(Collections.emptyList());
                 return true;
             }
 
