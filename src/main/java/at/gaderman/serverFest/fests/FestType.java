@@ -31,4 +31,12 @@ public enum FestType {
     {
         return this != DUEL;
     }
+
+    public String displayName(){
+        return switch (this){
+            case CASUAL -> "Casual";
+            case SERVER_COMPETITION -> "Competitive";
+            case DUEL -> "Duel";
+        };
+    }
 }

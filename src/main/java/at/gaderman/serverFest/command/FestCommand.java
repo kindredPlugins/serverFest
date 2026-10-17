@@ -40,7 +40,7 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                         //TODO: add only sender as participant and do not let others join
                         sendScheduleMessage(sender);
                         var recruitment = FestRecruitment.requestRecruitment(10, FestType.CASUAL, null);
-                        if(isPlayer) recruitment.addParticipant((Player) sender);
+                        if (isPlayer) recruitment.addParticipant((Player) sender);
                         return true;
                     }
                     case "quick" -> {
@@ -58,7 +58,7 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                         return true;
                     }
                     case "quit" -> {
-                        if(!isPlayer){
+                        if (!isPlayer) {
                             sender.sendMessage(Component.text("Only players can use this command!", NamedTextColor.RED));
                             return true;
                         }
@@ -68,7 +68,7 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                                 .filter(fest -> fest.participantUUIDs().contains(player.getUniqueId()))
                                 .findFirst().orElse(null);
 
-                        if(activeFest == null){
+                        if (activeFest == null) {
                             player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
                             player.sendMessage(Component.text("You are not in any fest to quit from!", NamedTextColor.RED));
                             return true;
@@ -90,8 +90,10 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                         if (!joined) {
                             if (FestManager.getInstance().isPlayerParticipatingInAnyFest(player))
                                 player.sendMessage(Component.text("You are already participating in another fest!", NamedTextColor.RED));
-                            else
+                            else if(RecruitmentManager.getInstance().activeRecruitment() == null)
                                 player.sendMessage(Component.text("There is no active fest to join", NamedTextColor.RED));
+                            else
+                                player.sendMessage(Component.text("This fest is already full, no more players can sign up for it!", NamedTextColor.RED));
 
                             player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
                             return true;
@@ -109,7 +111,7 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                         GameType gameType = GameType.valueOf(args[1].toUpperCase());
                         sendScheduleMessage(sender);
                         var recruitment = FestRecruitment.requestRecruitment(isDev ? 10 : 60, FestType.CASUAL, gameType);
-                        if(isPlayer && isDev) recruitment.addParticipant((Player) sender);
+                        if (isPlayer && isDev) recruitment.addParticipant((Player) sender);
                     } catch (IllegalArgumentException exception) {
                         sender.sendMessage(Component.text("Invalid gameType " + args[1], NamedTextColor.RED));
                     }
@@ -124,7 +126,7 @@ public class FestCommand implements CommandExecutor, TabCompleter {
 
                     Player player = (Player) sender;
 
-                    if(FestManager.getInstance().isPlayerParticipatingInAnyFest(player)){
+                    if (FestManager.getInstance().isPlayerParticipatingInAnyFest(player)) {
                         player.sendMessage(Component.text("You cannot duel while participating in another fest!", NamedTextColor.RED));
                         player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
                         return true;
@@ -138,7 +140,7 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                         return true;
                     }
 
-                    if(FestManager.getInstance().isPlayerParticipatingInAnyFest(opponent)){
+                    if (FestManager.getInstance().isPlayerParticipatingInAnyFest(opponent)) {
                         player.sendMessage(Component.text("This player is already participating in another fest!", NamedTextColor.RED));
                         player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
                         return true;
@@ -219,6 +221,9 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                 completions.add("quick");
                 completions.add("create");
                 completions.add("duel");
+
+                if (sender instanceof Player player && FestManager.getInstance().isPlayerParticipatingInAnyFest(player))
+                    completions.add("quit");
 
                 completions.removeIf(completion -> !completion.startsWith(args[0]));
             }

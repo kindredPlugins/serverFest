@@ -1,5 +1,6 @@
 package at.gaderman.serverFest.gui.fests;
 
+import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.FestType;
 import at.gaderman.serverFest.fests.game.GameType;
 import at.gaderman.serverFest.fests.game.definition.GameDefinition;
@@ -9,6 +10,7 @@ import at.gaderman.serverFest.gui.ActionInventory;
 import at.gaderman.serverFest.utils.ItemUtils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -20,14 +22,15 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
+import java.util.List;
 
-//TODO: add polishing, display is not modern, not optimized, styling, ...
 public class FestCreationGUI extends ActionInventory {
 
-    private static final FestType[] FEST_TYPES = FestType.values();
+    private static final FestType[] FEST_TYPES = Arrays.stream(FestType.values()).filter(FestType::isSelectectibleForScheduling).toArray(FestType[]::new);
     private static final GameType[] GAME_TYPES = GameType.values();
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT);
-    private static final ChronoUnit[] UNITS = new ChronoUnit[]{ChronoUnit.MINUTES, ChronoUnit.HOURS, ChronoUnit.DAYS, ChronoUnit.WEEKS, ChronoUnit.MONTHS};
+    private static final List<ChronoUnit> UNITS = List.of(ChronoUnit.MINUTES, ChronoUnit.HOURS, ChronoUnit.DAYS, ChronoUnit.WEEKS, ChronoUnit.MONTHS);
 
     private static final int FEST_TYPE_SLOT = 9;
     private static final int GAME_TYPE_SLOT = 10;
@@ -45,7 +48,7 @@ public class FestCreationGUI extends ActionInventory {
     private FestType festType = FestType.CASUAL;
     private @Nullable GameType gameType;
     private int minPlayers = 2;
-    private int maxPlayers = -1;
+    private int maxPlayers = Fest.MAX_PLAYERS_PER_FEST;
 
     private boolean recurring;
     private LocalDateTime time = LocalDateTime.now().plusSeconds(30);
@@ -106,22 +109,52 @@ public class FestCreationGUI extends ActionInventory {
         }, Sound.ENTITY_CHICKEN_EGG, 1, 1);
 
         defineInventoryAction(MIN_PLAYERS_SLOT, event -> {
+            if (!(event.getWhoClicked() instanceof Player player))
+                return;
+
             int increment = event.isRightClick() ? -1 : 1;
             if (event.isShiftClick()) increment *= 10;
 
-            minPlayers = Math.clamp(minPlayers + increment, 2, 99);
+            int value = minPlayers + increment;
+
+            if (value > Fest.MAX_PLAYERS_PER_FEST || value < 1)
+                player.playSound(player, Sound.ENTITY_ITEM_BREAK, 1, 1);
+            else
+                player.playSound(player, Sound.ENTITY_CHICKEN_EGG, 1, 1);
+
+            minPlayers = Math.clamp(value, 1, Fest.MAX_PLAYERS_PER_FEST);
+
+            if (minPlayers > maxPlayers) {
+                maxPlayers = minPlayers;
+                updateMaxPlayerCount();
+            }
+
             updateMinPlayerCount();
-        }, Sound.ENTITY_CHICKEN_EGG, 1, 1);
+        });
 
         defineInventoryAction(MAX_PLAYERS_SLOT, event -> {
+            if (!(event.getWhoClicked() instanceof Player player))
+                return;
+
             int increment = event.isRightClick() ? -1 : 1;
             if (event.isShiftClick()) increment *= 10;
 
             int value = maxPlayers + increment;
-            maxPlayers = value < 2 ? -1 : Math.clamp(value, 2, 99);
+
+            if (value > Fest.MAX_PLAYERS_PER_FEST || value < 2)
+                player.playSound(player, Sound.ENTITY_ITEM_BREAK, 1, 1);
+            else
+                player.playSound(player, Sound.ENTITY_CHICKEN_EGG, 1, 1);
+
+            maxPlayers = Math.clamp(value, 2, Fest.MAX_PLAYERS_PER_FEST);
+
+            if(maxPlayers < minPlayers){
+                minPlayers = maxPlayers;
+                updateMinPlayerCount();
+            }
 
             updateMaxPlayerCount();
-        }, Sound.ENTITY_CHICKEN_EGG, 1, 1);
+        });
 
         defineInventoryAction(RECURRING_SLOT, _ -> {
             recurring = !recurring;
@@ -142,10 +175,10 @@ public class FestCreationGUI extends ActionInventory {
 
             //TODO: ordinal does not much with array order here, is kinda confusing and no overflow cause of that
             int increment = event.isRightClick() ? -1 : 1;
-            unit = UNITS[Math.floorMod(unit.ordinal() + increment, UNITS.length)];
+            unit = UNITS.get(Math.floorMod(UNITS.indexOf(unit) + increment, UNITS.size()));
             updateUnit();
 
-            if(event.getWhoClicked() instanceof Player player)
+            if (event.getWhoClicked() instanceof Player player)
                 player.playSound(player.getLocation(), Sound.ENTITY_CHICKEN_EGG, 1, 1);
         });
 
@@ -158,7 +191,7 @@ public class FestCreationGUI extends ActionInventory {
             offset = Math.clamp(offset + increment, 1, 99);
             updateOffset();
 
-            if(event.getWhoClicked() instanceof Player player)
+            if (event.getWhoClicked() instanceof Player player)
                 player.playSound(player.getLocation(), Sound.ENTITY_CHICKEN_EGG, 1, 1);
         });
 
@@ -172,7 +205,7 @@ public class FestCreationGUI extends ActionInventory {
             inventory.close();
         }, Sound.ENTITY_PLAYER_LEVELUP, 1, 1);
 
-        defineInventoryAction(CANCEL_SLOT, _ -> inventory.close());
+        defineInventoryAction(CANCEL_SLOT, _ -> inventory.close(), Sound.ENTITY_CHICKEN_EGG, 1, 2);
     }
 
     private void updateInventory() {
@@ -186,13 +219,16 @@ public class FestCreationGUI extends ActionInventory {
         updateOffset();
 
         updateAcceptButton();
+        updateCancelButton();
     }
 
     private void updateFestType() {
-        Material material = switch (festType) {
-            case CASUAL -> Material.FIREWORK_ROCKET;
-            case SERVER_COMPETITION -> Material.DIAMOND;
-            case DUEL -> Material.DIAMOND_SWORD;
+        ItemStack item = switch (festType) {
+            case CASUAL ->
+                    ItemUtils.createCustomHead("http://textures.minecraft.net/texture/302f48f34d22ded7404f76e8a132af5d7919c8dcd51df6e7a85ddfac85ab");
+            case SERVER_COMPETITION ->
+                    ItemUtils.createCustomHead("http://textures.minecraft.net/texture/5d308ae27b58b69645497f9da86597eda947eacd10c29e3d4bbf3bc76ceb1eab");
+            case DUEL -> ItemStack.of(Material.DIAMOND_SWORD);
         };
 
         Component name = switch (festType) {
@@ -201,10 +237,17 @@ public class FestCreationGUI extends ActionInventory {
             case DUEL -> Component.text("Duel", NamedTextColor.BLUE);
         };
 
-        ItemStack item = new ItemStack(material);
+        List<Component> lore = switch (festType) {
+            case CASUAL -> List.of(Component.text("Casual fest with no rewards, only fun", NamedTextColor.YELLOW));
+            case SERVER_COMPETITION ->
+                    List.of(Component.text("Exclusive server-wide reward, compete for it", NamedTextColor.YELLOW));
+            case DUEL -> List.of(Component.text("Duel between 2 players", NamedTextColor.YELLOW));
+        };
+
         item.editMeta(meta -> {
-            meta.itemName(name);
+            meta.customName(name.decoration(TextDecoration.ITALIC, false));
             meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+            meta.lore(ItemUtils.applyDefaultLoreStyle(lore));
         });
 
         inventory.setItem(FEST_TYPE_SLOT, item);
@@ -212,12 +255,15 @@ public class FestCreationGUI extends ActionInventory {
 
     private void updateGameType() {
         GameDefinition gameDefinition = gameType == null ? null : gameType.definition();
-        ItemStack item = new ItemStack(gameDefinition == null ? Material.BARRIER : gameDefinition.iconType());
+        ItemStack item = gameDefinition == null
+                ? ItemUtils.createCustomHead("http://textures.minecraft.net/texture/d34e063cafb467a5c8de43ec78619399f369f4a52434da8017a983cdd92516a0")
+                : new ItemStack(gameDefinition.iconType());
 
         item.editMeta(meta -> {
-            meta.itemName(gameDefinition == null
+            meta.displayName((gameDefinition == null
                     ? Component.text("Random Game", NamedTextColor.GOLD)
-                    : gameDefinition.iconName());
+                    : gameDefinition.iconName())
+                    .decoration(TextDecoration.ITALIC, false));
             meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         });
 
@@ -241,32 +287,28 @@ public class FestCreationGUI extends ActionInventory {
             meta.setMaxStackSize(99);
         });
 
-        item.setAmount(minPlayers);
+        item.setAmount(Math.clamp(minPlayers, 1, 99));
         inventory.setItem(MIN_PLAYERS_SLOT, item);
     }
 
     private void updateMaxPlayerCount() {
-        ItemStack item = new ItemStack(Material.PLAYER_HEAD);
+        ItemStack item = new ItemStack(Material.CREEPER_HEAD);
 
         item.editMeta(meta -> {
             meta.itemName(
                     Component.text("Maximum Players: ", NamedTextColor.GRAY)
-                            .append(Component.text(
-                                    maxPlayers == -1 ? "no limit" : String.valueOf(maxPlayers),
-                                    NamedTextColor.GOLD
-                            ))
+                            .append(Component.text(maxPlayers, NamedTextColor.GOLD))
             );
             meta.lore(ItemUtils.applyDefaultLoreStyle(
                     Component.text("Left +1", NamedTextColor.YELLOW),
                     Component.text("Right -1", NamedTextColor.YELLOW),
-                    Component.text("Shift ×10", NamedTextColor.YELLOW),
-                    Component.text("Below 2 = no limit", NamedTextColor.GRAY)
+                    Component.text("Shift ×10", NamedTextColor.YELLOW)
             ));
             meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
             meta.setMaxStackSize(99);
         });
 
-        item.setAmount(Math.max(maxPlayers, 1));
+        item.setAmount(Math.clamp(maxPlayers, 1, 99));
         inventory.setItem(MAX_PLAYERS_SLOT, item);
     }
 
@@ -314,12 +356,12 @@ public class FestCreationGUI extends ActionInventory {
         }
 
         ItemStack item = ItemStack.of(switch (unit) {
-            case MINUTES -> Material.YELLOW_GLAZED_TERRACOTTA;
-            case HOURS -> Material.ORANGE_GLAZED_TERRACOTTA;
-            case DAYS -> Material.RED_GLAZED_TERRACOTTA;
-            case WEEKS -> Material.BROWN_GLAZED_TERRACOTTA;
-            case MONTHS -> Material.GREEN_GLAZED_TERRACOTTA;
-            default -> Material.GRAY_GLAZED_TERRACOTTA;
+            case MINUTES -> Material.PAPER;
+            case HOURS -> Material.BOOK;
+            case DAYS -> Material.LECTERN;
+            case WEEKS -> Material.CHISELED_BOOKSHELF;
+            case MONTHS -> Material.BOOKSHELF;
+            default -> Material.ENCHANTED_BOOK;
         });
 
         item.editMeta(meta -> {
@@ -362,5 +404,12 @@ public class FestCreationGUI extends ActionInventory {
         });
 
         inventory.setItem(ACCEPT_SLOT, item);
+    }
+
+    private void updateCancelButton() {
+        inventory.setItem(CANCEL_SLOT, ItemUtils.createBasicUIItem(Material.RED_DYE,
+                Component.text("Cancel", NamedTextColor.RED),
+                List.of(Component.text("Click to cancel", NamedTextColor.YELLOW)))
+        );
     }
 }

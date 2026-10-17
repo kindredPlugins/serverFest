@@ -4,17 +4,21 @@ import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.FestManager;
 import at.gaderman.serverFest.fests.FestType;
+import at.gaderman.serverFest.fests.arenas.ArenaInstance;
 import at.gaderman.serverFest.fests.game.GameType;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import net.kyori.adventure.title.Title;
 import net.kyori.adventure.title.TitlePart;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -28,24 +32,35 @@ public class FestRecruitment {
     private int remainingTime;
     private final FestType festType;
     private final GameType gameType;
+    private final int minPlayers;
+    private final int maxPlayers;
 
     private final List<UUID> participants;
 
-    private FestRecruitment(int remainingTime, FestType festType, GameType gameType) {
+    private FestRecruitment(int remainingTime, FestType festType, GameType gameType, int minPlayers, int maxPlayers) {
         this.remainingTime = Math.max(remainingTime, 10);
         this.festType = festType;
         this.gameType = gameType;
         this.participants = new ArrayList<>();
+        this.minPlayers = minPlayers;
+        this.maxPlayers = maxPlayers;
     }
 
     /**
      * Creates a new FestRecruitment instance and instantly requests it at the {@link RecruitmentManager}
      */
     public static FestRecruitment requestRecruitment(int remainingTime, FestType festType, @Nullable GameType gameType) {
+        return requestRecruitment(remainingTime, festType, gameType, 1, Fest.MAX_PLAYERS_PER_FEST);
+    }
+
+    /**
+     * Creates a new FestRecruitment instance and instantly requests it at the {@link RecruitmentManager}
+     */
+    public static FestRecruitment requestRecruitment(int remainingTime, FestType festType, @Nullable GameType gameType, int minPlayers, int maxPlayers) {
         if (gameType == null)
             gameType = GameType.values()[(int) (Math.random() * GameType.values().length)];
 
-        var recruitment = new FestRecruitment(remainingTime, festType, gameType);
+        var recruitment = new FestRecruitment(remainingTime, festType, gameType, minPlayers, Math.clamp(maxPlayers, 1, Fest.MAX_PLAYERS_PER_FEST));
         RecruitmentManager.getInstance().requestRecruitment(recruitment);
         return recruitment;
     }
@@ -53,6 +68,26 @@ public class FestRecruitment {
     //region Scheduling
 
     protected void initSchedule() {
+        ArenaInstance arena = ServerFest.arenaManager.requestArena(gameType);
+        if (arena == null) {
+            Bukkit.getOnlinePlayers().forEach(player -> {
+                player.sendMessage(ServerFest.CHAT_PREFIX
+                        .append(displayName())
+                        .append(Component.text(" is being ", NamedTextColor.GRAY))
+                        .append(Component.text("postponed ", NamedTextColor.RED))
+                        .append(Component.text("as no arena is ready. ", NamedTextColor.GRAY))
+                );
+                player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BELL, 1f, 0.5f);
+            });
+
+            RecruitmentManager.getInstance().relinquishRecruitment();
+
+            Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
+                RecruitmentManager.getInstance().requestRecruitment(this);
+            }, 30 * 20);
+            return;
+        }
+
         Bukkit.getGlobalRegionScheduler().runAtFixedRate(ServerFest.getPlugin(), task -> {
             if (remainingTime <= 0) {
                 startUpFest();
@@ -77,6 +112,30 @@ public class FestRecruitment {
     private void startUpFest() {
         // only before fest startup will offline participants be cleared, everything after counts as direct fest leave
         participants.removeIf(uuid -> Bukkit.getPlayer(uuid) == null);
+
+        if (participants.size() < minPlayers) {
+            ServerFest.getPlugin().getLogger().info(PlainTextComponentSerializer.plainText().serialize(displayName())
+                    + " failed to start as it had not enough participants (" + participants.size() + "/" + minPlayers + ")");
+
+            Bukkit.getOnlinePlayers().forEach(player -> {
+                player.sendMessage(ServerFest.CHAT_PREFIX
+                        .append(displayName())
+                        .append(Component.text(" • ", NamedTextColor.DARK_GRAY))
+                        .append(Component.text("failed to start as it has not enough participants ", NamedTextColor.RED))
+                        .append(Component.text("(", NamedTextColor.GRAY))
+                        .append(Component.text(participants.size(), NamedTextColor.GOLD))
+                        .append(Component.text("/", NamedTextColor.GRAY))
+                        .append(Component.text(minPlayers, NamedTextColor.DARK_RED))
+                        .append(Component.text(")", NamedTextColor.GRAY))
+                );
+                if (participants.contains(player.getUniqueId()))
+                    player.playSound(player, Sound.ENTITY_WITHER_SHOOT, 1f, 0.1f);
+            });
+
+            RecruitmentManager.getInstance().relinquishRecruitment();
+            return;
+        }
+
         new Fest(festType, gameType, participants).start();
         RecruitmentManager.getInstance().relinquishRecruitment();
     }
@@ -87,6 +146,9 @@ public class FestRecruitment {
 
     public boolean addParticipant(Player player) {
         if (FestManager.getInstance().isPlayerParticipatingInAnyFest(player))
+            return false;
+
+        if (maxPlayers <= participants.size())
             return false;
 
         participants.add(player.getUniqueId());
@@ -133,6 +195,7 @@ public class FestRecruitment {
 
             player.playSound(player, Sound.ENTITY_ENDER_DRAGON_GROWL, 1, 0.65f);
             player.resetTitle();
+            player.sendTitlePart(TitlePart.TIMES, Title.Times.times(Duration.ofMillis(500), Duration.ofSeconds(5), Duration.ZERO));
             player.sendTitlePart(TitlePart.TITLE, gameType.definition().iconName());
             player.sendTitlePart(TitlePart.SUBTITLE, Component.text(toPlayerFriendlyName(festType.toString()), NamedTextColor.YELLOW));
         });
@@ -146,13 +209,15 @@ public class FestRecruitment {
                     .append(displayName())
                     .append(Component.text(" (", NamedTextColor.GRAY))
                     .append(Component.text(participants.size(), NamedTextColor.GOLD))
+                    .append(Component.text("/", NamedTextColor.GRAY))
+                    .append(Component.text(maxPlayers, NamedTextColor.DARK_GRAY))
                     .append(Component.text(")", NamedTextColor.GRAY))
             );
         });
     }
 
     public Component displayName() {
-        return Component.text(toPlayerFriendlyName(festType.name()) + " ")
+        return Component.text(festType.displayName() + " ")
                 .append((gameType == null
                         ? Component.text("Random Fest")
                         : gameType.definition().iconName()).color(TextColor.color(0xD0D0D0)))
