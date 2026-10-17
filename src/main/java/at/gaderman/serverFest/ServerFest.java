@@ -1,6 +1,7 @@
 package at.gaderman.serverFest;
 
 import at.gaderman.serverFest.command.FestCommand;
+import at.gaderman.serverFest.config.GeneralConfig;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.FestManager;
 import at.gaderman.serverFest.fests.SaveStateManagement;
@@ -29,6 +30,7 @@ public final class ServerFest extends JavaPlugin {
     @Override
     public void onEnable() {
         // Plugin startup logic
+        GeneralConfig.getInstance();
 
         WorldManager.getInstance().setUpHub();
         WorldManager.getInstance().loadOrCreateFestWorld();

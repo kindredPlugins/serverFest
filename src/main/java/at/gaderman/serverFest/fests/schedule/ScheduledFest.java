@@ -1,6 +1,7 @@
 package at.gaderman.serverFest.fests.schedule;
 
 import at.gaderman.serverFest.ServerFest;
+import at.gaderman.serverFest.config.GeneralConfig;
 import at.gaderman.serverFest.fests.FestType;
 import at.gaderman.serverFest.fests.game.GameType;
 import at.gaderman.serverFest.fests.recruitment.FestRecruitment;
@@ -18,8 +19,6 @@ import java.util.function.Supplier;
  */
 public abstract class ScheduledFest {
 
-    public static final int NO_LIMIT_MAX_PLAYERS = -1;
-
     private final UUID uuid;
     private FestType festType;
     private @Nullable GameType gameType;
@@ -27,8 +26,8 @@ public abstract class ScheduledFest {
     protected int maxPlayers;
 
     protected ScheduledFest() {
-        //TODO: min fest players should always be 2, the special case is a fest dev-test (/fest dev) which should allow 1 person as it is just for testing
-        this(UUID.randomUUID(), FestType.CASUAL, null, 1, NO_LIMIT_MAX_PLAYERS);
+        //TODO: min fest players should theoretically always be 2, the special case is a fest dev-test (/fest dev) which should allow 1 person as it is just for testing or a competition when everyone sleeps
+        this(UUID.randomUUID(), FestType.CASUAL, null, 1, GeneralConfig.getInstance().maxPlayersPerFest());
     }
 
     protected ScheduledFest(@Nullable GameType gameType, int minPlayers, int maxPlayers) {
@@ -127,7 +126,7 @@ public abstract class ScheduledFest {
         String gameTypeString = config.getString("gameType", null);
         GameType gameType = gameTypeString == null ? null : GameType.valueOf(gameTypeString);
         int minPlayers = config.getInt("minPlayers", 2);
-        int maxPlayers = config.getInt("maxPlayers", NO_LIMIT_MAX_PLAYERS);
+        int maxPlayers = config.getInt("maxPlayers", GeneralConfig.getInstance().maxPlayersPerFest());
 
         ConfigurationSection scheduleSection = config.getConfigurationSection("schedule");
 

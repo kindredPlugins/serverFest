@@ -1,6 +1,7 @@
 package at.gaderman.serverFest.fests.recruitment;
 
 import at.gaderman.serverFest.ServerFest;
+import at.gaderman.serverFest.config.GeneralConfig;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.FestManager;
 import at.gaderman.serverFest.fests.FestType;
@@ -52,7 +53,7 @@ public class FestRecruitment {
      * Creates a new FestRecruitment instance and instantly requests it at the {@link RecruitmentManager}
      */
     public static FestRecruitment requestRecruitment(int remainingTime, FestType festType, @Nullable GameType gameType) {
-        return requestRecruitment(remainingTime, festType, gameType, 1, Fest.MAX_PLAYERS_PER_FEST);
+        return requestRecruitment(remainingTime, festType, gameType, 1, GeneralConfig.getInstance().maxPlayersPerFest());
     }
 
     /**
@@ -62,7 +63,7 @@ public class FestRecruitment {
         if (gameType == null)
             gameType = GameType.values()[(int) (Math.random() * GameType.values().length)];
 
-        var recruitment = new FestRecruitment(remainingTime, festType, gameType, minPlayers, Math.clamp(maxPlayers, 1, Fest.MAX_PLAYERS_PER_FEST));
+        var recruitment = new FestRecruitment(remainingTime, festType, gameType, minPlayers, Math.clamp(maxPlayers, 1, GeneralConfig.getInstance().maxPlayersPerFest()));
         RecruitmentManager.getInstance().requestRecruitment(recruitment);
         return recruitment;
     }

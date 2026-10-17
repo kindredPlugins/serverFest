@@ -33,11 +33,27 @@ public class GeneralConfig {
 
         configRegistry.reloadConfig();
         ServerFest.getPlugin().saveConfig();
+        ServerFest.getPlugin().getLogger().info("config.yml has been loaded");
     }
 
-    public final ConfigOption<Integer> ARENA_SLOTS = configRegistry.configOption("arenas.slots", 3, FileConfiguration::getInt, value -> Math.clamp(value, 1, 30))
+    public int arenaSlots(){
+        return ARENA_SLOTS.cached();
+    }
+
+    public int maxPlayersPerFest(){
+        return MAX_FEST_PLAYERS.cached();
+    }
+
+    private final ConfigOption<Integer> ARENA_SLOTS = configRegistry.configOption("arenas.slots", 3, FileConfiguration::getInt, value -> Math.clamp(value, 1, 30))
             .withComments("Amount of arena slots generated and reserved per game type.",
                     "Especially important if your players host many duels, as too few arenas lead to waiting times.",
                     "CAREFUL, each arena slot has to be generated, so more arenas equal to more startup pressure for your server.",
                     "The set maximum is 30");
+    private final ConfigOption<Integer> MAX_FEST_PLAYERS = configRegistry.configOption("fests.participants.max", 99, FileConfiguration::getInt, value -> Math.clamp(value, 2, 500))
+            .withComments("Limit to the amount of max players a fest can be configured to allow.",
+                    "You can change the max player count individually for each fest, this just represents the upper limit which is possible with this setting.",
+                    "Note this is mostly based on your server. Fests try to be performative but many players are an issue for Minecraft servers.",
+                    "Try to create most fests with a reasonable amount to keep them playable, but if you want you can turn this value up to 500.",
+                    "You have been warned"
+                    );
 }

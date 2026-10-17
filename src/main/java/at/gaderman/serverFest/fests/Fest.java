@@ -27,7 +27,6 @@ public class Fest {
 
     public static final NamespacedKey FEST_OFFSET = new NamespacedKey(ServerFest.getPlugin(), "fest_offset");
     public static final int OFFSET_INCREMENT = 10_000;
-    public static final int MAX_PLAYERS_PER_FEST = 99;
 
     //region Fields
 

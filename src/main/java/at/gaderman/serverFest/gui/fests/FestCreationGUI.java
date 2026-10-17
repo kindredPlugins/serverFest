@@ -1,6 +1,6 @@
 package at.gaderman.serverFest.gui.fests;
 
-import at.gaderman.serverFest.fests.Fest;
+import at.gaderman.serverFest.config.GeneralConfig;
 import at.gaderman.serverFest.fests.FestType;
 import at.gaderman.serverFest.fests.game.GameType;
 import at.gaderman.serverFest.fests.game.definition.GameDefinition;
@@ -27,6 +27,8 @@ import java.util.List;
 
 public class FestCreationGUI extends ActionInventory {
 
+    private final int MAX_PLAYER_LIMIT = GeneralConfig.getInstance().maxPlayersPerFest();
+
     private static final FestType[] FEST_TYPES = Arrays.stream(FestType.values()).filter(FestType::isSelectectibleForScheduling).toArray(FestType[]::new);
     private static final GameType[] GAME_TYPES = GameType.values();
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT);
@@ -48,7 +50,7 @@ public class FestCreationGUI extends ActionInventory {
     private FestType festType = FestType.CASUAL;
     private @Nullable GameType gameType;
     private int minPlayers = 2;
-    private int maxPlayers = Fest.MAX_PLAYERS_PER_FEST;
+    private int maxPlayers = GeneralConfig.getInstance().maxPlayersPerFest();
 
     private boolean recurring;
     private LocalDateTime time = LocalDateTime.now().plusSeconds(30);
@@ -117,12 +119,12 @@ public class FestCreationGUI extends ActionInventory {
 
             int value = minPlayers + increment;
 
-            if (value > Fest.MAX_PLAYERS_PER_FEST || value < 1)
+            if (value > MAX_PLAYER_LIMIT || value < 1)
                 player.playSound(player, Sound.ENTITY_ITEM_BREAK, 1, 1);
             else
                 player.playSound(player, Sound.ENTITY_CHICKEN_EGG, 1, 1);
 
-            minPlayers = Math.clamp(value, 1, Fest.MAX_PLAYERS_PER_FEST);
+            minPlayers = Math.clamp(value, 1, MAX_PLAYER_LIMIT);
 
             if (minPlayers > maxPlayers) {
                 maxPlayers = minPlayers;
@@ -141,12 +143,12 @@ public class FestCreationGUI extends ActionInventory {
 
             int value = maxPlayers + increment;
 
-            if (value > Fest.MAX_PLAYERS_PER_FEST || value < 2)
+            if (value > MAX_PLAYER_LIMIT || value < 2)
                 player.playSound(player, Sound.ENTITY_ITEM_BREAK, 1, 1);
             else
                 player.playSound(player, Sound.ENTITY_CHICKEN_EGG, 1, 1);
 
-            maxPlayers = Math.clamp(value, 2, Fest.MAX_PLAYERS_PER_FEST);
+            maxPlayers = Math.clamp(value, 2, MAX_PLAYER_LIMIT);
 
             if(maxPlayers < minPlayers){
                 minPlayers = maxPlayers;

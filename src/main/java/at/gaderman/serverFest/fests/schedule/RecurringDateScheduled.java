@@ -1,6 +1,7 @@
 package at.gaderman.serverFest.fests.schedule;
 
 import at.gaderman.serverFest.ServerFest;
+import at.gaderman.serverFest.config.GeneralConfig;
 import at.gaderman.serverFest.fests.FestType;
 import at.gaderman.serverFest.fests.game.GameType;
 import org.bukkit.Bukkit;
@@ -23,7 +24,7 @@ public class RecurringDateScheduled extends ScheduledFest {
     private long offset;
 
     private RecurringDateScheduled(LocalDateTime timeStamp, ChronoUnit timeUnit, long offset) {
-       this(FestType.CASUAL, null, 2, ScheduledFest.NO_LIMIT_MAX_PLAYERS, timeStamp, timeUnit, offset);
+       this(FestType.CASUAL, null, 2, GeneralConfig.getInstance().maxPlayersPerFest(), timeStamp, timeUnit, offset);
     }
 
     private RecurringDateScheduled(FestType festType, GameType gameType, int minPlayers, int maxPlayers, LocalDateTime timeStamp, ChronoUnit timeUnit, long offset) {
@@ -65,7 +66,8 @@ public class RecurringDateScheduled extends ScheduledFest {
             Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
                 schedule();
             }, 20);
-        }, offset);
+        }, Math.max(offset, 0));
+        //TODO: check if there is a possible issue where offset could go < 0, cause this is just a plaster
     }
 
     /**

@@ -1,6 +1,7 @@
 package at.gaderman.serverFest.fests.arenas;
 
 import at.gaderman.serverFest.ServerFest;
+import at.gaderman.serverFest.config.GeneralConfig;
 import at.gaderman.serverFest.fests.game.GameType;
 import at.gaderman.serverFest.management.WorldManager;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
@@ -17,8 +18,6 @@ import static at.gaderman.serverFest.fests.Fest.OFFSET_INCREMENT;
 
 public class ArenaManager {
 
-    public static final int ARENA_AMOUNT = 3;
-
     private final List<ArenaInstance> arenas = new ArrayList<>();
     private final World festWorld;
 
@@ -31,7 +30,7 @@ public class ArenaManager {
     }
 
     private void setUp() {
-        for (int i = 0; i < ARENA_AMOUNT; i++) {
+        for (int i = 0; i < GeneralConfig.getInstance().arenaSlots(); i++) {
             Arrays.stream(GameType.values()).forEach(this::createArena);
         }
     }
