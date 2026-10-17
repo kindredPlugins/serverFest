@@ -97,8 +97,7 @@ public class DatePickerGUI extends ActionInventory {
     }
 
     private void updateCalendar() {
-        ItemStack previous = createItem(
-                Material.ARROW,
+        ItemStack previous = createItem(Material.ARROW,
                 Component.text(
                         "← " + displayedMonth.minusMonths(1)
                                 .getMonth()
@@ -107,8 +106,7 @@ public class DatePickerGUI extends ActionInventory {
                 )
         );
 
-        ItemStack next = createItem(
-                Material.ARROW,
+        ItemStack next = createItem(Material.ARROW,
                 Component.text(
                         displayedMonth.plusMonths(1)
                                 .getMonth()
@@ -150,6 +148,11 @@ public class DatePickerGUI extends ActionInventory {
                     : today
                     ? NamedTextColor.GREEN
                     : NamedTextColor.WHITE;
+
+            if(date.isBefore(LocalDate.now())) {
+                material = Material.STRUCTURE_VOID;
+                color = NamedTextColor.GRAY;
+            }
 
             inventory.setItem(slot, createItem(material,
                     Component.text(date.getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.getDefault())
@@ -220,6 +223,12 @@ public class DatePickerGUI extends ActionInventory {
         }
 
         LocalDate selectedDate = displayedMonth.atDay(day);
+
+        if(selectedDate.isBefore(LocalDate.now())) {
+            player.playSound(player.getLocation(), Sound.ENTITY_ITEM_BREAK, 1f, 1f);
+            return;
+        }
+
         dateTime = LocalDateTime.of(selectedDate, dateTime.toLocalTime().withSecond(0).withNano(0));
 
         view = View.TIME;

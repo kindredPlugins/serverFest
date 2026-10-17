@@ -4,6 +4,7 @@ import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.config.GeneralConfig;
 import at.gaderman.serverFest.fests.FestType;
 import at.gaderman.serverFest.fests.game.GameType;
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -19,9 +20,11 @@ import java.util.function.Supplier;
  */
 public class RecurringDateScheduled extends ScheduledFest {
 
-    private LocalDateTime timeStamp = LocalDateTime.now().plusSeconds(5);
-    private ChronoUnit timeUnit = ChronoUnit.WEEKS;
+    private LocalDateTime timeStamp;
+    private ChronoUnit timeUnit;
     private long offset;
+
+    private ScheduledTask scheduledTask;
 
     private RecurringDateScheduled(LocalDateTime timeStamp, ChronoUnit timeUnit, long offset) {
        this(FestType.CASUAL, null, 2, GeneralConfig.getInstance().maxPlayersPerFest(), timeStamp, timeUnit, offset);
@@ -60,7 +63,7 @@ public class RecurringDateScheduled extends ScheduledFest {
         LocalDateTime nextTime = nextSchedule();
 
         long offset = LocalDateTime.now().until(nextTime, ChronoUnit.SECONDS) * 20;
-        Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
+        scheduledTask = Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
             startUp();
 
             Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
@@ -74,16 +77,24 @@ public class RecurringDateScheduled extends ScheduledFest {
      * Calculates the next time this fest will occur, using this is preferred over timestamp as this will accurately
      * move timestamp to a position within the offset.
      */
+    @Override
     public LocalDateTime nextSchedule() {
         LocalDateTime current = LocalDateTime.now();
 
-        while (current.until(timeStamp, timeUnit) > offset)
-            timeStamp = timeStamp.minus(offset, timeUnit);
+        // this would move a future repeating towards now, but maybe someone wants the repetition to only start after a specific date
+//        while (current.until(timeStamp, timeUnit) > offset)
+//            timeStamp = timeStamp.minus(offset, timeUnit);
 
         while (timeStamp.isBefore(current))
             timeStamp = timeStamp.plus(offset, timeUnit);
 
         return timeStamp;
+    }
+
+    @Override
+    public void cancel() {
+        if (scheduledTask != null)
+            scheduledTask.cancel();
     }
 
     @Override

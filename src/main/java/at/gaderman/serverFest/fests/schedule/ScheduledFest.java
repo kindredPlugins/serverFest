@@ -9,6 +9,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.jetbrains.annotations.Nullable;
 
+import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -64,6 +65,16 @@ public abstract class ScheduledFest {
      * Sets up the schedule for this event
      */
     public abstract void schedule();
+
+    /**
+     * Returns the upcoming time this fest is scheduled to occur.
+     */
+    public abstract LocalDateTime nextSchedule();
+
+    /**
+     * Cancels the fest from being scheduled, important to call this as this will stop the schedulers
+     */
+    public abstract void cancel();
 
     /**
      * Kicks off the five minutes starting-sequence

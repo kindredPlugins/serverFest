@@ -1,11 +1,15 @@
 package at.gaderman.serverFest.gui.fests;
 
+import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.config.GeneralConfig;
 import at.gaderman.serverFest.fests.FestType;
 import at.gaderman.serverFest.fests.game.GameType;
 import at.gaderman.serverFest.fests.game.definition.GameDefinition;
+import at.gaderman.serverFest.fests.items.FestItemProvider;
+import at.gaderman.serverFest.fests.schedule.FestCalendar;
 import at.gaderman.serverFest.fests.schedule.FixedDateScheduled;
 import at.gaderman.serverFest.fests.schedule.RecurringDateScheduled;
+import at.gaderman.serverFest.fests.schedule.ScheduledFest;
 import at.gaderman.serverFest.gui.ActionInventory;
 import at.gaderman.serverFest.utils.ItemUtils;
 import net.kyori.adventure.text.Component;
@@ -53,14 +57,24 @@ public class FestCreationGUI extends ActionInventory {
     private int maxPlayers = GeneralConfig.getInstance().maxPlayersPerFest();
 
     private boolean recurring;
-    private LocalDateTime time = LocalDateTime.now().plusSeconds(30);
+    private LocalDateTime time = LocalDateTime.now().plusMinutes(1).withSecond(0);
 
     // Will be used once recurring scheduling is wired in.
     private ChronoUnit unit = ChronoUnit.WEEKS;
     private int offset = 1;
+    private final @Nullable ScheduledFest editingFest;
 
     public FestCreationGUI() {
-        super(36, Component.text("Fest Creation", NamedTextColor.GOLD));
+        this(null);
+    }
+
+    public FestCreationGUI(@Nullable ScheduledFest editingFest) {
+        super(36, Component.text(editingFest == null ? "Fest Creation" : "Edit Fest", NamedTextColor.GOLD));
+        this.editingFest = editingFest;
+
+        if (editingFest != null)
+            loadFromFest(editingFest);
+
         updateInventory();
     }
 
@@ -75,6 +89,23 @@ public class FestCreationGUI extends ActionInventory {
      * -  -  -  -  -  -  -  -  -
      * -  -  -  A  -  C  -  -  -
      */
+
+    private void loadFromFest(ScheduledFest scheduledFest) {
+        festType = scheduledFest.festType();
+        gameType = scheduledFest.gameType();
+        minPlayers = scheduledFest.minPlayers();
+        maxPlayers = scheduledFest.maxPlayers();
+
+        if (scheduledFest instanceof RecurringDateScheduled recurringFest) {
+            recurring = true;
+            time = recurringFest.nextSchedule();
+            unit = recurringFest.timeUnit();
+            offset = Math.toIntExact(recurringFest.offset());
+        } else if (scheduledFest instanceof FixedDateScheduled fixedFest) {
+            recurring = false;
+            time = fixedFest.nextSchedule();
+        }
+    }
 
     @Override
     protected void initializeInventory(int size, Component inventoryName) {
@@ -150,7 +181,7 @@ public class FestCreationGUI extends ActionInventory {
 
             maxPlayers = Math.clamp(value, 2, MAX_PLAYER_LIMIT);
 
-            if(maxPlayers < minPlayers){
+            if (maxPlayers < minPlayers) {
                 minPlayers = maxPlayers;
                 updateMinPlayerCount();
             }
@@ -170,12 +201,11 @@ public class FestCreationGUI extends ActionInventory {
                 time = newTime;
                 updateTime();
             }).openInventory(player);
-        });
+        }, Sound.BLOCK_LEVER_CLICK, 1, 1);
 
         defineInventoryAction(UNIT_SLOT, event -> {
             if (!recurring) return;
 
-            //TODO: ordinal does not much with array order here, is kinda confusing and no overflow cause of that
             int increment = event.isRightClick() ? -1 : 1;
             unit = UNITS.get(Math.floorMod(UNITS.indexOf(unit) + increment, UNITS.size()));
             updateUnit();
@@ -197,17 +227,36 @@ public class FestCreationGUI extends ActionInventory {
                 player.playSound(player.getLocation(), Sound.ENTITY_CHICKEN_EGG, 1, 1);
         });
 
-        defineInventoryAction(ACCEPT_SLOT, _ -> {
-            if (recurring) {
-                RecurringDateScheduled.create(festType, gameType, minPlayers, maxPlayers, time, unit, offset);
+        defineInventoryAction(ACCEPT_SLOT, event -> {
+            if (editingFest == null) {
+                if (recurring) {
+                    RecurringDateScheduled.create(festType, gameType, minPlayers, maxPlayers, time, unit, offset);
+                } else {
+                    FixedDateScheduled.create(festType, gameType, minPlayers, maxPlayers, time);
+                }
             } else {
-                FixedDateScheduled.create(festType, gameType, minPlayers, maxPlayers, time);
+                FestCalendar.getInstance().removeFestEntry(editingFest.uuid());
+                if (recurring) {
+                    RecurringDateScheduled.create(festType, gameType, minPlayers, maxPlayers, time, unit, offset);
+                } else {
+                    FixedDateScheduled.create(festType, gameType, minPlayers, maxPlayers, time);
+                }
+
+                if (event.getWhoClicked() instanceof Player player)
+                    player.getScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
+                        new FestCalendarGUI().openInventory(player);
+                    }, null, 1);
             }
 
             inventory.close();
         }, Sound.ENTITY_PLAYER_LEVELUP, 1, 1);
 
-        defineInventoryAction(CANCEL_SLOT, _ -> inventory.close(), Sound.ENTITY_CHICKEN_EGG, 1, 2);
+        defineInventoryAction(CANCEL_SLOT, event -> {
+            if (editingFest != null && event.getWhoClicked() instanceof Player player)
+                player.getScheduler().runDelayed(ServerFest.getPlugin(), _ -> new FestCalendarGUI().openInventory(player), null, 1);
+
+            inventory.close();
+        }, Sound.ENTITY_CHICKEN_EGG, 1, 2);
     }
 
     private void updateInventory() {
@@ -258,12 +307,12 @@ public class FestCreationGUI extends ActionInventory {
     private void updateGameType() {
         GameDefinition gameDefinition = gameType == null ? null : gameType.definition();
         ItemStack item = gameDefinition == null
-                ? ItemUtils.createCustomHead("http://textures.minecraft.net/texture/d34e063cafb467a5c8de43ec78619399f369f4a52434da8017a983cdd92516a0")
+                ? FestItemProvider.RANDOM_GAME
                 : new ItemStack(gameDefinition.iconType());
 
         item.editMeta(meta -> {
             meta.displayName((gameDefinition == null
-                    ? Component.text("Random Game", NamedTextColor.GOLD)
+                    ? item.displayName()
                     : gameDefinition.iconName())
                     .decoration(TextDecoration.ITALIC, false));
             meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
@@ -392,16 +441,18 @@ public class FestCreationGUI extends ActionInventory {
                     Component.text("Right -1", NamedTextColor.YELLOW),
                     Component.text("Shift ×10", NamedTextColor.YELLOW)
             ));
+            meta.setMaxStackSize(99);
         });
+        item.setAmount(Math.clamp(offset, 1, 99));
         inventory.setItem(OFFSET_SLOT, item);
     }
 
     private void updateAcceptButton() {
         ItemStack item = ItemStack.of(Material.LIME_DYE);
         item.editMeta(meta -> {
-            meta.itemName(Component.text("Accept", NamedTextColor.GREEN));
+            meta.itemName(Component.text(editingFest == null ? "Accept" : "Save Changes", NamedTextColor.GREEN));
             meta.lore(ItemUtils.applyDefaultLoreStyle(
-                    Component.text("Click to create the fest", NamedTextColor.YELLOW)
+                    Component.text(editingFest == null ? "Click to create the fest" : "Click to save the changes", NamedTextColor.YELLOW)
             ));
         });
 

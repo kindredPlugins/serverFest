@@ -158,7 +158,7 @@ public class FestRecruitment {
         sendJoinMessage(player);
         player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 0.5f);
 
-        if(remainingTime < 100)
+        if(remainingTime < 5)
             sendStartTitle(player);
 
         return true;

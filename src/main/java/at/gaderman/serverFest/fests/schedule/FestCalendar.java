@@ -41,7 +41,8 @@ public class FestCalendar {
     }
 
     public void removeFestEntry(UUID uuid) {
-        calendar.remove(uuid);
+        ScheduledFest fest = calendar.remove(uuid);
+        fest.cancel();
         config.set("fests." + uuid, null);
 
         save();
@@ -72,6 +73,8 @@ public class FestCalendar {
     }
 
     public List<ScheduledFest> calendar(){
-        return new ArrayList<>(calendar.values());
+        return calendar.values().stream()
+                .sorted(Comparator.comparing(ScheduledFest::nextSchedule))
+                .toList();
     }
 }

@@ -3,6 +3,7 @@ package at.gaderman.serverFest.fests.schedule;
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.FestType;
 import at.gaderman.serverFest.fests.game.GameType;
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.jetbrains.annotations.Nullable;
@@ -19,6 +20,8 @@ import java.util.function.Supplier;
 public class FixedDateScheduled extends ScheduledFest {
 
     private LocalDateTime timeStamp;
+
+    private ScheduledTask scheduledTask;
 
     private FixedDateScheduled(@Nullable GameType gameType, LocalDateTime timeStamp) {
         super();
@@ -43,7 +46,7 @@ public class FixedDateScheduled extends ScheduledFest {
         return ScheduledFest.create(() -> new FixedDateScheduled(null, timeStamp));
     }
 
-    public static FixedDateScheduled create(GameType gameType, LocalDateTime timeStamp){
+    public static FixedDateScheduled create(GameType gameType, LocalDateTime timeStamp) {
         return ScheduledFest.create(() -> new FixedDateScheduled(gameType, timeStamp));
     }
 
@@ -61,10 +64,21 @@ public class FixedDateScheduled extends ScheduledFest {
         }
 
         long offset = now.until(timeStamp, ChronoUnit.SECONDS) * 20;
-        Bukkit.getScheduler().runTaskLater(ServerFest.getPlugin(), () -> {
+        scheduledTask = Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
             startUp();
             FestCalendar.getInstance().removeFestEntry(uuid());
         }, offset);
+    }
+
+    @Override
+    public LocalDateTime nextSchedule() {
+        return timeStamp;
+    }
+
+    @Override
+    public void cancel() {
+        if (scheduledTask != null)
+            scheduledTask.cancel();
     }
 
     @Override

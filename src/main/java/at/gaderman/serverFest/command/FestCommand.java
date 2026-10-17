@@ -7,6 +7,7 @@ import at.gaderman.serverFest.fests.duel.ProposedDuel;
 import at.gaderman.serverFest.fests.game.GameType;
 import at.gaderman.serverFest.fests.recruitment.FestRecruitment;
 import at.gaderman.serverFest.fests.recruitment.RecruitmentManager;
+import at.gaderman.serverFest.gui.fests.FestCalendarGUI;
 import at.gaderman.serverFest.gui.fests.FestCreationGUI;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -55,6 +56,15 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                         }
 
                         new FestCreationGUI().openInventory((Player) sender);
+                        return true;
+                    }
+                    case "calendar", "schedule" -> {
+                        if (!isPlayer) {
+                            sender.sendMessage(Component.text("Only players can open the calendar!", NamedTextColor.RED));
+                            return true;
+                        }
+
+                        new FestCalendarGUI().openInventory((Player) sender);
                         return true;
                     }
                     case "quit" -> {
@@ -197,7 +207,7 @@ public class FestCommand implements CommandExecutor, TabCompleter {
             }
         }
 
-        sender.sendMessage(Component.text("Usage: /fest <dev|quick|create> [gameType]", NamedTextColor.RED));
+        sender.sendMessage(Component.text("Usage: /fest <dev|quick|create|calendar> [gameType]", NamedTextColor.RED));
         return false;
     }
 
@@ -220,6 +230,7 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                 completions.add("dev");
                 completions.add("quick");
                 completions.add("create");
+                completions.add("calendar");
                 completions.add("duel");
 
                 if (sender instanceof Player player && FestManager.getInstance().isPlayerParticipatingInAnyFest(player))
