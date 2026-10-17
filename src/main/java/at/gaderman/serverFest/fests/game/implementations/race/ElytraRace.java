@@ -195,6 +195,9 @@ public class ElytraRace extends RaceGame<ElytraRaceArenaLayout> implements Playe
      * Checks if gate has enough unobstructed room, shifting it upwards or clearing the space if necessary
      */
     private void adjustGateLocation(Location location) {
+        if(location.equals(fest.origin()))
+            return;
+
         StopWatch stopWatch = new StopWatch();
         stopWatch.start();
 

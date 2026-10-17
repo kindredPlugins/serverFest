@@ -264,8 +264,11 @@ public abstract class FestGame<T extends ArenaLayout> {
      * Further handle a player leaving the fest. This can be both from either quitting Minecraft completely
      * or simply leaving the fest via /fest quit.
      * Some fests need to adjust when a player leaves, like in a duel.
+     * Will also trigger an automatic win if all players leave except the final one.
      */
-    public void onLeave(Player player){}
+    public void onLeave(Player player){
+        getOrCreatePlayerData(player.getUniqueId()).reset();
+    }
 
     //region Helper methods
 

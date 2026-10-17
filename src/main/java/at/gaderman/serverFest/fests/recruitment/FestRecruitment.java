@@ -37,6 +37,8 @@ public class FestRecruitment {
 
     private final List<UUID> participants;
 
+    private final List<Player> notifiedPlayers = new ArrayList<>();
+
     private FestRecruitment(int remainingTime, FestType festType, GameType gameType, int minPlayers, int maxPlayers) {
         this.remainingTime = Math.max(remainingTime, 10);
         this.festType = festType;
@@ -154,6 +156,10 @@ public class FestRecruitment {
         participants.add(player.getUniqueId());
         sendJoinMessage(player);
         player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 0.5f);
+
+        if(remainingTime < 100)
+            sendStartTitle(player);
+
         return true;
     }
 
@@ -174,7 +180,17 @@ public class FestRecruitment {
         int seconds = remainingTime % 60;
 
         Bukkit.getOnlinePlayers().forEach(player -> {
-            player.playSound(player, Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1.5f);
+            if(!notifiedPlayers.contains(player)){
+                player.playSound(player, Sound.BLOCK_BELL_USE, 1f, 1f);
+                player.playSound(player, Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1.5f);
+                notifiedPlayers.add(player);
+            }
+
+            if (participants.contains(player.getUniqueId()))
+                player.playSound(player, Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1.5f);
+            else
+                player.playSound(player, Sound.BLOCK_STONE_BUTTON_CLICK_ON, 0.5f, 0.3f);
+
             player.sendMessage(ServerFest.CHAT_PREFIX
                     .append(displayName())
                     .append(Component.text(" • ", NamedTextColor.DARK_GRAY))
@@ -193,12 +209,16 @@ public class FestRecruitment {
             Player player = Bukkit.getPlayer(uuid);
             if (player == null) return;
 
-            player.playSound(player, Sound.ENTITY_ENDER_DRAGON_GROWL, 1, 0.65f);
-            player.resetTitle();
-            player.sendTitlePart(TitlePart.TIMES, Title.Times.times(Duration.ofMillis(500), Duration.ofSeconds(5), Duration.ZERO));
-            player.sendTitlePart(TitlePart.TITLE, gameType.definition().iconName());
-            player.sendTitlePart(TitlePart.SUBTITLE, Component.text(toPlayerFriendlyName(festType.toString()), NamedTextColor.YELLOW));
+            sendStartTitle(player);
         });
+    }
+
+    private void sendStartTitle(Player player) {
+        player.playSound(player, Sound.ENTITY_ENDER_DRAGON_GROWL, 1, 0.65f);
+        player.resetTitle();
+        player.sendTitlePart(TitlePart.TIMES, Title.Times.times(Duration.ofMillis(500), Duration.ofSeconds(5), Duration.ofMillis(500)));
+        player.sendTitlePart(TitlePart.TITLE, gameType.definition().iconName());
+        player.sendTitlePart(TitlePart.SUBTITLE, Component.text(toPlayerFriendlyName(festType.toString()), NamedTextColor.YELLOW));
     }
 
     private void sendJoinMessage(Player joined) {

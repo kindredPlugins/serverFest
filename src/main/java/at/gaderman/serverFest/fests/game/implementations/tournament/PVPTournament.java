@@ -20,6 +20,7 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.title.TitlePart;
 import org.bukkit.*;
 import org.bukkit.block.Block;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Firework;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
@@ -41,6 +42,7 @@ import org.jspecify.annotations.NonNull;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManipulationPrefab,
         PlayerDamageTrigger, PlayerDeathTrigger, PlayerPickupItemTrigger, PlayerDropItemTrigger, PlayerInventoryClickTrigger {
@@ -111,7 +113,8 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
 
         List<Player> participants = fest.participants().stream()
                 .filter(player -> ((TournamentData) getOrCreatePlayerData(player.getUniqueId())).state() == PlayerTournamentState.WAITING)
-                .toList();
+                .collect(Collectors.toList());
+        Collections.shuffle(participants);
 
         for (int i = 0; i < participants.size() / 2; i++) {
             int index = i * 2;
@@ -167,6 +170,7 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
             faceOff.players().forEach(player -> {
                 player.resetTitle();
                 player.sendTitlePart(TitlePart.TITLE, Component.text("Fight!", NamedTextColor.RED));
+                player.sendActionBar(Component.empty());
                 player.playSound(player, Sound.ITEM_GOAT_HORN_SOUND_0, 1f, 1.3f);
 
                 quipWithKit(player);
@@ -267,6 +271,22 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
                 return;
             }
 
+            List<Player> engagedPlayers = activeFaceOffs.stream()
+                    .flatMap(faceOff -> faceOff.players().stream())
+                    .toList();
+
+            if (remainingBattleTicks == 200)
+                engagedPlayers.forEach(player -> player.playSound(player, Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 0.35f));
+
+            if (remainingBattleTicks <= 200 && remainingBattleTicks % 20 == 0) {
+                engagedPlayers.forEach(player -> {
+                    player.sendActionBar(Component.text("Battle ending in ", NamedTextColor.GRAY)
+                            .append(Component.text(Math.floorDiv(remainingBattleTicks, 20), NamedTextColor.RED))
+                            .append(Component.text(" second(s)", NamedTextColor.GRAY))
+                    );
+                });
+            }
+
             if (remainingBattleTicks % 20 == 0 && remainingBattleTicks <= 100)
                 activeFaceOffs.stream().flatMap(faceOff -> faceOff.players().stream())
                         .forEach(player -> {
@@ -314,23 +334,23 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
 
             PlayerTournamentState state = playerData.state();
 
+            if (state == PlayerTournamentState.BATTLE)
+                return;
+
             Component display = state == PlayerTournamentState.SPECTATOR
                     ? Component.text("Eliminated ", NamedTextColor.RED).append(Component.text("✦ ", NamedTextColor.DARK_GRAY))
                     : Component.empty();
 
-            if (state != PlayerTournamentState.BATTLE) {
+            if (isBattlePhase)
+                display = display.append(Component.text("Waiting for ", NamedTextColor.GRAY))
+                        .append(Component.text("duels ", NamedTextColor.BLUE))
+                        .append(Component.text("to finish (", NamedTextColor.GRAY))
+                        .append(Component.text(arenasUsedForRound - activeFaceOffs.size(), NamedTextColor.GOLD))
+                        .append(Component.text("/" + arenasUsedForRound + ")", NamedTextColor.GRAY));
 
-                if (isBattlePhase)
-                    display = display.append(Component.text("Waiting for ", NamedTextColor.GRAY))
-                            .append(Component.text("duels ", NamedTextColor.BLUE))
-                            .append(Component.text("to finish (", NamedTextColor.GRAY))
-                            .append(Component.text(arenasUsedForRound - activeFaceOffs.size(), NamedTextColor.GOLD))
-                            .append(Component.text("/" + arenasUsedForRound + ")", NamedTextColor.GRAY));
-
-                else
-                    display = display.append(Component.text("Waiting for ", NamedTextColor.GRAY))
-                            .append(Component.text("next round", NamedTextColor.GOLD));
-            }
+            else
+                display = display.append(Component.text("Waiting for ", NamedTextColor.GRAY))
+                        .append(Component.text("next round", NamedTextColor.GOLD));
 
             player.sendActionBar(display);
         }, null, 5, 5);
@@ -341,14 +361,14 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
 
         //TODO: add some sort of kit object or something that decides the kit which implements filing inv
         PlayerInventory inv = player.getInventory();
-        inv.setItem(0, ItemStack.of(Material.DIAMOND_SWORD));
+        ItemStack sword = new ItemStack(Material.DIAMOND_SWORD);
+        sword.addEnchantment(Enchantment.SHARPNESS, 2);
+        inv.setItem(0, sword);
 
         inv.setHelmet(ItemStack.of(Material.DIAMOND_HELMET));
         inv.setChestplate(ItemStack.of(Material.DIAMOND_CHESTPLATE));
         inv.setLeggings(ItemStack.of(Material.DIAMOND_LEGGINGS));
         inv.setBoots(ItemStack.of(Material.DIAMOND_BOOTS));
-
-        inv.setItem(8, ItemStack.of(Material.BREAD, 16));
     }
 
     private void playWinDuel(Player winner) {
