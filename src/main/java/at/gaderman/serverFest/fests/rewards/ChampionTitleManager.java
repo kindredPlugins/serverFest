@@ -35,6 +35,7 @@ public class ChampionTitleManager implements Listener {
     private static final NamespacedKey CHAMPION_KEY = new NamespacedKey(ServerFest.getPlugin(), "fest_champion");
     public static NamespacedKey SHOW_CROWN = new NamespacedKey(ServerFest.getPlugin(), "show_crown");
     private final Map<UUID, ScheduledTask> championTask = new HashMap<>();
+    private final Map<UUID, Location> lastLocationMap = new HashMap<>();
 
     private ChampionTitleManager() {
 
@@ -62,8 +63,16 @@ public class ChampionTitleManager implements Listener {
                 .append(champion.displayName()));
 
         championTask.put(champion.getUniqueId(), champion.getScheduler().runAtFixedRate(ServerFest.getPlugin(), _ -> {
-            if (!champion.isInvisible())
+            if (champion.isInvisible())
+                return;
+
+            Location now = champion.getLocation();
+            Location prev = lastLocationMap.put(champion.getUniqueId(), now);
+
+            if (prev != null && prev.getWorld().equals(now.getWorld())
+                    && prev.distanceSquared(now) < 0.0001) {
                 showCrown(champion);
+            }
         }, () -> championTask.remove(champion.getUniqueId()), 5, 5));
     }
 

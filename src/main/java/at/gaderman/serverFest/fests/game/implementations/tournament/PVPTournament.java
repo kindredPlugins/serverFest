@@ -198,7 +198,7 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
                 if (!isRunning())
                     return;
 
-                both.getInventory().clear();
+                resetPlayer(both);
                 both.getInventory().setItem(0, FestItemProvider.SPEC_COMPASS);
                 both.teleportAsync(fest.origin().toCenterLocation());
             }, null, 20);

@@ -23,6 +23,8 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -78,8 +80,16 @@ public class ElytraRace extends RaceGame<ElytraRaceArenaLayout> implements Playe
             forceLoadedChunks = resolvedChunks;
             resolvedChunks.forEach(chunk -> chunk.addPluginChunkTicket(ServerFest.getPlugin()));
 
-            for (CheckPoint checkPoint : checkPoints)
-                adjustGateLocation(checkPoint.location());
+            checkPoints.getFirst().location().set(origin.getX(), origin.getY(), origin.getZ());
+
+            int highestCheckPointY = Integer.MIN_VALUE;
+            for (CheckPoint point : checkPoints) {
+                Location checkpointLocation = point.location();
+                highestCheckPointY = Math.max(highestCheckPointY, Math.max(world.getHighestBlockYAt(checkpointLocation), checkpointLocation.getBlockY()));
+            }
+
+            for (int i = 1; i < checkPoints.size(); i++)
+                adjustGateLocation(checkPoints.get(i).location(), i, highestCheckPointY);
 
             arenaLayout.trackSamples().clear();
             arenaLayout.trackSamples().addAll(((ElytraRaceArenaDefinition) gameType().getArenaDefinition()).buildTrackSpline(arenaLayout.checkPoints()));
@@ -127,6 +137,8 @@ public class ElytraRace extends RaceGame<ElytraRaceArenaLayout> implements Playe
             border.setSize(ElytraRaceArenaDefinition.WAVE_AMPLITUDE * 1.2 * 2);
             participant.setWorldBorder(border);
 
+            double originZ = fest.origin().getZ();
+            double finalZ = checkPoints.getLast().location().getZ();
             participant.getScheduler().runAtFixedRate(ServerFest.getPlugin(), task -> {
                 if (!fest.game().isRunning()) {
                     task.cancel();
@@ -139,7 +151,7 @@ public class ElytraRace extends RaceGame<ElytraRaceArenaLayout> implements Playe
                 if (participant.isInWater() || participant.isOnGround())
                     resetPlayerToLastCheckPoint(participant);
 
-                border.setCenter(startPoint.x(), participant.getZ());
+                border.setCenter(startPoint.x(), Math.clamp(participant.getZ(), originZ, finalZ));
                 participant.setWorldBorder(border);
             }, null, 4, 4);
         });
@@ -192,45 +204,77 @@ public class ElytraRace extends RaceGame<ElytraRaceArenaLayout> implements Playe
     //region Track
 
     /**
-     * Checks if gate has enough unobstructed room, shifting it upwards or clearing the space if necessary
+     * Checks if gate has enough unobstructed room, shifting it upwards or clearing the space if necessary.
+     * Every checkpoint also keeps within 35 blocks vertically of the previous checkpoint and cannot sit
+     * more than 50 blocks below the highest checkpoint in the track.
      */
-    private void adjustGateLocation(Location location) {
-        if(location.equals(fest.origin()))
-            return;
-
+    private void adjustGateLocation(Location location, int index, int highestCheckPointY) {
         StopWatch stopWatch = new StopWatch();
         stopWatch.start();
 
         World world = location.getWorld();
+        if (world == null) {
+            return;
+        }
 
-        int minY = location.getBlockY();
-        int maxY = minY + 30;
+        int baseY = Math.max(location.getBlockY(), highestSolidYAt(world, location));
+        int previousY = index > 0 ? checkPoints.get(index - 1).location().getBlockY() : baseY;
+        int sliceMinY = Math.max(highestCheckPointY - 50, previousY - 35);
+        int sliceMaxY = Math.min(highestCheckPointY, previousY + 35);
 
-        for (int y = minY; y <= maxY; y++) {
-            boolean clear = true;
+        if (sliceMaxY < sliceMinY) {
+            sliceMinY = highestCheckPointY - 50;
+            sliceMaxY = highestCheckPointY;
+        }
 
-            for (int x = -5; x <= 5 && clear; x++) {
-                for (int z = -5; z <= 5 && clear; z++) {
-                    for (int offsetY = (int) (GATE_SIZE / -2); offsetY <= 5; offsetY++) {
-                        Block block = world.getBlockAt(location.getBlockX() + x, y + offsetY, location.getBlockZ() + z);
-                        if (!block.isPassable() || block.isLiquid()) {
-                            clear = false;
-                            break;
-                        }
-                    }
-                }
-            }
+        List<Integer> candidateYs = new ArrayList<>();
+        for (int y = sliceMinY; y <= sliceMaxY; y++) {
+            candidateYs.add(y);
+        }
+        Collections.shuffle(candidateYs);
 
-            if (clear) {
-                location.setY(y == minY ? y : y + Math.random() * 10);
+        for (int y : candidateYs) {
+            if (hasClearGateSpace(world, location, y)) {
+                location.setY(y + (Math.random() * 4.0) - 2.0);
                 stopWatch.stop();
-                //ServerFest.getPlugin().getLogger().info("Found a location after " + (y - minY) + " tries (" + stopWatch.getTime() + "ms)");
                 return;
             }
         }
 
-        int newY = location.getWorld().getHighestBlockAt(location).getY() + 10;
-        location.setY(newY);
+        for (int y = Math.max(baseY, previousY + 1); y <= highestCheckPointY + 35; y++) {
+            if (hasClearGateSpace(world, location, y)) {
+                location.setY(y + (Math.random() * 4.0) - 2.0);
+                stopWatch.stop();
+                return;
+            }
+        }
+
+        for (int attempt = 1; attempt <= 5; attempt++) {
+            double offset = attempt * GATE_SIZE;
+            Location[] candidates = {
+                    location.clone().add(offset, 0, 0),
+                    location.clone().add(-offset, 0, 0),
+                    location.clone().add(0, 0, offset),
+                    location.clone().add(0, 0, -offset),
+                    location.clone().add(offset, 0, offset),
+                    location.clone().add(offset, 0, -offset),
+                    location.clone().add(-offset, 0, offset),
+                    location.clone().add(-offset, 0, -offset)
+            };
+
+            for (Location candidate : candidates) {
+                int candidateY = Math.max(candidate.getBlockY(), highestSolidYAt(world, candidate));
+                if (hasClearGateSpace(world, candidate, candidateY)) {
+                    location.setX(candidate.getX());
+                    location.setY(candidate.getY() + (Math.random() * 4.0) - 2.0);
+                    location.setZ(candidate.getZ());
+                    stopWatch.stop();
+                    return;
+                }
+            }
+        }
+
+        location.setY(Math.max(world.getHighestBlockAt(location).getY() + 10, previousY + 15));
 
         for (int x = -5; x <= 5; x++)
             for (int y = -5; y < 5; y++)
@@ -239,7 +283,36 @@ public class ElytraRace extends RaceGame<ElytraRaceArenaLayout> implements Playe
                 }
         blockTracker.save();
         stopWatch.stop();
-        //ServerFest.getPlugin().getLogger().info("Needed extra solution for checkpoint (" + stopWatch.getTime() + "ms)");
+    }
+
+    private int highestSolidYAt(World world, Location location) {
+        int x = location.getBlockX();
+        int z = location.getBlockZ();
+        int highestY = Math.max(world.getMinHeight(), world.getHighestBlockYAt(location));
+
+        for (int y = highestY; y >= world.getMinHeight(); y--) {
+            Block block = world.getBlockAt(x, y, z);
+            if (!block.isPassable() && !block.isLiquid()) {
+                return y;
+            }
+        }
+
+        return highestY;
+    }
+
+    private boolean hasClearGateSpace(World world, Location anchor, int y) {
+        for (int x = -5; x <= 5; x++) {
+            for (int z = -5; z <= 5; z++) {
+                for (int offsetY = (int) (GATE_SIZE / -2); offsetY <= 5; offsetY++) {
+                    Block block = world.getBlockAt(anchor.getBlockX() + x, y + offsetY, anchor.getBlockZ() + z);
+                    if (!block.isPassable() || block.isLiquid()) {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return true;
     }
 
     //endregion
