@@ -43,7 +43,7 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
     @Override
     public Location determineOrigin() {
         Location origin = super.determineOrigin();
-        origin.setY(fest.world().getHighestBlockYAt(origin) + 1);
+        origin.setY(getTrackSurfaceY(fest.world(), origin.getBlockX(), origin.getBlockZ()) + 0.5);
         return origin;
     }
 
@@ -68,12 +68,7 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
 
     @Override
     protected void kickOff() {
-        fest.participants().forEach(player -> {
-            if (player.isInWater())
-                spawnNautilusFor(player);
-            else
-                spawnHorseFor(player);
-        });
+        fest.participants().forEach(this::spawnHorseFor);
     }
 
     @Override
@@ -135,8 +130,11 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
             horse.getAttribute(Attribute.MOVEMENT_SPEED).setBaseValue(0.3f);
             horse.getAttribute(Attribute.JUMP_STRENGTH).setBaseValue(1f);
             horse.setPersistent(false);
-            scheduleMountSwitcher(player, horse);
             mounts.add(horse);
+
+            //TODO: readd mount switcher later on, but v1.0 cannot handle such a complex path, just horse will be used for now
+
+            // scheduleMountSwitcher(player, horse);
         });
     }
 
@@ -163,90 +161,106 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
 
     private void buildTrack(CompletableFuture<Void> future) {
         World world = fest.world();
-        Location origin = fest.origin().clone().add(0, -1, 0);
+        Location origin = fest.origin().clone().subtract(0, 0.5, 0);
         buildTrackSection(future, world, origin, TRACK_DIAMETER, GATE_SIZE, CHECKPOINT_COUNT, 0);
     }
 
     private void buildTrackSection(CompletableFuture<Void> future, World world, Location lastLocation,
-                                  int trackDiameter, double gateSize, int checkpointCount, int index) {
+                                   int trackDiameter, double gateSize, int checkpointCount, int index) {
         if (index >= checkpointCount) {
             future.complete(null);
             return;
         }
 
         CheckPoint checkPoint = checkPoints.get(index);
-        double newX = checkPoint.location().getX();
-        double newZ = checkPoint.location().getZ();
+        Location newLocation = new Location(world, checkPoint.location().getX(), lastLocation.getY(),
+                checkPoint.location().getZ());
 
-        Location newLocation = new Location(world, newX, lastLocation.getY(), newZ);
-
-        List<TrackPoint> initialPath = createPath(lastLocation, newLocation);
-        Set<ChunkPos> chunks = getRequiredChunks(initialPath);
-
-        loadChunks(world, chunks, resolvedChunks -> {
+        loadChunks(world, getRequiredChunks(createPath(lastLocation, newLocation)), resolvedChunks -> {
             resolvedChunks.forEach(chunk -> {
                 if (forcedChunks.add(chunk))
                     chunk.addPluginChunkTicket(ServerFest.getPlugin());
             });
 
-            int highestY = world.getHighestBlockYAt(newLocation);
-            newLocation.setY(highestY + 1);
+            int checkpointY = getTrackSurfaceY(world, newLocation.getBlockX(), newLocation.getBlockZ());
+            newLocation.setY(checkpointY);
+            checkPoint.location().set(newLocation.getX(), checkpointY, newLocation.getZ());
 
-            while ((newLocation.getBlock().isPassable() && !newLocation.getBlock().isLiquid()) ||
-                    newLocation.getBlock().getType().toString().contains("LEAVES"))
-                newLocation.setY(newLocation.getY() - 1);
-
-            checkPoint.location().set(newLocation.x(), newLocation.y(), newLocation.z());
-
-            createPath(lastLocation, newLocation).forEach(path -> {
-                BlockPos center = path.center();
-                Location centerLocation = new Location(world, center.x(), center.y(), center.z());
-                Block centerBlock = centerLocation.getBlock();
-
-                int maxY = world.getHighestBlockYAt(centerLocation);
-                if (Math.abs(center.y() - maxY) <= 3) {
-                    Block checkBlock = new Location(world, center.x(), maxY + 1, center.z()).getBlock();
-                    while (checkBlock.isPassable() && !checkBlock.isLiquid()) {
-                        maxY--;
-                        checkBlock = new Location(world, center.x(), maxY + 1, center.z()).getBlock();
-                    }
-
-                    center = new BlockPos(center.x(), maxY + 1, center.z());
-                }
-
-                if (centerBlock.isLiquid()) {
-                    int floorY = center.y();
-                    while (floorY > world.getMinHeight()) {
-                        Block beneath = new Location(world, center.x(), floorY - 1, center.z()).getBlock();
-                        if (!beneath.isLiquid() && beneath.getType() != Material.KELP_PLANT && beneath.getType() != Material.KELP &&
-                                beneath.getType() != Material.SEAGRASS && beneath.getType() != Material.TALL_SEAGRASS)
-                            break;
-                        floorY--;
-                    }
-                    center = new BlockPos(center.x(), floorY + 1, center.z());
-                }
-
+            for (TrackPoint path : createPath(lastLocation, newLocation)) {
                 List<BlockPos> blocks = new ArrayList<>();
-                blocks.add(center);
+                blocks.add(path.center());
                 blocks.addAll(path.sides());
 
-                boolean doDrops = world.getGameRuleValue(GameRules.BLOCK_DROPS);
-                world.setGameRule(GameRules.BLOCK_DROPS, false);
                 for (BlockPos pos : blocks) {
-                    Location location = new Location(world, pos.x(), center.y(), pos.z());
-                    for (int y = 0; y < 25; y++)
-                        blockTracker.setBlock(location.clone().add(0, y + 1, 0), Material.AIR);
-                    blockTracker.setBlock(location.getBlock(), Material.SPRUCE_SLAB);
+                    int y = getTrackSurfaceY(world, pos.x(), pos.z());
+                    Block trackBlock = world.getBlockAt(pos.x(), y, pos.z());
+
+                    if (!trackBlock.isPassable() && !trackBlock.isLiquid() && !isLeaves(trackBlock.getType()))
+                        continue;
+
+                    blockTracker.setBlock(trackBlock, Material.SPRUCE_SLAB);
+
+                    for (int clearY = y + 1; clearY <= y + 3; clearY++) {
+                        Block clearance = world.getBlockAt(pos.x(), clearY, pos.z());
+
+                        if (!clearance.isPassable() && !clearance.isLiquid())
+                            blockTracker.setBlock(clearance, Material.AIR);
+                    }
                 }
-                world.setGameRule(GameRules.BLOCK_DROPS, doDrops);
-            });
+            }
+
             blockTracker.save();
 
             if (index != 0)
-                createGate(newLocation.clone().add(0, gateSize / 2 * 0.8, 0), gateSize, 0.6, index == checkpointCount - 1);
+                createGate(checkPoint.location().clone().add(0, gateSize * 0.4, 0), gateSize, 0.6, index == checkpointCount - 1);
 
             buildTrackSection(future, world, newLocation, trackDiameter, gateSize, checkpointCount, index + 1);
         });
+    }
+
+    private int getTrackSurfaceY(World world, int x, int z) {
+        int waterSurfaceY = Integer.MIN_VALUE;
+
+        for (int y = world.getMaxHeight() - 1; y >= world.getMinHeight(); y--) {
+            Block block = world.getBlockAt(x, y, z);
+            Material type = block.getType();
+
+            if (type == Material.SPRUCE_SLAB)
+                continue;
+
+            if (block.isLiquid()) {
+                if (waterSurfaceY == Integer.MIN_VALUE)
+                    waterSurfaceY = y;
+                continue;
+            }
+
+            if (isTreePart(type) || block.isPassable())
+                continue;
+
+            return waterSurfaceY == Integer.MIN_VALUE ? y + 1 : waterSurfaceY + 1;
+        }
+
+        if (waterSurfaceY != Integer.MIN_VALUE)
+            return waterSurfaceY + 1;
+
+        return world.getMinHeight() + 1;
+    }
+
+    private boolean isLeaves(Material material) {
+        return material.name().endsWith("_LEAVES");
+    }
+
+    private boolean isTreePart(Material material) {
+        String name = material.name();
+
+        return isLeaves(material)
+                || name.endsWith("_LOG")
+                || name.endsWith("_WOOD")
+                || name.endsWith("_STEM")
+                || name.endsWith("_HYPHAE")
+                || name.endsWith("_ROOTS")
+                || name.equals("MUSHROOM_STEM")
+                || name.equals("BAMBOO_BLOCK");
     }
 
     public static List<TrackPoint> createPath(Location from, Location to) {

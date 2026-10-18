@@ -175,7 +175,7 @@ public abstract class FestGame<T extends ArenaLayout> {
 
             Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
                 ChampionTitleManager.getInstance().playChampionCelebration(singleWinner);
-            }, stopDelay + 1);
+            }, stopDelay + 40);
         }
     }
 

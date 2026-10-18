@@ -133,7 +133,7 @@ public class ChampionTitleManager implements Listener {
     public void playChampionCelebration(Player champion) {
         champion.resetTitle();
         champion.sendTitlePart(TitlePart.TITLE, MiniMessage.miniMessage().deserialize("<gradient:yellow:gold>♛ Fest Champion"));
-        champion.playSound(champion, Sound.MUSIC_END, 1f, 1.3f);
+        champion.playSound(champion, Sound.MUSIC_DISC_CREATOR_MUSIC_BOX, 1f, 1.1f);
 
         Bukkit.getOnlinePlayers().forEach(player -> {
             player.sendMessage(ServerFest.CHAT_PREFIX
