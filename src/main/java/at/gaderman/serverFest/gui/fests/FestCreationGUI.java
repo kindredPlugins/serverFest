@@ -312,7 +312,7 @@ public class FestCreationGUI extends ActionInventory {
 
         item.editMeta(meta -> {
             meta.displayName((gameDefinition == null
-                    ? item.displayName()
+                    ? item.effectiveName()
                     : gameDefinition.iconName())
                     .decoration(TextDecoration.ITALIC, false));
             meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
