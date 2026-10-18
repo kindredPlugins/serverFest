@@ -1,5 +1,6 @@
 package at.gaderman.serverFest.gui.fests;
 
+import at.gaderman.serverFest.config.PermissionProvider;
 import at.gaderman.serverFest.fests.FestType;
 import at.gaderman.serverFest.fests.game.GameType;
 import at.gaderman.serverFest.fests.items.FestItemProvider;
@@ -17,10 +18,12 @@ import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.Nullable;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
+import java.util.ArrayList;
 import java.util.List;
 
 public class FestCalendarGUI extends ActionInventory {
@@ -47,7 +50,7 @@ public class FestCalendarGUI extends ActionInventory {
     public void openInventory(Player player) {
         refreshFests();
         super.openInventory(player);
-        updateInventory();
+        updateInventory(player);
 
         player.playSound(player, Sound.ENTITY_VILLAGER_WORK_LIBRARIAN, 1, 1);
     }
@@ -58,7 +61,7 @@ public class FestCalendarGUI extends ActionInventory {
         page = Math.clamp(page, 0, maxPages - 1);
     }
 
-    private void updateInventory() {
+    private void updateInventory(Player player) {
         page = Math.clamp(page, 0, maxPages - 1);
 
         inventory.clear();
@@ -78,22 +81,22 @@ public class FestCalendarGUI extends ActionInventory {
             int slot = index - startIndex;
             ScheduledFest fest = fests.get(index);
 
-            inventory.setItem(slot, buildFestItem(fest));
-            defineInventoryAction(slot, event -> {
-                if (!(event.getWhoClicked() instanceof Player player))
-                    return;
+            inventory.setItem(slot, buildFestItem(fest, player));
 
-                if (event.isRightClick()) {
-                    player.playSound(player, Sound.BLOCK_LEVER_CLICK, 1f, 1f);
-                    new FestDeleteConfirmationGUI(fest).openInventory(player);
-                    return;
-                }
+            if (PermissionProvider.canManageFests(player)) {
+                defineInventoryAction(slot, event -> {
+                    if (event.isRightClick()) {
+                        player.playSound(player, Sound.BLOCK_LEVER_CLICK, 1f, 1f);
+                        new FestDeleteConfirmationGUI(fest).openInventory(player);
+                        return;
+                    }
 
-                if (event.isLeftClick()) {
-                    player.playSound(player, Sound.BLOCK_LEVER_CLICK, 1f, 1f);
-                    new FestCreationGUI(fest).openInventory(player);
-                }
-            });
+                    if (event.isLeftClick()) {
+                        player.playSound(player, Sound.BLOCK_LEVER_CLICK, 1f, 1f);
+                        new FestCreationGUI(fest).openInventory(player);
+                    }
+                });
+            }
         }
 
         inventory.setItem(INVENTORY_SIZE - 5, ItemUtils.createWithBasicName(Material.PAPER,
@@ -106,7 +109,7 @@ public class FestCalendarGUI extends ActionInventory {
             inventory.setItem(prevSlot, ItemUtils.createWithBasicName(Material.ARROW, Component.text("Previous Page")));
             defineInventoryAction(prevSlot, _ -> {
                 page--;
-                updateInventory();
+                updateInventory(player);
             }, Sound.ENTITY_CHICKEN_EGG, 1f, 1f);
         }
 
@@ -115,19 +118,18 @@ public class FestCalendarGUI extends ActionInventory {
             inventory.setItem(nextSlot, ItemUtils.createWithBasicName(Material.ARROW, Component.text("Next Page")));
             defineInventoryAction(nextSlot, _ -> {
                 page++;
-                updateInventory();
+                updateInventory(player);
             }, Sound.ENTITY_CHICKEN_EGG, 1f, 1f);
-        } else {
+        } else if (PermissionProvider.canManageFests(player)) {
             int slot = INVENTORY_SIZE - 1;
             inventory.setItem(slot, createCreateItem());
             defineInventoryAction(slot, event -> {
-                if (event.getWhoClicked() instanceof Player player)
-                    new FestCreationGUI().openInventory(player);
+                new FestCreationGUI().openInventory(player);
             });
         }
     }
 
-    public static ItemStack buildFestItem(ScheduledFest fest) {
+    public static ItemStack buildFestItem(ScheduledFest fest, @Nullable Player player) {
         LocalDateTime nextTime = fest.nextSchedule();
 
         GameType gameType = fest.gameType();
@@ -137,15 +139,21 @@ public class FestCalendarGUI extends ActionInventory {
         item.editMeta(meta -> {
             meta.displayName(Component.text(fest.festType().displayName() + " Fest", NamedTextColor.GOLD)
                     .decoration(TextDecoration.ITALIC, false));
-            meta.lore(ItemUtils.applyDefaultLoreStyle(List.of(
+
+            List<Component> lore = new ArrayList<>(List.of(
                     Component.text("Next: " + DATE_FORMAT.format(nextTime), NamedTextColor.YELLOW),
                     Component.text("Schedule: " + (fest instanceof RecurringDateScheduled ? "Recurring" : "One-Time"), NamedTextColor.GRAY),
                     Component.text("Players: " + fest.minPlayers() + "-" + fest.maxPlayers(), NamedTextColor.GRAY),
-                    Component.text("Game: " + (gameType == null ? "Random" : PlainTextComponentSerializer.plainText().serialize(gameType.definition().iconName())), NamedTextColor.GRAY),
-                    Component.empty(),
-                    Component.text("Left click to edit", NamedTextColor.GREEN),
-                    Component.text("Right click to delete", NamedTextColor.RED)
-            )));
+                    Component.text("Game: " + (gameType == null ? "Random" : PlainTextComponentSerializer.plainText().serialize(gameType.definition().iconName())), NamedTextColor.GRAY)
+            ));
+
+            if (player != null && PermissionProvider.canManageFests(player)) {
+                lore.add(Component.empty());
+                lore.add(Component.text("Left click to edit", NamedTextColor.GREEN));
+                lore.add(Component.text("Right click to edit", NamedTextColor.RED));
+            }
+
+            meta.lore(ItemUtils.applyDefaultLoreStyle(lore));
 
             if (fest.festType() == FestType.SERVER_COMPETITION)
                 meta.setEnchantmentGlintOverride(true);

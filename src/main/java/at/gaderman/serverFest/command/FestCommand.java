@@ -1,5 +1,6 @@
 package at.gaderman.serverFest.command;
 
+import at.gaderman.serverFest.config.PermissionProvider;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.FestManager;
 import at.gaderman.serverFest.fests.FestType;
@@ -38,6 +39,9 @@ public class FestCommand implements CommandExecutor, TabCompleter {
             case 1 -> {
                 switch (args[0]) {
                     case "dev" -> {
+                        if (!checkAndInformNoManager(sender))
+                            return true;
+
                         //TODO: add only sender as participant and do not let others join
                         sendScheduleMessage(sender);
                         var recruitment = FestRecruitment.requestRecruitment(10, FestType.CASUAL, null);
@@ -45,6 +49,9 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                         return true;
                     }
                     case "quick" -> {
+                        if (!checkAndInformNoManager(sender))
+                            return true;
+
                         sendScheduleMessage(sender);
                         FestRecruitment.requestRecruitment(60, FestType.CASUAL, null);
                         return true;
@@ -54,6 +61,9 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                             sender.sendMessage(Component.text("Only players can create a fest!", NamedTextColor.RED));
                             return true;
                         }
+
+                        if (!checkAndInformNoManager(sender))
+                            return true;
 
                         new FestCreationGUI().openInventory((Player) sender);
                         return true;
@@ -100,7 +110,7 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                         if (!joined) {
                             if (FestManager.getInstance().isPlayerParticipatingInAnyFest(player))
                                 player.sendMessage(Component.text("You are already participating in another fest!", NamedTextColor.RED));
-                            else if(RecruitmentManager.getInstance().activeRecruitment() == null)
+                            else if (RecruitmentManager.getInstance().activeRecruitment() == null)
                                 player.sendMessage(Component.text("There is no active fest to join", NamedTextColor.RED));
                             else
                                 player.sendMessage(Component.text("This fest is already full, no more players can sign up for it!", NamedTextColor.RED));
@@ -115,6 +125,9 @@ public class FestCommand implements CommandExecutor, TabCompleter {
             }
             case 2 -> {
                 if (args[0].equals("quick") || args[0].equals("dev")) {
+                    if (!checkAndInformNoManager(sender))
+                        return true;
+
                     try {
                         boolean isDev = args[0].equals("dev");
 
@@ -146,6 +159,12 @@ public class FestCommand implements CommandExecutor, TabCompleter {
 
                     if (opponent == null) {
                         player.sendMessage(Component.text("That player is not online or does not exist!", NamedTextColor.RED));
+                        player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
+                        return true;
+                    }
+
+                    if(opponent.equals(player)) {
+                        player.sendMessage(Component.text("You cannot duel yourself!", NamedTextColor.RED));
                         player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
                         return true;
                     }
@@ -221,15 +240,32 @@ public class FestCommand implements CommandExecutor, TabCompleter {
         }
     }
 
+    private boolean checkAndInformNoManager(CommandSender sender) {
+        if (!(sender instanceof Player player))
+            return true;
+
+        if (!PermissionProvider.canManageFests(player)) {
+            player.sendMessage(Component.text("You do not have permission to use this command!", NamedTextColor.RED));
+            player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1f, 0.5f);
+            return false;
+        }
+
+        return true;
+    }
+
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String @NotNull [] args) {
         List<String> completions = new ArrayList<>();
+        boolean isPlayer = sender instanceof Player;
 
         switch (args.length) {
             case 1 -> {
-                completions.add("dev");
-                completions.add("quick");
-                completions.add("create");
+                if (isPlayer && PermissionProvider.canManageFests((Player) sender)) {
+                    completions.add("dev");
+                    completions.add("quick");
+                    completions.add("create");
+                }
+
                 completions.add("calendar");
                 completions.add("duel");
 
@@ -239,16 +275,18 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                 completions.removeIf(completion -> !completion.startsWith(args[0]));
             }
             case 2 -> {
-                if (args[0].equals("quick") || args[0].equals("dev")) {
-                    completions.addAll(Arrays.stream(GameType.values())
-                            .map(type -> type.name().toLowerCase())
-                            .filter(name -> name.startsWith(args[1]))
-                            .toList());
+                if (isPlayer && PermissionProvider.canManageFests((Player) sender)) {
+                    if (args[0].equals("quick") || args[0].equals("dev")) {
+                        completions.addAll(Arrays.stream(GameType.values())
+                                .map(type -> type.name().toLowerCase())
+                                .filter(name -> name.startsWith(args[1]))
+                                .toList());
+                    }
                 }
 
                 if (args[0].equals("duel")) {
                     Bukkit.getOnlinePlayers().forEach(player -> {
-                        if (!FestManager.getInstance().isPlayerParticipatingInAnyFest(player))
+                        if (!player.equals(sender) && !FestManager.getInstance().isPlayerParticipatingInAnyFest(player))
                             completions.add(player.getName());
                     });
                     completions.removeIf(completion -> !completion.startsWith(args[1]));

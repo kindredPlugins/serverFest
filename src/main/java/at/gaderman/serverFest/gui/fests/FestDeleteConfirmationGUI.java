@@ -32,7 +32,7 @@ public class FestDeleteConfirmationGUI extends ActionInventory {
 
     private void initializeInventory() {
         fillWithFillItem();
-        inventory.setItem(FEST_SLOT, FestCalendarGUI.buildFestItem(fest));
+        inventory.setItem(FEST_SLOT, FestCalendarGUI.buildFestItem(fest, null));
 
         inventory.setItem(CONFIRM_SLOT, ItemUtils.createBasicUIItem(
                 Material.LIME_DYE,
