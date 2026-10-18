@@ -2,11 +2,13 @@ package at.gaderman.serverFest.fests.game;
 
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
+import at.gaderman.serverFest.fests.FestType;
 import at.gaderman.serverFest.fests.arenas.ArenaBlockTracker;
 import at.gaderman.serverFest.fests.arenas.ArenaInstance;
 import at.gaderman.serverFest.fests.arenas.ArenaLayout;
 import at.gaderman.serverFest.fests.game.definition.GameDefinition;
 import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
+import at.gaderman.serverFest.fests.rewards.ChampionTitleManager;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
@@ -165,7 +167,16 @@ public abstract class FestGame<T extends ArenaLayout> {
             participant.sendTitlePart(TitlePart.SUBTITLE, subtitle);
         });
 
-        Bukkit.getServer().getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> stop(), 200);
+        int stopDelay = 200;
+        Bukkit.getServer().getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> stop(), stopDelay);
+
+        if (fest.festType() == FestType.SERVER_COMPETITION && singleWinner != null) {
+            ChampionTitleManager.getInstance().grantChampionTitle(singleWinner);
+
+            Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
+                ChampionTitleManager.getInstance().playChampionCelebration(singleWinner);
+            }, stopDelay + 1);
+        }
     }
 
     protected Component winnerAnnouncementTitle() {
@@ -266,7 +277,7 @@ public abstract class FestGame<T extends ArenaLayout> {
      * Some fests need to adjust when a player leaves, like in a duel.
      * Will also trigger an automatic win if all players leave except the final one.
      */
-    public void onLeave(Player player){
+    public void onLeave(Player player) {
         getOrCreatePlayerData(player.getUniqueId()).reset();
     }
 

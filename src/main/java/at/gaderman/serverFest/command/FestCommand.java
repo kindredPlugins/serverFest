@@ -8,6 +8,7 @@ import at.gaderman.serverFest.fests.duel.ProposedDuel;
 import at.gaderman.serverFest.fests.game.GameType;
 import at.gaderman.serverFest.fests.recruitment.FestRecruitment;
 import at.gaderman.serverFest.fests.recruitment.RecruitmentManager;
+import at.gaderman.serverFest.fests.rewards.ChampionTitleManager;
 import at.gaderman.serverFest.gui.fests.FestCalendarGUI;
 import at.gaderman.serverFest.gui.fests.FestCreationGUI;
 import net.kyori.adventure.text.Component;
@@ -75,6 +76,15 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                         }
 
                         new FestCalendarGUI().openInventory((Player) sender);
+                        return true;
+                    }
+                    case "togglecrown" -> {
+                        if(!isPlayer) {
+                            sender.sendMessage(Component.text("Only players can open the calendar!", NamedTextColor.RED));
+                            return true;
+                        }
+
+                        ChampionTitleManager.getInstance().toggleShowCrown((Player) sender);
                         return true;
                     }
                     case "quit" -> {
@@ -264,6 +274,10 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                     completions.add("dev");
                     completions.add("quick");
                     completions.add("create");
+                }
+
+                if(isPlayer && ChampionTitleManager.getInstance().isChampion((Player) sender)) {
+                    completions.add("togglecrown");
                 }
 
                 completions.add("calendar");

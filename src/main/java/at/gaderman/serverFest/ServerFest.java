@@ -2,10 +2,12 @@ package at.gaderman.serverFest;
 
 import at.gaderman.serverFest.command.FestCommand;
 import at.gaderman.serverFest.config.GeneralConfig;
+import at.gaderman.serverFest.data.DataConfig;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.FestManager;
 import at.gaderman.serverFest.fests.SaveStateManagement;
 import at.gaderman.serverFest.fests.arenas.ArenaManager;
+import at.gaderman.serverFest.fests.rewards.ChampionTitleManager;
 import at.gaderman.serverFest.fests.schedule.FestCalendar;
 import at.gaderman.serverFest.management.WorldManager;
 import net.kyori.adventure.text.Component;
@@ -31,6 +33,7 @@ public final class ServerFest extends JavaPlugin {
     public void onEnable() {
         // Plugin startup logic
         GeneralConfig.getInstance();
+        DataConfig.getInstance();
 
         WorldManager.getInstance().setUpHub();
         WorldManager.getInstance().loadOrCreateFestWorld();
@@ -38,6 +41,7 @@ public final class ServerFest extends JavaPlugin {
         getCommand("fest").setExecutor(new FestCommand());
 
         Bukkit.getPluginManager().registerEvents(new SaveStateManagement.SaveListener(), this);
+        Bukkit.getPluginManager().registerEvents(ChampionTitleManager.getInstance(), this);
 
         FestManager.getInstance();
         arenaManager = new ArenaManager();

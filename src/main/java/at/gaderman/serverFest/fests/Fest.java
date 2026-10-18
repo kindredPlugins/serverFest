@@ -1,6 +1,7 @@
 package at.gaderman.serverFest.fests;
 
 import at.gaderman.serverFest.ServerFest;
+import at.gaderman.serverFest.data.DataConfig;
 import at.gaderman.serverFest.fests.arenas.ArenaInstance;
 import at.gaderman.serverFest.fests.game.FestGame;
 import at.gaderman.serverFest.fests.game.GameType;
@@ -61,6 +62,10 @@ public class Fest {
         return uuid;
     }
 
+    public FestType festType() {
+        return festType;
+    }
+
     public FestGame<?> game() {
         return game;
     }
@@ -119,6 +124,21 @@ public class Fest {
                 .whenComplete((_, throwable) -> {
                     if (throwable != null)
                         ServerFest.getPlugin().getLogger().log(Level.SEVERE, "Failed to set up or start fest " + uuid, throwable);
+
+                    else{
+                        DataConfig dataConfig = DataConfig.getInstance();
+
+                        if(festType == FestType.SERVER_COMPETITION)
+                            dataConfig.setCompetitiveRound(dataConfig.competitiveRound() + 1);
+
+                        else if(festType == FestType.CASUAL)
+                            dataConfig.setCasualFestsHeld(dataConfig.casualFestsHeld() + 1);
+
+                        else if(festType == FestType.DUEL)
+                            dataConfig.setDuelsHeld(dataConfig.duelsHeld() + 1);
+
+                        dataConfig.setFestsHeldTotal(dataConfig.festsHeldTotal() + 1);
+                    }
                 });
 
         CompletableFuture<?>[] teleports = participants().stream()
