@@ -402,6 +402,7 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
         data.setState(PlayerTournamentState.SPECTATOR);
 
         player.getInventory().clear();
+        player.getInventory().setItem(0, FestItemProvider.SPEC_COMPASS);
         player.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, PotionEffect.INFINITE_DURATION, 0, false, false));
     }
 
@@ -413,6 +414,9 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
         player.setHealth(20);
         player.setSaturation(4);
         player.setFoodLevel(20);
+
+        if(stateOf(player) == PlayerTournamentState.SPECTATOR)
+            changeIntoSpectator(player);
     }
 
     //endregion

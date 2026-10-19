@@ -34,7 +34,7 @@ public class DataConfig {
     }
 
     private void ensureDefaults() {
-        config.addDefault(COMPETITIVE_ROUND, 1);
+        config.addDefault(COMPETITIVE_ROUND, 0);
         config.addDefault(FESTS_TOTAL, 0);
         config.addDefault(CASUAL_HELD, 0);
         config.addDefault(DUELS_HELD, 0);

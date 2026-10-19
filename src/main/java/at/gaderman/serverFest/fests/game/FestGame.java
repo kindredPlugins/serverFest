@@ -1,6 +1,7 @@
 package at.gaderman.serverFest.fests.game;
 
 import at.gaderman.serverFest.ServerFest;
+import at.gaderman.serverFest.data.player.PlayerDataManager;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.FestType;
 import at.gaderman.serverFest.fests.arenas.ArenaBlockTracker;
@@ -170,12 +171,21 @@ public abstract class FestGame<T extends ArenaLayout> {
         int stopDelay = 200;
         Bukkit.getServer().getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> stop(), stopDelay);
 
-        if (fest.festType() == FestType.SERVER_COMPETITION && singleWinner != null) {
-            ChampionTitleManager.getInstance().grantChampionTitle(singleWinner);
+        if (singleWinner != null) {
+            PlayerDataManager playerDataManager = PlayerDataManager.getInstance();
+            if (fest.festType() == FestType.DUEL)
+                playerDataManager.addDuelsWon(singleWinner);
+            else
+                playerDataManager.addFestsWon(singleWinner);
 
-            Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
-                ChampionTitleManager.getInstance().playChampionCelebration(singleWinner);
-            }, stopDelay + 40);
+            if (fest.festType() == FestType.SERVER_COMPETITION) {
+                playerDataManager.addChampionTimes(singleWinner);
+                ChampionTitleManager.getInstance().grantChampionTitle(singleWinner);
+
+                Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
+                    ChampionTitleManager.getInstance().playChampionCelebration(singleWinner);
+                }, stopDelay + 40);
+            }
         }
     }
 

@@ -2,6 +2,7 @@ package at.gaderman.serverFest.fests;
 
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.data.DataConfig;
+import at.gaderman.serverFest.data.player.PlayerDataManager;
 import at.gaderman.serverFest.fests.arenas.ArenaInstance;
 import at.gaderman.serverFest.fests.game.FestGame;
 import at.gaderman.serverFest.fests.game.GameType;
@@ -138,6 +139,15 @@ public class Fest {
                             dataConfig.setDuelsHeld(dataConfig.duelsHeld() + 1);
 
                         dataConfig.setFestsHeldTotal(dataConfig.festsHeldTotal() + 1);
+
+                        var playerDataManager = PlayerDataManager.getInstance();
+                        boolean isDuel = festType == FestType.DUEL;
+                        participants().forEach(participant -> {
+                            if(isDuel)
+                                    playerDataManager.addDuelsHeld(participant);
+                            else
+                                    playerDataManager.addFestsParticipated(participant);
+                        });
                     }
                 });
 
