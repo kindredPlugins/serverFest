@@ -37,7 +37,6 @@ public final class ServerFest extends JavaPlugin {
         GeneralConfig.getInstance();
         DataConfig.getInstance();
 
-        WorldManager.getInstance().setUpHub();
         WorldManager.getInstance().loadOrCreateFestWorld();
 
         getCommand("fest").setExecutor(new FestCommand());

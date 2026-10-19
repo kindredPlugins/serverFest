@@ -1,6 +1,7 @@
 package at.gaderman.serverFest.management;
 
 import at.gaderman.serverFest.ServerFest;
+import at.gaderman.serverFest.config.GeneralConfig;
 import org.bukkit.*;
 import org.bukkit.generator.ChunkGenerator;
 
@@ -87,8 +88,14 @@ public class WorldManager {
             return existing;
         }
 
-        long seed = Bukkit.getWorlds().getFirst().getSeed();
-        return WorldCreator.ofKey(worldKey).seed(seed).createWorld();
+        WorldCreator worldCreator = WorldCreator.ofKey(worldKey);
+
+        if(GeneralConfig.getInstance().useWorldSeed()) {
+            long seed = Bukkit.getWorlds().getFirst().getSeed();
+            worldCreator.seed(seed);
+        }
+
+        return worldCreator.createWorld();
     }
 
     /**

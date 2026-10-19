@@ -36,12 +36,16 @@ public class GeneralConfig {
         ServerFest.getPlugin().getLogger().info("config.yml has been loaded");
     }
 
-    public int arenaSlots(){
+    public int arenaSlots() {
         return ARENA_SLOTS.cached();
     }
 
-    public int maxPlayersPerFest(){
+    public int maxPlayersPerFest() {
         return MAX_FEST_PLAYERS.cached();
+    }
+
+    public boolean useWorldSeed() {
+        return USE_WORLD_SEED.cached();
     }
 
     private final ConfigOption<Integer> ARENA_SLOTS = configRegistry.configOption("arenas.slots", 3, FileConfiguration::getInt, value -> Math.clamp(value, 1, 30))
@@ -55,5 +59,9 @@ public class GeneralConfig {
                     "Note this is mostly based on your server. Fests try to be performative but many players are an issue for Minecraft servers.",
                     "Try to create most fests with a reasonable amount to keep them playable, but if you want you can turn this value up to 500.",
                     "You have been warned"
-                    );
+            );
+    private final ConfigOption<Boolean> USE_WORLD_SEED = configRegistry.configOption("fests.world.use_world_seed", true, FileConfiguration::getBoolean)
+            .withComments("If set to true the generated fest world will use the same seed as the main world.",
+                    "This means even if you delete the fest world it will generate with the same seed again.",
+                    "If you periodically delete your fest world and want arenas to change, set this to false");
 }
