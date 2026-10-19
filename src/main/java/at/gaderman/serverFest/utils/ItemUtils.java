@@ -170,4 +170,21 @@ public class ItemUtils {
                 start + (end - start) * progress
         );
     }
+
+    public static Component padWithHyphens(Component text, Component hyphenFormat){
+        final int LINE_CHARS = 53;
+        String plainText = PlainTextComponentSerializer.plainText().serialize(text);
+        int hyphenCount = Math.max((LINE_CHARS - (plainText.length() + 2)) / 2, 0);
+
+        Component component = Component.empty();
+        for (int i = 0; i < hyphenCount; i++)
+            component = component.append(hyphenFormat);
+
+        component = component.appendSpace().append(text).appendSpace();
+
+        for (int i = 0; i < hyphenCount; i++)
+            component = component.append(hyphenFormat);
+
+        return component;
+    }
 }

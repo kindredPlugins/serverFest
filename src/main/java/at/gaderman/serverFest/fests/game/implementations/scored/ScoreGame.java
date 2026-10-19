@@ -19,6 +19,7 @@ import org.bukkit.scoreboard.Criteria;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Comparator;
 import java.util.List;
@@ -70,6 +71,11 @@ public abstract class ScoreGame<T extends ArenaLayout> extends FestGame<T> {
                 return playerData.score();
             }).reduce(Integer::max).orElse(0);
 
+            if(highestScore == 0){
+                declareWinner(List.of());
+                return;
+            }
+
             List<Player> winners = fest.participants().stream().filter(player -> {
                         var playerData = (ScoreGamePlayerData) getOrCreatePlayerData(player.getUniqueId());
                         return playerData.score() >= highestScore;
@@ -93,9 +99,11 @@ public abstract class ScoreGame<T extends ArenaLayout> extends FestGame<T> {
         return Sound.MUSIC_DISC_OTHERSIDE;
     }
 
-    // TODO: Decide how to represent score ties; the shared subtitle uses the first winner.
     @Override
-    protected Component winnerAnnouncementSubtitle(Player winner) {
+    protected Component winnerAnnouncementSubtitle(@Nullable Player winner) {
+        if(winner == null)
+            return super.winnerAnnouncementSubtitle(null);
+
         var winnerData = (ScoreGamePlayerData) getOrCreatePlayerData(winner.getUniqueId());
         return super.winnerAnnouncementSubtitle(winner)
                 .append(Component.text(" (", NamedTextColor.GRAY))

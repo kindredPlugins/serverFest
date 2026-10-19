@@ -10,6 +10,7 @@ import at.gaderman.serverFest.fests.arenas.ArenaLayout;
 import at.gaderman.serverFest.fests.game.definition.GameDefinition;
 import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
 import at.gaderman.serverFest.fests.rewards.ChampionTitleManager;
+import at.gaderman.serverFest.utils.ItemUtils;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
@@ -83,13 +84,22 @@ public abstract class FestGame<T extends ArenaLayout> {
             viewers.forEach(arenaBuildingBar::removeViewer);
         }
 
-        onStart();
+        startCountdown();
     }
 
     /**
      * Called after the game countdown completes.
      */
-    protected final void onStart() {
+    protected final void startCountdown() {
+        fest.participants().forEach(player -> {
+            player.playSound(player, Sound.BLOCK_NOTE_BLOCK_BELL, 1, 1);
+
+            player.sendMessage(ItemUtils.padWithHyphens(gameType().definition().iconName(), Component.text("-", NamedTextColor.DARK_GRAY)));
+            gameType().definition().iconLore().stream()
+                    .map(line -> line.colorIfAbsent(NamedTextColor.GRAY))
+                    .forEach(player::sendMessage);
+        });
+
         final int[] timeLeft = {countdownSeconds()};
         Bukkit.getGlobalRegionScheduler().runAtFixedRate(ServerFest.getPlugin(), task -> {
             timeLeft[0]--;
