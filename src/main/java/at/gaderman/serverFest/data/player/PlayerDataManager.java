@@ -1,5 +1,10 @@
 package at.gaderman.serverFest.data.player;
 
+import at.gaderman.serverFest.utils.ItemUtils;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.OfflinePlayer;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -61,6 +66,32 @@ public class PlayerDataManager implements Listener {
 
     public void addChampionTimes(Player player) {
         update(player, data -> data.setChampionTimes(data.championTimes() + 1));
+    }
+
+    public void sendStatsOf(Player checking, OfflinePlayer player){
+        if(!player.hasPlayedBefore()){
+            checking.playSound(checking, Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+            checking.sendMessage(Component.text(player.getName() + " has never played on this server before!", NamedTextColor.RED));
+            return;
+        }
+
+        PlayerData playerData = dataOf(player.getUniqueId());
+
+        checking.playSound(checking, Sound.BLOCK_LEVER_CLICK, 1f, 0.3f);
+        checking.sendMessage(ItemUtils.padWithHyphens(
+                Component.text(player.getName() + "'s Fest Stats", NamedTextColor.GOLD),
+                Component.text("-", NamedTextColor.DARK_GRAY)
+        ));
+        checking.sendMessage(Component.text("Fests participated: ", NamedTextColor.GRAY)
+                .append(Component.text(playerData.festsParticipated(), NamedTextColor.YELLOW)));
+        checking.sendMessage(Component.text("Fests won: ", NamedTextColor.GRAY)
+                .append(Component.text(playerData.festsWon(), NamedTextColor.YELLOW)));
+        checking.sendMessage(Component.text("Duels held: ", NamedTextColor.GRAY)
+                .append(Component.text(playerData.duelsHeld(), NamedTextColor.YELLOW)));
+        checking.sendMessage(Component.text("Duels won: ", NamedTextColor.GRAY)
+                .append(Component.text(playerData.duelsWon(), NamedTextColor.YELLOW)));
+        checking.sendMessage(Component.text("Times gotten champion: ", NamedTextColor.GRAY)
+                .append(Component.text(playerData.championTimes(), NamedTextColor.YELLOW)));
     }
 
     @EventHandler

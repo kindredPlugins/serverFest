@@ -1,6 +1,7 @@
 package at.gaderman.serverFest.command;
 
 import at.gaderman.serverFest.config.PermissionProvider;
+import at.gaderman.serverFest.data.player.PlayerDataManager;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.FestManager;
 import at.gaderman.serverFest.fests.FestType;
@@ -15,6 +16,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.Sound;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -87,6 +89,16 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                         ChampionTitleManager.getInstance().toggleShowCrown((Player) sender);
                         return true;
                     }
+                    case "stats" -> {
+                        if(!isPlayer){
+                            sender.sendMessage(Component.text("Only players can open the calendar!", NamedTextColor.RED));
+                            return true;
+                        }
+
+                        Player player = (Player) sender;
+                        PlayerDataManager.getInstance().sendStatsOf(player, player);
+                        return true;
+                    }
                     case "quit" -> {
                         if (!isPlayer) {
                             sender.sendMessage(Component.text("Only players can use this command!", NamedTextColor.RED));
@@ -148,6 +160,25 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                     } catch (IllegalArgumentException exception) {
                         sender.sendMessage(Component.text("Invalid gameType " + args[1], NamedTextColor.RED));
                     }
+                    return true;
+                }
+
+                if(args[0].equals("stats")){
+                    if (!isPlayer) {
+                        sender.sendMessage(Component.text("Only players can join a fest!", NamedTextColor.RED));
+                        return true;
+                    }
+
+                    Player player = (Player) sender;
+                    OfflinePlayer toCheck = Bukkit.getOfflinePlayerIfCached(args[1]);
+
+                    if(toCheck == null){
+                        player.sendMessage(Component.text("The player " + args[1] + " has not been registered", NamedTextColor.RED));
+                        player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
+                        return true;
+                    }
+
+                    PlayerDataManager.getInstance().sendStatsOf(player, toCheck);
                     return true;
                 }
 
@@ -282,6 +313,7 @@ public class FestCommand implements CommandExecutor, TabCompleter {
 
                 completions.add("calendar");
                 completions.add("duel");
+                completions.add("stats");
 
                 if (sender instanceof Player player && FestManager.getInstance().isPlayerParticipatingInAnyFest(player))
                     completions.add("quit");
@@ -298,13 +330,18 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                     }
                 }
 
+                if(args[0].equals("stats")){
+                    Bukkit.getOnlinePlayers().forEach(player -> completions.add(player.getName()));
+                }
+
                 if (args[0].equals("duel")) {
                     Bukkit.getOnlinePlayers().forEach(player -> {
                         if (!player.equals(sender) && !FestManager.getInstance().isPlayerParticipatingInAnyFest(player))
                             completions.add(player.getName());
                     });
-                    completions.removeIf(completion -> !completion.startsWith(args[1]));
                 }
+
+                completions.removeIf(completion -> !completion.startsWith(args[1]));
             }
         }
 
