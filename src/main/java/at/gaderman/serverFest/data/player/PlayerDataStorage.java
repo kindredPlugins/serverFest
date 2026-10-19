@@ -18,11 +18,11 @@ public class PlayerDataStorage {
         return INSTANCE;
     }
 
-    private static final String FESTS_PARTICIPATED = "fests.participated";
-    private static final String FESTS_WON = "fests.won";
-    private static final String DUELS_HELD = "duels.held";
-    private static final String DUELS_WON = "duels.won";
-    private static final String CHAMPION_TIMES = "champion-times";
+    public static final String FESTS_PARTICIPATED = "fests_participated";
+    public static final String FESTS_WON = "fests_won";
+    public static final String DUELS_HELD = "duels_held";
+    public static final String DUELS_WON = "duels_won";
+    public static final String CHAMPION_TIMES = "champion_times";
 
     private PlayerDataStorage() {
     }

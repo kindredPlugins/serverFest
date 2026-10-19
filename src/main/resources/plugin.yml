@@ -9,6 +9,9 @@ folia-supported: true
 
 description: Introduces fests to the server which are server-side events of minigames which do not influence the main world
 
+softdepend:
+  - PlaceholderAPI
+
 commands:
   fest:
     description: Manage or start a new fest

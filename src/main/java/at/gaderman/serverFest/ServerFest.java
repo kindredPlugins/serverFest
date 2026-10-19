@@ -3,12 +3,14 @@ package at.gaderman.serverFest;
 import at.gaderman.serverFest.command.FestCommand;
 import at.gaderman.serverFest.config.GeneralConfig;
 import at.gaderman.serverFest.data.DataConfig;
+import at.gaderman.serverFest.data.player.PlayerDataManager;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.FestManager;
 import at.gaderman.serverFest.fests.SaveStateManagement;
 import at.gaderman.serverFest.fests.arenas.ArenaManager;
 import at.gaderman.serverFest.fests.rewards.ChampionTitleManager;
 import at.gaderman.serverFest.fests.schedule.FestCalendar;
+import at.gaderman.serverFest.libs.PAPIExpansion;
 import at.gaderman.serverFest.management.WorldManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -42,10 +44,16 @@ public final class ServerFest extends JavaPlugin {
 
         Bukkit.getPluginManager().registerEvents(new SaveStateManagement.SaveListener(), this);
         Bukkit.getPluginManager().registerEvents(ChampionTitleManager.getInstance(), this);
+        Bukkit.getPluginManager().registerEvents(PlayerDataManager.getInstance(), this);
 
         FestManager.getInstance();
         arenaManager = new ArenaManager();
         FestCalendar.getInstance().load();
+
+        if(Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")){
+            if(!new PAPIExpansion(this).register())
+                getLogger().warning("Could not register PlaceholderAPI expansion");
+        }
     }
 
     @Override

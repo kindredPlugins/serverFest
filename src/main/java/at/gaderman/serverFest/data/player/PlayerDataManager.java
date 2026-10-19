@@ -1,6 +1,9 @@
 package at.gaderman.serverFest.data.player;
 
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -11,7 +14,7 @@ import java.util.function.Consumer;
  * Manages all player statistics as {@link PlayerData} objects. Exposes write methods which it then directs to the
  * underlying storages. This class does not know how the PlayerData is saved but is the central interface to reach out to.
  */
-public class PlayerDataManager {
+public class PlayerDataManager implements Listener {
 
     private static final PlayerDataManager INSTANCE = new PlayerDataManager();
 
@@ -58,5 +61,10 @@ public class PlayerDataManager {
 
     public void addChampionTimes(Player player) {
         update(player, data -> data.setChampionTimes(data.championTimes() + 1));
+    }
+
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event){
+        dataOf(event.getPlayer().getUniqueId());
     }
 }
