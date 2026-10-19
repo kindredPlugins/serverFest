@@ -1,6 +1,7 @@
 package at.gaderman.serverFest.fests;
 
 import at.gaderman.serverFest.ServerFest;
+import at.gaderman.serverFest.config.GeneralConfig;
 import at.gaderman.serverFest.data.DataConfig;
 import at.gaderman.serverFest.data.player.PlayerDataManager;
 import at.gaderman.serverFest.fests.arenas.ArenaInstance;
@@ -42,6 +43,7 @@ public class Fest {
     private Location origin;
 
     private TriggerListener triggerListener;
+    private ScheduledTask maxTimeTask;
 
     public Fest(FestType festType, @NotNull GameType gameType, List<UUID> participantUUIDs) {
         this.uuid = UUID.randomUUID();
@@ -112,8 +114,7 @@ public class Fest {
 
         ScheduledTask timeOutTask = Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
             List<Player> participants = participants();
-
-            stop();
+            game.stop();
 
             participants.forEach(player -> {
                 player.sendMessage(Component.text("The fest setup experienced a timeout, this can happen if chunks get stuck in a loading state." +
@@ -123,19 +124,19 @@ public class Fest {
         }, 60 * 20);
         game.setUpWorld().thenRun(game::start).thenRun(timeOutTask::cancel)
                 .whenComplete((_, throwable) -> {
-                    if (throwable != null)
+                    if (throwable != null) {
                         ServerFest.getPlugin().getLogger().log(Level.SEVERE, "Failed to set up or start fest " + uuid, throwable);
-
-                    else{
+                        game.stop();
+                    } else {
                         DataConfig dataConfig = DataConfig.getInstance();
 
-                        if(festType == FestType.SERVER_COMPETITION)
+                        if (festType == FestType.SERVER_COMPETITION)
                             dataConfig.setCompetitiveRound(dataConfig.competitiveRound() + 1);
 
-                        else if(festType == FestType.CASUAL)
+                        else if (festType == FestType.CASUAL)
                             dataConfig.setCasualFestsHeld(dataConfig.casualFestsHeld() + 1);
 
-                        else if(festType == FestType.DUEL)
+                        else if (festType == FestType.DUEL)
                             dataConfig.setDuelsHeld(dataConfig.duelsHeld() + 1);
 
                         dataConfig.setFestsHeldTotal(dataConfig.festsHeldTotal() + 1);
@@ -143,11 +144,13 @@ public class Fest {
                         var playerDataManager = PlayerDataManager.getInstance();
                         boolean isDuel = festType == FestType.DUEL;
                         participants().forEach(participant -> {
-                            if(isDuel)
-                                    playerDataManager.addDuelsHeld(participant);
+                            if (isDuel)
+                                playerDataManager.addDuelsHeld(participant);
                             else
-                                    playerDataManager.addFestsParticipated(participant);
+                                playerDataManager.addFestsParticipated(participant);
                         });
+
+                        scheduleMaxTimeTask();
                     }
                 });
 
@@ -162,6 +165,9 @@ public class Fest {
     }
 
     public void stop() {
+        if(maxTimeTask != null)
+            maxTimeTask.cancel();
+
         participants().forEach(SaveStateManagement::restorePlayerState);
         triggerListener.unregister();
         FestManager.getInstance().unregisterFest(this);
@@ -179,10 +185,38 @@ public class Fest {
 
         SaveStateManagement.restorePlayerState(player);
 
-        if(participantUUIDs.isEmpty()){
+        if (participantUUIDs.isEmpty()) {
             ServerFest.getPlugin().getLogger().info("Terminating fest " + uuid + " as all players left the fest.");
             game.stop();
         }
+    }
+
+    private void scheduleMaxTimeTask(){
+        int warnTime = 30;
+
+        maxTimeTask = Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
+            participants().forEach(participant -> {
+                participant.playSound(participant, Sound.ENTITY_WITHER_AMBIENT, 1f, 0.3f);
+                participant.sendMessage(Component.text("This fest will terminate in 30 seconds due to lasting too long", NamedTextColor.RED));
+            });
+
+            maxTimeTask = Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
+                maxTimeTask = null;
+
+                //fest is already celebrating winner, should not be terminated now, over soon anyway
+                if(!game.isRunning())
+                    return;
+
+                ServerFest.getPlugin().getLogger().info("Fest " + uuid + " was forcefully stopped as it lasted longer than 5 minutes");
+                List<Player> participants = participants();
+                game.stop();
+
+                participants.forEach(participant -> {
+                    participant.playSound(participant, Sound.ENTITY_WITHER_DEATH, 1f, 0.3f);
+                    participant.sendMessage(Component.text("Terminated this fest as it took over 5 minutes to complete.", NamedTextColor.RED));
+                });
+            }, warnTime * 20);
+        }, (GeneralConfig.getInstance().maxFestDuration() - warnTime) * 20L );
     }
 
     private static Location adjustLocationToCenterOfChunk(Location location) {

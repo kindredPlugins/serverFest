@@ -48,6 +48,10 @@ public class GeneralConfig {
         return USE_WORLD_SEED.cached();
     }
 
+    public int maxFestDuration() {
+        return MAX_FEST_DURATION.cached();
+    }
+
     private final ConfigOption<Integer> ARENA_SLOTS = configRegistry.configOption("arenas.slots", 3, FileConfiguration::getInt, value -> Math.clamp(value, 1, 30))
             .withComments("Amount of arena slots generated and reserved per game type.",
                     "Especially important if your players host many duels, as too few arenas lead to waiting times.",
@@ -64,4 +68,9 @@ public class GeneralConfig {
             .withComments("If set to true the generated fest world will use the same seed as the main world.",
                     "This means even if you delete the fest world it will generate with the same seed again.",
                     "If you periodically delete your fest world and want arenas to change, set this to false");
+    private final ConfigOption<Integer> MAX_FEST_DURATION = configRegistry.configOption("fests.max_duration", 5 * 60, FileConfiguration::getInt, value -> Math.max(value, 60))
+            .withComments("Maximum amount of time a fest can run before being terminated.",
+                    "Used to disable a case of someone AFKing during a fest and blocking the arena for others.",
+                    "At least 1 minute since fests cannot be realistically be completed otherwise.",
+                    "Time given in seconds.");
 }
