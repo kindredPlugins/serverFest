@@ -77,6 +77,9 @@ public abstract class FestGame<T extends ArenaLayout> {
      * Start the game, setting its status to running and starting the shared countdown.
      */
     public final void start() {
+        if(!winners.isEmpty())
+            return;
+
         running = true;
         if (arenaBuildingBar != null) {
             List<Audience> viewers = new ArrayList<>();
@@ -102,6 +105,11 @@ public abstract class FestGame<T extends ArenaLayout> {
 
         final int[] timeLeft = {countdownSeconds()};
         Bukkit.getGlobalRegionScheduler().runAtFixedRate(ServerFest.getPlugin(), task -> {
+            if(!running){
+                task.cancel();
+                return;
+            }
+
             timeLeft[0]--;
 
             if (timeLeft[0] <= 5)
@@ -252,6 +260,12 @@ public abstract class FestGame<T extends ArenaLayout> {
             FestPlayerData festPlayerData = playerDataMap.getOrDefault(participant.getUniqueId(), null);
             if (festPlayerData != null)
                 festPlayerData.reset();
+
+            if(arenaBuildingBar != null){
+                List<Audience> viewers = new ArrayList<>();
+                arenaBuildingBar.viewers().forEach(viewer -> viewers.add((Audience) viewer));
+                viewers.forEach(arenaBuildingBar::removeViewer);
+            }
         });
         fest.stop();
         //TODO: allow winner to pick reward
@@ -299,6 +313,10 @@ public abstract class FestGame<T extends ArenaLayout> {
      */
     public void onLeave(Player player) {
         getOrCreatePlayerData(player.getUniqueId()).reset();
+
+        //last player wins
+        if(fest.participantUUIDs().size() == 1)
+            declareWinner(fest.participants());
     }
 
     //region Helper methods

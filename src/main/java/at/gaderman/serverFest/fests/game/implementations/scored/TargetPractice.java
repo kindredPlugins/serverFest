@@ -98,11 +98,6 @@ public class TargetPractice extends ScoreGame<ArenaLayout> implements NoBlockMan
         return 30 * 20;
     }
 
-    @Override
-    protected void onStop() {
-        fest.participants().forEach(player -> player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard()));
-    }
-
     // IMPORTANT: TargetPractice has no need for blockTracker conceptually, since it clears its are for itself everytime
     // However, further versions could change something about TargetPractice which might not be cleared correctly then
     // So BlockTracker will still be used

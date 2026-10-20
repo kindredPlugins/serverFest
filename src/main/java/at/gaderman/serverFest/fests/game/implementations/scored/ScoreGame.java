@@ -50,6 +50,11 @@ public abstract class ScoreGame<T extends ArenaLayout> extends FestGame<T> {
 
         remainingTime = runTime();
         Bukkit.getGlobalRegionScheduler().runAtFixedRate(ServerFest.getPlugin(), timeTask -> {
+            if(!isRunning()){
+                timeTask.cancel();
+                return;
+            }
+
             remainingTime--;
 
             List<Player> players = fest.participants();
@@ -114,6 +119,18 @@ public abstract class ScoreGame<T extends ArenaLayout> extends FestGame<T> {
     @Override
     protected void configureWinnerFirework(Firework firework) {
         firework.setTicksToDetonate(40);
+    }
+
+    @Override
+    public void onLeave(Player player) {
+        super.onLeave(player);
+
+        player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
+    }
+
+    @Override
+    protected void onStop() {
+        fest.participants().forEach(player -> player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard()));
     }
 
     //region Visuals

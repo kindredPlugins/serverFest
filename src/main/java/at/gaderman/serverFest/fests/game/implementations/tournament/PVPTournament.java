@@ -82,6 +82,7 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
 
     @Override
     protected void onCountdownComplete() {
+        bonusFaceOffs = fest.participants().size() > 1 ? 0 : 1;
         startFaceOffs();
         fest.participants().forEach(this::addActionBarSchedule);
     }
@@ -106,7 +107,7 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
     private final Map<FaceOff, Arena> arenaPerDuelMap = new HashMap<>();
 
     //TODO: for testing purposes to be able to play alone, remote later
-    private int bonusFaceOffs = fest.participants().size() > 1 ? 0 : 1;
+    private int bonusFaceOffs;
 
     private void groupIntoFaceOffs() {
         activeFaceOffs.clear();
