@@ -22,6 +22,7 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.util.Vector;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -259,6 +260,13 @@ public class SaveStateManagement {
         } catch (Exception ex) {
             return null;
         }
+    }
+
+    public static void updateSaveLocation(@NotNull Player player, @NotNull Location newLocation){
+        PersistentDataContainer pdc = player.getPersistentDataContainer();
+        pdc.set(SAVED_STATE, PersistentDataType.STRING, ServerFest.getPlugin().getPluginMeta().getVersion());
+
+        pdc.set(SAVE_LOCATION, PersistentDataType.STRING, serializeLocation(newLocation));
     }
 
     public static class SaveListener implements Listener {

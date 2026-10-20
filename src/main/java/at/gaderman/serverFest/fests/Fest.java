@@ -14,6 +14,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -157,7 +158,19 @@ public class Fest {
         CompletableFuture<?>[] teleports = participants().stream()
                 .map(player -> {
                     SaveStateManagement.savePlayerState(player);
-                    return player.teleportAsync(origin);
+
+                    player.eject();
+                    player.leaveVehicle();
+                    if (player.isSleeping())
+                        player.wakeup(false);
+
+                    return player.teleportAsync(origin)
+                            .thenAccept(teleported -> {
+                                if (!teleported) {
+                                    player.sendMessage(Component.text("You could not be teleported", NamedTextColor.RED));
+                                    onLeave(player);
+                                }
+                            });
                 })
                 .toArray(CompletableFuture[]::new);
 
@@ -165,7 +178,7 @@ public class Fest {
     }
 
     public void stop() {
-        if(maxTimeTask != null)
+        if (maxTimeTask != null)
             maxTimeTask.cancel();
 
         participants().forEach(SaveStateManagement::restorePlayerState);
@@ -177,6 +190,9 @@ public class Fest {
         participantUUIDs.remove(player.getUniqueId());
         game.onLeave(player);
 
+        player.sendMessage(ServerFest.CHAT_PREFIX
+                .append(Component.text("you left the fest", NamedTextColor.RED))
+        );
         participants().forEach(participant -> participant.sendMessage(
                         player.name().color(NamedTextColor.RED)
                                 .append(Component.text(" has left the fest", NamedTextColor.GRAY))
@@ -191,7 +207,23 @@ public class Fest {
         }
     }
 
-    private void scheduleMaxTimeTask(){
+    /**
+     * Called when an ender pearl of a player is triggered outside the fest world. This will intercept the event
+     * and then overwrite the players location value with the pearl result.
+     */
+    public void onEnderPearlTeleportAway(PlayerTeleportEvent event, Player player) {
+        event.setCancelled(true);
+
+        SaveStateManagement.updateSaveLocation(player, event.getTo());
+        player.playSound(player, Sound.ENTITY_PLAYER_TELEPORT, 1f, 1f);
+        player.sendMessage(ServerFest.CHAT_PREFIX
+                .append(Component.text("Your backup location has been updated to your recent ", NamedTextColor.GRAY))
+                .append(Component.text("ender pearl hit", NamedTextColor.LIGHT_PURPLE))
+                .append(Component.text(".", NamedTextColor.GRAY))
+        );
+    }
+
+    private void scheduleMaxTimeTask() {
         int warnTime = 30;
 
         maxTimeTask = Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
@@ -204,7 +236,7 @@ public class Fest {
                 maxTimeTask = null;
 
                 //fest is already celebrating winner, should not be terminated now, over soon anyway
-                if(!game.isRunning())
+                if (!game.isRunning())
                     return;
 
                 ServerFest.getPlugin().getLogger().info("Fest " + uuid + " was forcefully stopped as it lasted longer than 5 minutes");
@@ -216,7 +248,7 @@ public class Fest {
                     participant.sendMessage(Component.text("Terminated this fest as it took over 5 minutes to complete.", NamedTextColor.RED));
                 });
             }, warnTime * 20);
-        }, (GeneralConfig.getInstance().maxFestDuration() - warnTime) * 20L );
+        }, (GeneralConfig.getInstance().maxFestDuration() - warnTime) * 20L);
     }
 
     private static Location adjustLocationToCenterOfChunk(Location location) {

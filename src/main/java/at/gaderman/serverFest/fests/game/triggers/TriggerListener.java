@@ -25,6 +25,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.vehicle.VehicleExitEvent;
 
 public class TriggerListener implements Listener {
@@ -49,6 +50,21 @@ public class TriggerListener implements Listener {
 
         fest.onLeave(player);
         player.saveData();
+    }
+
+    @EventHandler
+    public void onPlayerTeleportEnderPearl(PlayerTeleportEvent event){
+        if(event.getCause() != PlayerTeleportEvent.TeleportCause.ENDER_PEARL)
+            return;
+
+        Player player = event.getPlayer();
+        if (!fest.participantUUIDs().contains(player.getUniqueId()))
+            return;
+
+        if(event.getTo().getWorld().equals(fest.world()))
+            return;
+
+        fest.onEnderPearlTeleportAway(event, player);
     }
 
     //region Action
