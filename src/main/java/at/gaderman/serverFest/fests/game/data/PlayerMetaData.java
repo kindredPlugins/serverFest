@@ -28,7 +28,8 @@ public class PlayerMetaData {
             new MetaData<>("exhaustion", PersistentDataType.FLOAT, 0.0f, Player::getExhaustion, Player::setExhaustion),
             new MetaData<>("level", PersistentDataType.INTEGER, 0, Player::getLevel, Player::setLevel),
             new MetaData<>("xp", PersistentDataType.FLOAT, 0.0f, Player::getExp, Player::setExp),
-            new MetaData<>("fall_distance", PersistentDataType.FLOAT, 0.0f, Player::getFallDistance, Player::setFallDistance)
+            new MetaData<>("fall_distance", PersistentDataType.FLOAT, 0.0f, Player::getFallDistance, Player::setFallDistance),
+            new MetaData<>("gliding", PersistentDataType.BOOLEAN, false, Player::isGliding, Player::setGliding)
     );
 
     public static ItemStack createPlayerDataItem(Player player) {
@@ -43,7 +44,7 @@ public class PlayerMetaData {
 
             meta.lore(
                     META_DATA.stream()
-                            .map(metaData -> Component.text("> ", NamedTextColor.GRAY)
+                            .map(metaData -> Component.text(metaData.key.value() + " > ", NamedTextColor.GRAY)
                                     .append(Component.text("" + metaData.obtainValue.apply(player), NamedTextColor.BLUE))
                                     .decoration(TextDecoration.ITALIC, false))
                             .toList()
@@ -63,7 +64,6 @@ public class PlayerMetaData {
     public static void resetPlayer(Player player) {
         player.setFireTicks(0);
         player.setFreezeTicks(0);
-        player.setGliding(false);
 
         for (MetaData<?> data : META_DATA)
             data.reset(player);
