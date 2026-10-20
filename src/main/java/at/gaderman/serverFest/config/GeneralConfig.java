@@ -52,10 +52,11 @@ public class GeneralConfig {
         return MAX_FEST_DURATION.cached();
     }
 
-    private final ConfigOption<Integer> ARENA_SLOTS = configRegistry.configOption("arenas.slots", 3, FileConfiguration::getInt, value -> Math.clamp(value, 1, 30))
+    private final ConfigOption<Integer> ARENA_SLOTS = configRegistry.configOption("arenas.slots", 3, FileConfiguration::getInt, value -> Math.clamp(value, 2, 30))
             .withComments("Amount of arena slots generated and reserved per game type.",
                     "Especially important if your players host many duels, as too few arenas lead to waiting times.",
                     "CAREFUL, each arena slot has to be generated, so more arenas equal to more startup pressure for your server.",
+                    "Has to be a minimum of 2, as one slot is reserved for fests and the other can be used for duels. Duels will never take up all slots of a game.",
                     "The set maximum is 30");
     private final ConfigOption<Integer> MAX_FEST_PLAYERS = configRegistry.configOption("fests.participants.max", 99, FileConfiguration::getInt, value -> Math.clamp(value, 2, 500))
             .withComments("Limit to the amount of max players a fest can be configured to allow.",

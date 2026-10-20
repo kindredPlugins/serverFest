@@ -37,6 +37,7 @@ public class FestRecruitment {
     private final int maxPlayers;
 
     private final List<UUID> participants;
+    private Fest fest;
 
     private final List<Player> notifiedPlayers = new ArrayList<>();
 
@@ -71,7 +72,7 @@ public class FestRecruitment {
     //region Scheduling
 
     protected void initSchedule() {
-        ArenaInstance arena = ServerFest.arenaManager.requestArena(gameType);
+        ArenaInstance arena = ServerFest.arenaManager.requestArena(gameType, festType);
         if (arena == null) {
             Bukkit.getOnlinePlayers().forEach(player -> {
                 player.sendMessage(ServerFest.CHAT_PREFIX
@@ -90,6 +91,8 @@ public class FestRecruitment {
             }, 30 * 20);
             return;
         }
+
+        fest = new Fest(festType, gameType, participants);
 
         Bukkit.getGlobalRegionScheduler().runAtFixedRate(ServerFest.getPlugin(), task -> {
             if (remainingTime <= 0) {
@@ -139,7 +142,7 @@ public class FestRecruitment {
             return;
         }
 
-        new Fest(festType, gameType, participants).start();
+        fest.start();
         RecruitmentManager.getInstance().relinquishRecruitment();
     }
 

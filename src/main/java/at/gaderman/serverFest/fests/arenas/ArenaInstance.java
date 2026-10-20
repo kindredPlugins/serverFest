@@ -77,6 +77,7 @@ public class ArenaInstance {
                 logger.info("Arena generation finished for " + gameType.name() + " at [" + origin.x() + " | " + origin.z() + "]");
                 state = ArenaState.READY;
                 future.complete(null);
+                ServerFest.arenaManager.informArenaReady(gameType);
                 return;
             }
 

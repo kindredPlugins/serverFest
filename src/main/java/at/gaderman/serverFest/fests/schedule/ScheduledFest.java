@@ -85,13 +85,6 @@ public abstract class ScheduledFest {
             instanceType = GameType.values()[(int) (Math.random() * GameType.values().length)];
         }
 
-        if (ServerFest.arenaManager.requestArena(instanceType) == null) {
-            Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
-                startUp();
-            }, 20);
-            return;
-        }
-
         //TODO: inspect this properly, make a fixed constant for time left, this way fests still actually occur one minute late, may adjust it to trigger one minute before
         FestRecruitment.requestRecruitment(60, festType, instanceType);
     }

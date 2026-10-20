@@ -3,6 +3,7 @@ package at.gaderman.serverFest.gui.fests;
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.FestType;
+import at.gaderman.serverFest.fests.duel.DuelQueueManager;
 import at.gaderman.serverFest.fests.game.GameType;
 import at.gaderman.serverFest.gui.ActionInventory;
 import at.gaderman.serverFest.utils.ItemUtils;
@@ -15,8 +16,10 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class DuelConfirmationGUI extends ActionInventory {
 
@@ -107,13 +110,39 @@ public class DuelConfirmationGUI extends ActionInventory {
         if (challengerAccepted && opponentAccepted) {
             inventory.close();
 
-            List.of(challenger, opponent).forEach(player -> {
+            List<Player> players = List.of(challenger, opponent);
+            players.forEach(player -> {
                 player.playSound(player, Sound.ENTITY_PLAYER_LEVELUP, 1f, 0.3f);
             });
 
             challenger.getScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
-                Fest fest = new Fest(FestType.DUEL, gameType == null ? GameType.values()[(int) (Math.random() * GameType.values().length)] : gameType,
-                        Arrays.asList(challenger.getUniqueId(), opponent.getUniqueId()));
+                List<GameType> chooseTypes = Arrays.stream(GameType.values()).collect(Collectors.toList());
+                GameType game = gameType;
+
+                while(game == null && !chooseTypes.isEmpty()){
+                    game = chooseTypes.remove((int) (Math.random() * chooseTypes.size()));
+
+                    if(ServerFest.arenaManager.requestArena(game, FestType.DUEL) == null)
+                        game = null;
+                }
+
+                if(game == null || ServerFest.arenaManager.requestArena(game, FestType.DUEL) == null){
+                    Component gameDisplay = game == null ? Component.text("any game")
+                            : game.definition().iconName();
+
+                    players.forEach(player -> {
+                        player.playSound(player, Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 0.2f);
+                        player.sendMessage(ServerFest.CHAT_PREFIX
+                                .append(Component.text("there is no arena ready for ", NamedTextColor.RED))
+                                .append(gameDisplay)
+                        );
+                    });
+
+                    DuelQueueManager.getInstance().enqueue(challenger, opponent, gameType);
+                    return;
+                }
+
+                Fest fest = new Fest(FestType.DUEL, game, new ArrayList<>(List.of(challenger.getUniqueId(), opponent.getUniqueId())));
                 fest.start();
             }, () -> {
 

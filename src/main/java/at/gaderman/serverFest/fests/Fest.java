@@ -51,10 +51,14 @@ public class Fest {
         this.festType = festType;
         this.participantUUIDs = participantUUIDs;
 
-        this.arenaInstance = ServerFest.arenaManager.requestArena(gameType);
+        this.arenaInstance = ServerFest.arenaManager.requestArena(gameType, festType);
         this.game = gameType.createNewInstance(this, arenaInstance);
 
-        //TODO: handle no ready arena in here but probably from outer scope
+        if(arenaInstance == null){
+            ServerFest.getPlugin().getLogger().severe("A fest has been forcefully started without checking for an empty arena slot first!");
+            throw new RuntimeException("A fest has been forcefully started without checking for an empty arena slot first!");
+        }
+
         arenaInstance.activateArena();
     }
 
@@ -117,6 +121,7 @@ public class Fest {
             List<Player> participants = participants();
             game.stop();
 
+            ServerFest.getPlugin().getLogger().severe("Fest " + uuid + " was terminated during startup due to a loading timeout.");
             participants.forEach(player -> {
                 player.sendMessage(Component.text("The fest setup experienced a timeout, this can happen if chunks get stuck in a loading state." +
                         " Its best to wait a bit since this can happen if the server was not ready loading this are yet.", NamedTextColor.RED));
@@ -191,7 +196,7 @@ public class Fest {
         game.onLeave(player);
 
         player.sendMessage(ServerFest.CHAT_PREFIX
-                .append(Component.text("you left the fest", NamedTextColor.RED))
+                .append(Component.text("You left the fest", NamedTextColor.RED))
         );
         participants().forEach(participant -> participant.sendMessage(
                         player.name().color(NamedTextColor.RED)

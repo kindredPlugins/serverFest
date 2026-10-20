@@ -2,6 +2,8 @@ package at.gaderman.serverFest.fests.arenas;
 
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.config.GeneralConfig;
+import at.gaderman.serverFest.fests.FestType;
+import at.gaderman.serverFest.fests.duel.DuelQueueManager;
 import at.gaderman.serverFest.fests.game.GameType;
 import at.gaderman.serverFest.management.WorldManager;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
@@ -46,12 +48,16 @@ public class ArenaManager {
         scheduleArenaGeneration();
     }
 
-    public @Nullable ArenaInstance requestArena(GameType gameType) {
+    public @Nullable ArenaInstance requestArena(GameType gameType, FestType festType) {
         List<ArenaInstance> readyArenas = arenas.stream()
                 .filter(arena -> arena.gameType().equals(gameType) && arena.arenaState() == ArenaState.READY)
                 .toList();
 
         if (readyArenas.isEmpty())
+            return null;
+
+        // one arena needs to stay ready for fests, duels should not block a fest from happening
+        if (festType == FestType.DUEL && readyArenas.size() < 2)
             return null;
 
         return readyArenas.get((int) (Math.random() * readyArenas.size()));
@@ -74,5 +80,14 @@ public class ArenaManager {
                 generatingInstance.generateArena().thenRun(() -> generatingInstance = null);
             }
         }, 1, 1);
+    }
+
+    protected void informArenaReady(GameType gameType) {
+        List<ArenaInstance> readyArenas = arenas.stream()
+                .filter(arena -> arena.gameType().equals(gameType) && arena.arenaState() == ArenaState.READY)
+                .toList();
+
+        if (readyArenas.size() > 1)
+            DuelQueueManager.getInstance().presentArenaUpdate(gameType);
     }
 }
