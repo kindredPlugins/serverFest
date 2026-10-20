@@ -77,7 +77,7 @@ public abstract class FestGame<T extends ArenaLayout> {
      * Start the game, setting its status to running and starting the shared countdown.
      */
     public final void start() {
-        if(!winners.isEmpty())
+        if (!winners.isEmpty())
             return;
 
         running = true;
@@ -105,7 +105,7 @@ public abstract class FestGame<T extends ArenaLayout> {
 
         final int[] timeLeft = {countdownSeconds()};
         Bukkit.getGlobalRegionScheduler().runAtFixedRate(ServerFest.getPlugin(), task -> {
-            if(!running){
+            if (!running) {
                 task.cancel();
                 return;
             }
@@ -223,7 +223,10 @@ public abstract class FestGame<T extends ArenaLayout> {
         if (winner == null) {
             return Component.text("No winner", NamedTextColor.GOLD);
         }
-        return MiniMessage.miniMessage().deserialize("<head:" + winner.getUniqueId() + "> ")
+        Component headPrefix = ServerFest.supportsChatObjects
+                ? MiniMessage.miniMessage().deserialize("<head:" + winner.getUniqueId() + "> ")
+                : Component.empty();
+        return headPrefix
                 .append(winner.name().color(NamedTextColor.GOLD))
                 .append(Component.text(" has won!", NamedTextColor.GREEN));
     }
@@ -261,7 +264,7 @@ public abstract class FestGame<T extends ArenaLayout> {
             if (festPlayerData != null)
                 festPlayerData.reset();
 
-            if(arenaBuildingBar != null){
+            if (arenaBuildingBar != null) {
                 List<Audience> viewers = new ArrayList<>();
                 arenaBuildingBar.viewers().forEach(viewer -> viewers.add((Audience) viewer));
                 viewers.forEach(arenaBuildingBar::removeViewer);
@@ -315,7 +318,7 @@ public abstract class FestGame<T extends ArenaLayout> {
         getOrCreatePlayerData(player.getUniqueId()).reset();
 
         //last player wins
-        if(fest.participantUUIDs().size() == 1)
+        if (fest.participantUUIDs().size() == 1)
             declareWinner(fest.participants());
     }
 

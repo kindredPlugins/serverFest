@@ -10,9 +10,12 @@ import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
+import org.bukkit.Color;
+import org.bukkit.FireworkEffect;
 import org.bukkit.Sound;
 import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.meta.FireworkMeta;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scoreboard.Criteria;
@@ -118,7 +121,17 @@ public abstract class ScoreGame<T extends ArenaLayout> extends FestGame<T> {
 
     @Override
     protected void configureWinnerFirework(Firework firework) {
-        firework.setTicksToDetonate(40);
+        FireworkMeta meta = firework.getFireworkMeta();
+        meta.clearEffects();
+        meta.addEffect(FireworkEffect.builder()
+                .withColor(Color.YELLOW)
+                .withFade(Color.RED)
+                .with(FireworkEffect.Type.STAR)
+                .withFlicker()
+                .withTrail()
+                .build());
+        firework.setFireworkMeta(meta);
+        firework.setTicksToDetonate(20);
     }
 
     @Override

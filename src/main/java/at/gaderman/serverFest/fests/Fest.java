@@ -1,6 +1,7 @@
 package at.gaderman.serverFest.fests;
 
 import at.gaderman.serverFest.ServerFest;
+import at.gaderman.serverFest.compatibility.GameRuleCompat;
 import at.gaderman.serverFest.config.GeneralConfig;
 import at.gaderman.serverFest.data.DataConfig;
 import at.gaderman.serverFest.data.player.PlayerDataManager;
@@ -113,7 +114,7 @@ public class Fest {
         FestManager.getInstance().registerFest(this);
 
         world = WorldManager.getInstance().loadOrCreateFestWorld();
-        world.setGameRule(GameRules.SPAWN_MOBS, false);
+        GameRuleCompat.SPAWN_MOBS.set(world, false);
 
         this.origin = adjustLocationToCenterOfChunk(game.determineOrigin());
 

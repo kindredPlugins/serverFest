@@ -1,6 +1,7 @@
 package at.gaderman.serverFest.fests.game.implementations.scored;
 
 import at.gaderman.serverFest.ServerFest;
+import at.gaderman.serverFest.compatibility.GameRuleCompat;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.arenas.ArenaInstance;
 import at.gaderman.serverFest.fests.arenas.ArenaLayout;
@@ -150,8 +151,8 @@ public class TargetPractice extends ScoreGame<ArenaLayout> implements NoBlockMan
                 .toList();
 
         return CompletableFuture.allOf(chunks.toArray(CompletableFuture[]::new)).thenRun(() -> {
-            boolean doBlockDrops = world.getGameRuleValue(GameRules.BLOCK_DROPS);
-            world.setGameRule(GameRules.BLOCK_DROPS, false);
+            boolean doBlockDrops = GameRuleCompat.BLOCK_DROPS.get(world);
+            GameRuleCompat.BLOCK_DROPS.set(world, false);
 
             for (int x = minX; x <= maxX; x++)
                 for (int y = 0; y < ARENA_HEIGHT; y++)
@@ -176,7 +177,7 @@ public class TargetPractice extends ScoreGame<ArenaLayout> implements NoBlockMan
                 for (int z = 0; z <= ARENA_LENGTH - PLATFORM_OFFSET; z++)
                     blockTracker.setBlock(shootCorner.clone().add(x, 0, z), Material.YELLOW_GLAZED_TERRACOTTA);
 
-            world.setGameRule(GameRules.BLOCK_DROPS, doBlockDrops);
+            GameRuleCompat.BLOCK_DROPS.set(world, doBlockDrops);
             blockTracker.save();
         });
     }

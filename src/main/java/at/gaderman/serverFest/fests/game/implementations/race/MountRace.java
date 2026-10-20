@@ -10,6 +10,7 @@ import at.gaderman.serverFest.fests.game.implementations.race.data.CheckPoint;
 import at.gaderman.serverFest.fests.game.implementations.race.data.RaceGamePlayerData;
 import at.gaderman.serverFest.fests.game.triggers.action.PlayerVehicleExitTrigger;
 import at.gaderman.serverFest.fests.game.triggers.damage.PlayerDamageTrigger;
+import io.papermc.paper.entity.TeleportFlag;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.*;
@@ -444,6 +445,7 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
         event.setCancelled(true);
     }
 
+    @SuppressWarnings("removal")
     @Override
     public void onVehicleExit(VehicleExitEvent event, Player player, Vehicle vehicle) {
         if (fest.game().isRunning() && vehicle.isValid() && !player.getGameMode().isInvulnerable())
@@ -455,9 +457,9 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
         RaceGamePlayerData playerData = (RaceGamePlayerData) getOrCreatePlayerData(player.getUniqueId());
         int checkPoint = playerData.currentCheckPoint();
         if (checkPoint == 0)
-            vehicle.teleport(fest.origin());
+            vehicle.teleport(fest.origin(), TeleportFlag.EntityState.RETAIN_PASSENGERS);
         else
-            vehicle.teleport(checkPoints.get(checkPoint).location().toCenterLocation());
+            vehicle.teleport(checkPoints.get(checkPoint).location().toCenterLocation(), TeleportFlag.EntityState.RETAIN_PASSENGERS);
 
         player.playSound(player, Sound.ENTITY_ENDERMAN_TELEPORT, 1f, 1.3f);
         player.sendActionBar(Component.text("Returned to checkpoint", NamedTextColor.YELLOW));

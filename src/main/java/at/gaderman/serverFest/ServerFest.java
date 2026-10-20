@@ -21,10 +21,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public final class ServerFest extends JavaPlugin {
 
-    public static final Component CHAT_PREFIX = Component.text("[", NamedTextColor.DARK_GRAY)
-            .append(MiniMessage.miniMessage().deserialize("<sprite:\"minecraft:items\":item/firework_rocket>").color(NamedTextColor.WHITE))
-            //.append(Component.text("SF", NamedTextColor.GREEN))
-            .append(Component.text("] ", NamedTextColor.DARK_GRAY));
+    public static final boolean supportsChatObjects = checkChatObjectSupport();
+    public static final Component CHAT_PREFIX = buildChatPrefix();
 
     public static ArenaManager arenaManager;
 
@@ -63,6 +61,51 @@ public final class ServerFest extends JavaPlugin {
         // Plugin shutdown logic
         getLogger().info("Stopping all ongoing fests...");
         FestManager.getInstance().getFests().forEach(Fest::stop);
+    }
+
+    private static boolean checkChatObjectSupport() {
+        String version = Bukkit.getMinecraftVersion();
+        String[] parts = version.split("[.\\-]");
+
+        int major = parsePart(parts, 0);
+        int minor = parsePart(parts, 1);
+        int patch = parsePart(parts, 2);
+
+        // New year-based scheme (26.x and later): always supported
+        if (major > 1) return true;
+
+        // Legacy 1.x scheme: needs 1.21.9 or higher
+        if (major == 1) {
+            if (minor > 21) return true;
+            return minor == 21 && patch >= 9;
+        }
+
+        return false;
+    }
+
+    private static int parsePart(String[] parts, int index) {
+        if (index >= parts.length) return 0;
+        try {
+            return Integer.parseInt(parts[index].replaceAll("\\D", ""));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    private static Component buildChatPrefix() {
+        Component icon = supportsChatObjects
+                ? MiniMessage.miniMessage()
+                .deserialize("<sprite:\"minecraft:items\":item/firework_rocket>")
+                .color(NamedTextColor.WHITE)
+                : Component.text("SF", NamedTextColor.GREEN);
+
+        return Component.text("[", NamedTextColor.DARK_GRAY)
+                .append(icon)
+                .append(Component.text("] ", NamedTextColor.DARK_GRAY));
+    }
+
+    public static Component withChatPrefix(Component component){
+        return CHAT_PREFIX.append(component);
     }
 
 //    @EventHandler

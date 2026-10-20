@@ -1,5 +1,6 @@
 package at.gaderman.serverFest.command;
 
+import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.config.PermissionProvider;
 import at.gaderman.serverFest.data.player.PlayerDataManager;
 import at.gaderman.serverFest.fests.Fest;
@@ -81,7 +82,7 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                         return true;
                     }
                     case "togglecrown" -> {
-                        if(!isPlayer) {
+                        if (!isPlayer) {
                             sender.sendMessage(Component.text("Only players can open the calendar!", NamedTextColor.RED));
                             return true;
                         }
@@ -90,7 +91,7 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                         return true;
                     }
                     case "stats" -> {
-                        if(!isPlayer){
+                        if (!isPlayer) {
                             sender.sendMessage(Component.text("Only players can open the calendar!", NamedTextColor.RED));
                             return true;
                         }
@@ -163,7 +164,7 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
 
-                if(args[0].equals("stats")){
+                if (args[0].equals("stats")) {
                     if (!isPlayer) {
                         sender.sendMessage(Component.text("Only players can join a fest!", NamedTextColor.RED));
                         return true;
@@ -172,7 +173,7 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                     Player player = (Player) sender;
                     OfflinePlayer toCheck = Bukkit.getOfflinePlayerIfCached(args[1]);
 
-                    if(toCheck == null){
+                    if (toCheck == null) {
                         player.sendMessage(Component.text("The player " + args[1] + " has not been registered", NamedTextColor.RED));
                         player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
                         return true;
@@ -204,7 +205,7 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                         return true;
                     }
 
-                    if(opponent.equals(player)) {
+                    if (opponent.equals(player)) {
                         player.sendMessage(Component.text("You cannot duel yourself!", NamedTextColor.RED));
                         player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
                         return true;
@@ -273,8 +274,12 @@ public class FestCommand implements CommandExecutor, TabCompleter {
 
     private void sendScheduleMessage(CommandSender sender) {
         if (sender instanceof Player playerSender) {
+            Component prefix = ServerFest.supportsChatObjects
+                    ? MiniMessage.miniMessage().deserialize("<sprite:\"minecraft:items\":item/firework_rocket> <head:" + playerSender.getUniqueId() + "> ")
+                    : Component.text(playerSender.getName(), NamedTextColor.GOLD);
+
             Bukkit.getOnlinePlayers().forEach(player -> {
-                player.sendMessage(MiniMessage.miniMessage().deserialize("<sprite:\"minecraft:items\":item/firework_rocket> <head:" + playerSender.getUniqueId() + "> ")
+                player.sendMessage(prefix
                         .append(Component.text(" just scheduled a new fest!", NamedTextColor.GRAY)));
                 player.playSound(player, Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 0.6f);
             });
@@ -307,7 +312,7 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                     completions.add("create");
                 }
 
-                if(isPlayer && ChampionTitleManager.getInstance().isChampion((Player) sender)) {
+                if (isPlayer && ChampionTitleManager.getInstance().isChampion((Player) sender)) {
                     completions.add("togglecrown");
                 }
 
@@ -330,7 +335,7 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                     }
                 }
 
-                if(args[0].equals("stats")){
+                if (args[0].equals("stats")) {
                     Bukkit.getOnlinePlayers().forEach(player -> completions.add(player.getName()));
                 }
 

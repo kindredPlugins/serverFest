@@ -71,6 +71,7 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
 
     @Override
     public CompletableFuture<Void> setUpWorld() {
+        bonusFaceOffs = fest.participants().size() > 1 ? 0 : 1;
         groupIntoFaceOffs();
         return createWaitingArena().thenCompose(ignored -> buildArenas());
     }
@@ -82,7 +83,6 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
 
     @Override
     protected void onCountdownComplete() {
-        bonusFaceOffs = fest.participants().size() > 1 ? 0 : 1;
         startFaceOffs();
         fest.participants().forEach(this::addActionBarSchedule);
     }
@@ -100,6 +100,20 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
     @Override
     protected Sound winnerCelebrationSound() {
         return Sound.MUSIC_DISC_CREATOR;
+    }
+
+    @Override
+    protected void configureWinnerFirework(Firework firework) {
+        FireworkMeta meta = firework.getFireworkMeta();
+        meta.clearEffects();
+        meta.addEffect(FireworkEffect.builder()
+                .withColor(Color.BLUE)
+                .withFade(Color.FUCHSIA)
+                .with(FireworkEffect.Type.BALL_LARGE)
+                .withFlicker()
+                .withTrail()
+                .build());
+        firework.setFireworkMeta(meta);
     }
 
     //region Organization
@@ -416,7 +430,7 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
         player.setSaturation(4);
         player.setFoodLevel(20);
 
-        if(stateOf(player) == PlayerTournamentState.SPECTATOR)
+        if (stateOf(player) == PlayerTournamentState.SPECTATOR)
             changeIntoSpectator(player);
     }
 
@@ -684,9 +698,14 @@ public class PVPTournament extends FestGame<ArenaLayout> implements NoBlockManip
         Player winner = faceOff.player1.equals(player) ? faceOff.player2 : faceOff.player1;
 
         player.sendTitlePart(TitlePart.TITLE, Component.text("Eliminated", NamedTextColor.RED));
-        player.sendTitlePart(TitlePart.SUBTITLE, MiniMessage.miniMessage()
-                .deserialize("<head:" + winner.getUniqueId() + "> <gold>" + winner.getName() + "</gold> " +
-                        "<gray>won the duel"));
+
+        Component prefix = ServerFest.supportsChatObjects
+                ? MiniMessage.miniMessage().deserialize("<head:" + winner.getUniqueId() + "> ")
+                : Component.empty();
+        player.sendTitlePart(TitlePart.SUBTITLE, prefix
+                .append(Component.text(winner.getName(), NamedTextColor.GOLD))
+                .append(Component.text(" won the duel", NamedTextColor.GRAY))
+        );
         player.playSound(player, Sound.ENTITY_BAT_DEATH, 1f, 0.25f);
 
         playWinDuel(winner);

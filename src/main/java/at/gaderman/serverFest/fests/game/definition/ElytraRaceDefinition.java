@@ -1,6 +1,6 @@
 package at.gaderman.serverFest.fests.game.definition;
 
-import at.gaderman.serverFest.utils.ItemUtils;
+import at.gaderman.serverFest.ServerFest;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -22,12 +22,16 @@ public class ElytraRaceDefinition implements GameDefinition {
 
     @Override
     public List<Component> iconLore() {
+        Component firework = ServerFest.supportsChatObjects
+                ? MiniMessage.miniMessage().deserialize("<sprite:\"minecraft:items\":item/firework_rocket>")
+                : Component.empty();
+
         return List.of(
                 Component.text("Fly with an elytra through a set of ")
                         .append(Component.text("hoops", NamedTextColor.YELLOW))
                         .append(Component.text(".")),
                 Component.text("Each checkpoint grants a ")
-                        .append(MiniMessage.miniMessage().deserialize("<sprite:\"minecraft:items\":item/firework_rocket>"))
+                        .append(firework)
                         .append(Component.text("firework boost", NamedTextColor.RED))
                         .append(Component.text(".")),
                 Component.text("Fly through all hoops in order to win.")

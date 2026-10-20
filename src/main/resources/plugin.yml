@@ -3,7 +3,7 @@ version: '${version}'
 author: gaderman244
 
 main: at.gaderman.serverFest.ServerFest
-api-version: '26.2'
+api-version: '1.21'
 load: POSTWORLD
 folia-supported: false
 

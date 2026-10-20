@@ -70,7 +70,7 @@ public class WorldManager {
         }
 
         newHub.setSpawnLocation(0, 64, 0);
-        newHub.setGameRule(GameRules.RESPAWN_RADIUS, 0);
+        //newHub.setGameRule(GameRules.RESPAWN_RADIUS, 0);
 
         for (int x = -10; x <= 10; x++)
                 for (int z = -10; z <= 10; z++){
