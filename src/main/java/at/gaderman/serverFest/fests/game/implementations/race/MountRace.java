@@ -6,6 +6,7 @@ import at.gaderman.serverFest.fests.arenas.ArenaInstance;
 import at.gaderman.serverFest.fests.game.GameType;
 import at.gaderman.serverFest.fests.game.implementations.race.arena.RaceGameArenaLayout;
 import at.gaderman.serverFest.fests.game.implementations.race.data.CheckPoint;
+import at.gaderman.serverFest.fests.game.implementations.race.data.RaceGamePlayerData;
 import at.gaderman.serverFest.fests.game.triggers.action.PlayerVehicleExitTrigger;
 import at.gaderman.serverFest.fests.game.triggers.damage.PlayerDamageTrigger;
 import net.kyori.adventure.text.Component;
@@ -43,7 +44,8 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
     @Override
     public Location determineOrigin() {
         Location origin = super.determineOrigin();
-        origin.setY(getTrackSurfaceY(fest.world(), origin.getBlockX(), origin.getBlockZ()) + 0.5);
+        int surfaceY = getTrackSurfaceY(fest.world(), origin.getBlockX(), origin.getBlockZ());
+        origin.setY(surfaceY + 0.5);
         return origin;
     }
 
@@ -157,11 +159,13 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
 
     public static final int CHECKPOINT_COUNT = 10;
     public static final int TRACK_DIAMETER = 2;
+    public static final int MAX_TRACK_HEIGHT_CHANGE = 3;
     public static final double GATE_SIZE = TRACK_DIAMETER * 2 + 3;
 
     private void buildTrack(CompletableFuture<Void> future) {
         World world = fest.world();
-        Location origin = fest.origin().clone().subtract(0, 0.5, 0);
+        Location origin = fest.origin().clone();
+        origin.setY(getTrackSurfaceY(world, origin.getBlockX(), origin.getBlockZ()) + 0.5);
         buildTrackSection(future, world, origin, TRACK_DIAMETER, GATE_SIZE, CHECKPOINT_COUNT, 0);
     }
 
@@ -182,37 +186,46 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
                     chunk.addPluginChunkTicket(ServerFest.getPlugin());
             });
 
-            int checkpointY = getTrackSurfaceY(world, newLocation.getBlockX(), newLocation.getBlockZ());
-            newLocation.setY(checkpointY);
-            checkPoint.location().set(newLocation.getX(), checkpointY, newLocation.getZ());
+            List<TrackPoint> path = createPath(lastLocation, newLocation);
 
-            for (TrackPoint path : createPath(lastLocation, newLocation)) {
+            int[] levels = new int[path.size()];
+            for (int i = 0; i < levels.length; i++) {
+                BlockPos center = path.get(i).center();
+                levels[i] = getTrackSurfaceY(world, center.x(), center.z());
+            }
+
+            for (int i = 0; i < path.size(); i++) {
+                TrackPoint point = path.get(i);
+                int level = levels[i];
+
                 List<BlockPos> blocks = new ArrayList<>();
-                blocks.add(path.center());
-                blocks.addAll(path.sides());
+                blocks.add(point.center());
+                blocks.addAll(point.sides());
 
                 for (BlockPos pos : blocks) {
-                    int y = getTrackSurfaceY(world, pos.x(), pos.z());
-                    Block trackBlock = world.getBlockAt(pos.x(), y, pos.z());
+                    blockTracker.setBlock(world.getBlockAt(pos.x(), level, pos.z()), Material.SPRUCE_SLAB);
 
-                    if (!trackBlock.isPassable() && !trackBlock.isLiquid() && !isLeaves(trackBlock.getType()))
-                        continue;
-
-                    blockTracker.setBlock(trackBlock, Material.SPRUCE_SLAB);
-
-                    for (int clearY = y + 1; clearY <= y + 3; clearY++) {
+                    for (int clearY = level + 1; clearY < level + 10; clearY++) {
                         Block clearance = world.getBlockAt(pos.x(), clearY, pos.z());
 
-                        if (!clearance.isPassable() && !clearance.isLiquid())
+                        if (!clearance.isLiquid())
                             blockTracker.setBlock(clearance, Material.AIR);
                     }
                 }
             }
 
+            int checkpointY = levels.length > 0
+                    ? levels[levels.length - 1]
+                    : getTrackSurfaceY(world, newLocation.getBlockX(), newLocation.getBlockZ());
+
+            newLocation.setY(checkpointY);
+            checkPoint.location().set(newLocation.getX(), checkpointY, newLocation.getZ());
+
             blockTracker.save();
 
             if (index != 0)
-                createGate(checkPoint.location().clone().add(0, gateSize * 0.4, 0), gateSize, 0.6, index == checkpointCount - 1);
+                createGate(checkPoint.location().clone().add(0, gateSize * 0.4, 0),
+                        gateSize, 0.6, index == checkpointCount - 1);
 
             buildTrackSection(future, world, newLocation, trackDiameter, gateSize, checkpointCount, index + 1);
         });
@@ -260,7 +273,8 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
                 || name.endsWith("_HYPHAE")
                 || name.endsWith("_ROOTS")
                 || name.equals("MUSHROOM_STEM")
-                || name.equals("BAMBOO_BLOCK");
+                || name.equals("BAMBOO_BLOCK")
+                || name.equals("BAMBOO");
     }
 
     public static List<TrackPoint> createPath(Location from, Location to) {
@@ -340,6 +354,16 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
     public void onVehicleExit(VehicleExitEvent event, Player player, Vehicle vehicle) {
         if (fest.game().isRunning() && vehicle.isValid() && !player.getGameMode().isInvulnerable())
             event.setCancelled(true);
+
+        RaceGamePlayerData playerData = (RaceGamePlayerData) getOrCreatePlayerData(player.getUniqueId());
+        int checkPoint = playerData.currentCheckPoint();
+        if (checkPoint == 0)
+            vehicle.teleport(fest.origin());
+        else
+            vehicle.teleport(checkPoints.get(checkPoint).location().toCenterLocation());
+
+        player.playSound(player, Sound.ENTITY_ENDERMAN_TELEPORT, 1f, 1.3f);
+        player.sendActionBar(Component.text("Returned to checkpoint", NamedTextColor.YELLOW));
     }
 
     //endregion
