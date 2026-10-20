@@ -7,14 +7,16 @@ api-version: '1.21'
 load: POSTWORLD
 folia-supported: false
 
-description: Introduces fests to the server which are server-side events of minigames which do not influence the main world
+description:
+  Paper Plugin that adds vanilla-styled minigames to the server in form of fests.
+  Schedule fests or duel other players in elytra races, pvp tournaments and many more.
 
 softdepend:
   - PlaceholderAPI
 
 commands:
   fest:
-    description: Manage or start a new fest
+    description: General command revolving around everything of fests, both admin and general
 
 permissions:
   serverFest.fest.manage:

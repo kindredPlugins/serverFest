@@ -13,6 +13,7 @@ import at.gaderman.serverFest.fests.game.triggers.inventory.PlayerDropItemTrigge
 import at.gaderman.serverFest.fests.game.triggers.inventory.PlayerInventoryClickTrigger;
 import at.gaderman.serverFest.fests.game.triggers.inventory.PlayerPickupItemTrigger;
 import at.gaderman.serverFest.fests.game.triggers.projectiles.PlayerProjectileHitTrigger;
+import com.destroystokyo.paper.event.player.PlayerAdvancementCriterionGrantEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -50,6 +51,15 @@ public class TriggerListener implements Listener {
 
         fest.onLeave(player);
         player.saveData();
+    }
+
+    @EventHandler
+    public void onPlayerAdvancement(PlayerAdvancementCriterionGrantEvent event){
+        Player player = event.getPlayer();
+        if (!fest.participantUUIDs().contains(player.getUniqueId()))
+            return;
+
+        event.setCancelled(true);
     }
 
     @EventHandler

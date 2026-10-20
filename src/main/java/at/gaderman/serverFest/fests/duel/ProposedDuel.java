@@ -50,6 +50,15 @@ public class ProposedDuel {
             throw new IllegalArgumentException("Opponent is already participating in a Fest");
         }
 
+        //TODO: improve in future version, there may be gaps where players could do funky stuff
+        if(activeProposals.stream().anyMatch(proposal ->
+                proposal.challenger.equals(challenger) || proposal.opponent.equals(challenger)))
+            throw new IllegalArgumentException("Challenger already has another pending request");
+
+        if(activeProposals.stream().anyMatch(proposal ->
+                proposal.challenger.equals(opponent) || proposal.opponent.equals(opponent)))
+            throw new IllegalArgumentException("Opponent already has another pending request");
+
         return new ProposedDuel(challenger, opponent);
     }
 

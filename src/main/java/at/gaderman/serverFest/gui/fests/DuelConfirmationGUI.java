@@ -199,9 +199,7 @@ public class DuelConfirmationGUI extends ActionInventory {
 
         inventory.close();
         List.of(challenger, opponent).forEach(player -> {
-            player.sendMessage(ServerFest.CHAT_PREFIX.append(
-                    Component.text("Duel cancelled", NamedTextColor.RED)
-            ));
+            player.sendMessage(ServerFest.CHAT_PREFIX.append(Component.text("Duel cancelled", NamedTextColor.RED)));
             player.playSound(player, Sound.ENTITY_WITHER_HURT, 1f, 2f);
         });
     }

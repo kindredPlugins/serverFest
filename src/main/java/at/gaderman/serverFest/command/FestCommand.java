@@ -217,7 +217,12 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                         return true;
                     }
 
-                    ProposedDuel.propose(player, opponent);
+                    try {
+                        ProposedDuel.propose(player, opponent);
+                    }catch(IllegalArgumentException ex){
+                        player.sendMessage(Component.text(ex.getMessage(), NamedTextColor.RED));
+                        player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
+                    }
                     return true;
                 }
             }
