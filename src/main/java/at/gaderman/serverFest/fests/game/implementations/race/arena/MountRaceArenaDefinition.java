@@ -16,6 +16,8 @@ import java.util.Set;
 
 public class MountRaceArenaDefinition extends ArenaDefinition {
 
+    public static final double POSSIBLE_WIDTH = 30;
+
     @Override
     public @NotNull ArenaLayout generateLayout(Location origin) {
         World world = origin.getWorld();
@@ -24,7 +26,7 @@ public class MountRaceArenaDefinition extends ArenaDefinition {
 
         Location lastLocation = origin.clone();
         for (int i = 0; i < MountRace.CHECKPOINT_COUNT; i++) {
-            double newX = lastLocation.getX() + (Math.random() - 0.5) * 45;
+            double newX = lastLocation.getX() + (Math.random() - 0.5) * POSSIBLE_WIDTH * 2;
             double newZ = lastLocation.getZ() + Math.random() * 15 + 30;
 
             Location newLocation = new Location(world, newX, lastLocation.getY(), newZ);

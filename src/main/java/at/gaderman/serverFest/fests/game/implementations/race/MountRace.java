@@ -4,6 +4,7 @@ import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.arenas.ArenaInstance;
 import at.gaderman.serverFest.fests.game.GameType;
+import at.gaderman.serverFest.fests.game.implementations.race.arena.MountRaceArenaDefinition;
 import at.gaderman.serverFest.fests.game.implementations.race.arena.RaceGameArenaLayout;
 import at.gaderman.serverFest.fests.game.implementations.race.data.CheckPoint;
 import at.gaderman.serverFest.fests.game.implementations.race.data.RaceGamePlayerData;
@@ -70,7 +71,28 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
 
     @Override
     protected void kickOff() {
-        fest.participants().forEach(this::spawnHorseFor);
+        fest.participants().forEach(participant -> {
+            spawnHorseFor(participant);
+
+            WorldBorder border = Bukkit.createWorldBorder();
+            border.setCenter(participant.getLocation());
+            border.setSize(MountRaceArenaDefinition.POSSIBLE_WIDTH * 8);
+            participant.setWorldBorder(border);
+
+            double originZ = fest.origin().getZ();
+            double finalZ = checkPoints.getLast().location().getZ();
+            participant.getScheduler().runAtFixedRate(ServerFest.getPlugin(), task -> {
+                if (!fest.game().isRunning()) {
+                    task.cancel();
+                    return;
+                }
+
+                RaceGamePlayerData playerData = (RaceGamePlayerData) getOrCreatePlayerData(participant.getUniqueId());
+                Location checkPoint = checkPoints.get(playerData.currentCheckPoint()).location();
+                border.setCenter(checkPoint.x(), Math.clamp(participant.getZ(), originZ, finalZ));
+                participant.setWorldBorder(border);
+            }, null, 4, 4);
+        });
     }
 
     @Override
@@ -169,6 +191,14 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
         buildTrackSection(future, world, origin, TRACK_DIAMETER, GATE_SIZE, CHECKPOINT_COUNT, 0);
     }
 
+    private static final double RAMP_SLOPE = 0.5;
+    private static final int MAX_STEP_Y = 3;
+    private static final int MAX_CUT_DEPTH = 3;
+    private static final int REPOSITION_STEP = 6;
+    private static final int REPOSITION_MAX = 24;
+
+    private record TrackPlan(Location target, List<TrackPoint> path, int[] levels, int maxCut) {}
+
     private void buildTrackSection(CompletableFuture<Void> future, World world, Location lastLocation,
                                    int trackDiameter, double gateSize, int checkpointCount, int index) {
         if (index >= checkpointCount) {
@@ -177,22 +207,34 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
         }
 
         CheckPoint checkPoint = checkPoints.get(index);
-        Location newLocation = new Location(world, checkPoint.location().getX(), lastLocation.getY(),
-                checkPoint.location().getZ());
 
-        loadChunks(world, getRequiredChunks(createPath(lastLocation, newLocation)), resolvedChunks -> {
+        List<Location> targets = createCandidateTargets(world, lastLocation,
+                checkPoint.location().getX(), checkPoint.location().getZ());
+
+        Set<ChunkPos> required = new HashSet<>();
+        for (Location target : targets)
+            required.addAll(getRequiredChunks(createPath(lastLocation, target)));
+
+        loadChunks(world, required, resolvedChunks -> {
+            int startLevel = lastLocation.getBlockY();
+
+            TrackPlan plan = null;
+            for (Location target : targets) {
+                TrackPlan candidate = planTrack(world, lastLocation, target, startLevel);
+                if (plan == null || candidate.maxCut() < plan.maxCut())
+                    plan = candidate;
+                if (plan.maxCut() <= MAX_CUT_DEPTH)
+                    break;
+            }
+
+            Set<ChunkPos> chosenChunks = getRequiredChunks(plan.path());
             resolvedChunks.forEach(chunk -> {
-                if (forcedChunks.add(chunk))
+                if (chosenChunks.contains(new ChunkPos(chunk.getX(), chunk.getZ())) && forcedChunks.add(chunk))
                     chunk.addPluginChunkTicket(ServerFest.getPlugin());
             });
 
-            List<TrackPoint> path = createPath(lastLocation, newLocation);
-
-            int[] levels = new int[path.size()];
-            for (int i = 0; i < levels.length; i++) {
-                BlockPos center = path.get(i).center();
-                levels[i] = getTrackSurfaceY(world, center.x(), center.z());
-            }
+            List<TrackPoint> path = plan.path();
+            int[] levels = plan.levels();
 
             for (int i = 0; i < path.size(); i++) {
                 TrackPoint point = path.get(i);
@@ -207,19 +249,16 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
 
                     for (int clearY = level + 1; clearY < level + 10; clearY++) {
                         Block clearance = world.getBlockAt(pos.x(), clearY, pos.z());
-
                         if (!clearance.isLiquid())
                             blockTracker.setBlock(clearance, Material.AIR);
                     }
                 }
             }
 
-            int checkpointY = levels.length > 0
-                    ? levels[levels.length - 1]
-                    : getTrackSurfaceY(world, newLocation.getBlockX(), newLocation.getBlockZ());
-
-            newLocation.setY(checkpointY);
-            checkPoint.location().set(newLocation.getX(), checkpointY, newLocation.getZ());
+            int endLevel = levels.length > 0 ? levels[levels.length - 1] : startLevel;
+            Location newLocation = plan.target();
+            newLocation.setY(endLevel);
+            checkPoint.location().set(newLocation.getX(), endLevel, newLocation.getZ());
 
             blockTracker.save();
 
@@ -229,6 +268,61 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
 
             buildTrackSection(future, world, newLocation, trackDiameter, gateSize, checkpointCount, index + 1);
         });
+    }
+
+    private TrackPlan planTrack(World world, Location from, Location target, int startLevel) {
+        List<TrackPoint> path = createPath(from, target);
+        int n = path.size();
+        if (n == 0)
+            return new TrackPlan(target, path, new int[0], 0);
+
+        int[] terrain = new int[n];
+        for (int i = 0; i < n; i++) {
+            BlockPos c = path.get(i).center();
+            terrain[i] = getTrackSurfaceY(world, c.x(), c.z());
+        }
+
+        double[] envelope = new double[n];
+        for (int i = 0; i < n; i++) envelope[i] = terrain[i];
+        for (int i = 1; i < n; i++)
+            envelope[i] = Math.max(envelope[i], envelope[i - 1] - RAMP_SLOPE);
+        for (int i = n - 2; i >= 0; i--)
+            envelope[i] = Math.max(envelope[i], envelope[i + 1] - RAMP_SLOPE);
+
+        int[] levels = new int[n];
+        double walked = startLevel;
+        levels[0] = startLevel;
+        int maxCut = Math.max(0, terrain[0] - startLevel);
+
+        for (int i = 1; i < n; i++) {
+            walked = Math.clamp(envelope[i], walked - RAMP_SLOPE, walked + RAMP_SLOPE);
+            int level = Math.clamp((int) Math.round(walked), levels[i - 1] - MAX_STEP_Y, levels[i - 1] + MAX_STEP_Y);
+            levels[i] = level;
+
+            maxCut = Math.max(maxCut, terrain[i] - level);
+        }
+
+        return new TrackPlan(target, path, levels, maxCut);
+    }
+
+    private List<Location> createCandidateTargets(World world, Location from, double x, double z) {
+        List<Location> targets = new ArrayList<>();
+        targets.add(new Location(world, x, from.getY(), z));
+
+        double dx = x - from.getX();
+        double dz = z - from.getZ();
+        double length = Math.hypot(dx, dz);
+        if (length == 0)
+            return targets;
+
+        double perpX = -dz / length;
+        double perpZ = dx / length;
+
+        for (int offset = REPOSITION_STEP; offset <= REPOSITION_MAX; offset += REPOSITION_STEP) {
+            targets.add(new Location(world, x + perpX * offset, from.getY(), z + perpZ * offset));
+            targets.add(new Location(world, x - perpX * offset, from.getY(), z - perpZ * offset));
+        }
+        return targets;
     }
 
     private int getTrackSurfaceY(World world, int x, int z) {
@@ -354,6 +448,9 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
     public void onVehicleExit(VehicleExitEvent event, Player player, Vehicle vehicle) {
         if (fest.game().isRunning() && vehicle.isValid() && !player.getGameMode().isInvulnerable())
             event.setCancelled(true);
+
+        if(!isRunning())
+            return;
 
         RaceGamePlayerData playerData = (RaceGamePlayerData) getOrCreatePlayerData(player.getUniqueId());
         int checkPoint = playerData.currentCheckPoint();
