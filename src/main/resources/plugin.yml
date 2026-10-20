@@ -5,7 +5,7 @@ author: gaderman244
 main: at.gaderman.serverFest.ServerFest
 api-version: '26.2'
 load: POSTWORLD
-folia-supported: true
+folia-supported: false
 
 description: Introduces fests to the server which are server-side events of minigames which do not influence the main world
 

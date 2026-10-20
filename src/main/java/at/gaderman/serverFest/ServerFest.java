@@ -12,6 +12,7 @@ import at.gaderman.serverFest.fests.rewards.ChampionTitleManager;
 import at.gaderman.serverFest.fests.schedule.FestCalendar;
 import at.gaderman.serverFest.libs.PAPIExpansion;
 import at.gaderman.serverFest.management.WorldManager;
+import at.gaderman.serverFest.utils.UpdateChecker;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -53,6 +54,8 @@ public final class ServerFest extends JavaPlugin {
             if(!new PAPIExpansion(this).register())
                 getLogger().warning("Could not register PlaceholderAPI expansion");
         }
+
+        new UpdateChecker(this).check();
     }
 
     @Override
