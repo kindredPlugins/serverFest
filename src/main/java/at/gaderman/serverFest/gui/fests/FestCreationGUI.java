@@ -307,8 +307,8 @@ public class FestCreationGUI extends ActionInventory {
     private void updateGameType() {
         GameDefinition gameDefinition = gameType == null ? null : gameType.definition();
         ItemStack item = gameDefinition == null
-                ? FestItemProvider.RANDOM_GAME
-                : new ItemStack(gameDefinition.iconType());
+                ? new ItemStack(FestItemProvider.RANDOM_GAME)
+                : ItemStack.of(gameDefinition.iconType());
 
         item.editMeta(meta -> {
             meta.displayName((gameDefinition == null

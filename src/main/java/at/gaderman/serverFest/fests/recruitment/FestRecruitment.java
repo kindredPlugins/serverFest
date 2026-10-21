@@ -7,6 +7,7 @@ import at.gaderman.serverFest.fests.FestManager;
 import at.gaderman.serverFest.fests.FestType;
 import at.gaderman.serverFest.fests.arenas.ArenaInstance;
 import at.gaderman.serverFest.fests.game.GameType;
+import at.gaderman.serverFest.utils.ChatUtils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -222,7 +223,7 @@ public class FestRecruitment {
         player.resetTitle();
         player.sendTitlePart(TitlePart.TIMES, Title.Times.times(Duration.ofMillis(500), Duration.ofSeconds(5), Duration.ofMillis(500)));
         player.sendTitlePart(TitlePart.TITLE, gameType.definition().iconName());
-        player.sendTitlePart(TitlePart.SUBTITLE, Component.text(toPlayerFriendlyName(festType.toString()), NamedTextColor.YELLOW));
+        player.sendTitlePart(TitlePart.SUBTITLE, Component.text(ChatUtils.toPlayerFriendlyName(festType.toString()), NamedTextColor.YELLOW));
     }
 
     private void sendJoinMessage(Player joined) {
@@ -246,30 +247,6 @@ public class FestRecruitment {
                         ? Component.text("Random Fest")
                         : gameType.definition().iconName()).color(TextColor.color(0xD0D0D0)))
                 .color(TextColor.color(0xD0D0D0));
-    }
-
-    private static String toPlayerFriendlyName(String input) {
-        StringBuilder builder = new StringBuilder();
-
-        boolean bigLetter = true;
-        for (int i = 0; i < input.length(); i++) {
-            char c = input.charAt(i);
-
-            if (c == '_') {
-                bigLetter = true;
-                builder.append(' ');
-                continue;
-            }
-
-            if (bigLetter) {
-                builder.append((c + "").toUpperCase());
-                bigLetter = false;
-            } else {
-                builder.append((c + "").toLowerCase());
-            }
-        }
-
-        return builder.toString();
     }
 
     //endregion

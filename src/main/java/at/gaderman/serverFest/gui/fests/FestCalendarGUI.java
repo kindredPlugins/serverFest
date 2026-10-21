@@ -8,10 +8,12 @@ import at.gaderman.serverFest.fests.schedule.FestCalendar;
 import at.gaderman.serverFest.fests.schedule.RecurringDateScheduled;
 import at.gaderman.serverFest.fests.schedule.ScheduledFest;
 import at.gaderman.serverFest.gui.ActionInventory;
+import at.gaderman.serverFest.utils.ChatUtils;
 import at.gaderman.serverFest.utils.ItemUtils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -134,15 +136,20 @@ public class FestCalendarGUI extends ActionInventory {
 
         GameType gameType = fest.gameType();
         ItemStack item = gameType == null
-                ? FestItemProvider.RANDOM_GAME
+                ? new ItemStack(FestItemProvider.RANDOM_GAME)
                 : ItemStack.of(gameType.definition().iconType());
         item.editMeta(meta -> {
             meta.displayName(Component.text(fest.festType().displayName() + " Fest", NamedTextColor.GOLD)
                     .decoration(TextDecoration.ITALIC, false));
 
+            Component schedule = fest instanceof RecurringDateScheduled recurring
+                    ? MiniMessage.miniMessage().deserialize("Recurring every <gold>" + recurring.offset()
+                    + " <gray>" + ChatUtils.toPlayerFriendlyName(recurring.timeUnit().name()))
+                    : Component.text("One-Time");
+
             List<Component> lore = new ArrayList<>(List.of(
                     Component.text("Next: " + DATE_FORMAT.format(nextTime), NamedTextColor.YELLOW),
-                    Component.text("Schedule: " + (fest instanceof RecurringDateScheduled ? "Recurring" : "One-Time"), NamedTextColor.GRAY),
+                    Component.text("Schedule: ", NamedTextColor.GRAY).append(schedule),
                     Component.text("Players: " + fest.minPlayers() + "-" + fest.maxPlayers(), NamedTextColor.GRAY),
                     Component.text("Game: " + (gameType == null ? "Random" : PlainTextComponentSerializer.plainText().serialize(gameType.definition().iconName())), NamedTextColor.GRAY)
             ));
