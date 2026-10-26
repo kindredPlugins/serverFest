@@ -34,6 +34,8 @@ import java.util.stream.Collectors;
 
 public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDamageTrigger, PlayerVehicleExitTrigger {
 
+    private Location trackOrigin;
+
     public MountRace(Fest fest, ArenaInstance arenaInstance) {
         super(fest, arenaInstance);
     }
@@ -45,10 +47,38 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
 
     @Override
     public Location determineOrigin() {
-        Location origin = super.determineOrigin();
-        int surfaceY = getTrackSurfaceY(fest.world(), origin.getBlockX(), origin.getBlockZ());
-        origin.setY(surfaceY + 0.5);
+        Location origin = resolveTrackOrigin(super.determineOrigin());
+        trackOrigin = origin.clone();
         return origin;
+    }
+
+    private Location resolveTrackOrigin(Location source) {
+        int x = source.getBlockX();
+        int z = source.getBlockZ();
+
+        Location origin = source.clone();
+        origin.setX(x + 0.5);
+        origin.setZ(z + 0.5);
+        origin.setY(getTrackSurfaceY(fest.world(), x, z) + 0.5);
+
+        return origin;
+    }
+
+    private Location getTrackOrigin() {
+        return trackOrigin == null
+                ? resolveTrackOrigin(fest.origin())
+                : trackOrigin.clone();
+    }
+
+    private void updateTrackOrigin(Location origin) {
+        trackOrigin = origin.clone();
+
+        Location storedOrigin = fest.origin();
+        storedOrigin.setX(origin.getX());
+        storedOrigin.setY(origin.getY());
+        storedOrigin.setZ(origin.getZ());
+        storedOrigin.setYaw(origin.getYaw());
+        storedOrigin.setPitch(origin.getPitch());
     }
 
     @Override
@@ -72,7 +102,12 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
 
     @Override
     protected void kickOff() {
+        Location start = getTrackOrigin();
+
         fest.participants().forEach(participant -> {
+            if (participant.getLocation().distanceSquared(start) > 0.01)
+                participant.teleport(start);
+
             spawnHorseFor(participant);
 
             WorldBorder border = Bukkit.createWorldBorder();
@@ -80,8 +115,9 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
             border.setSize(MountRaceArenaDefinition.POSSIBLE_WIDTH * 8);
             participant.setWorldBorder(border);
 
-            double originZ = fest.origin().getZ();
+            double originZ = start.getZ();
             double finalZ = checkPoints.getLast().location().getZ();
+
             participant.getScheduler().runAtFixedRate(ServerFest.getPlugin(), task -> {
                 if (!fest.game().isRunning()) {
                     task.cancel();
@@ -89,6 +125,7 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
                 }
 
                 RaceGamePlayerData playerData = (RaceGamePlayerData) getOrCreatePlayerData(participant.getUniqueId());
+
                 Location checkPoint = checkPoints.get(playerData.currentCheckPoint()).location();
                 border.setCenter(checkPoint.x(), Math.clamp(participant.getZ(), originZ, finalZ));
                 participant.setWorldBorder(border);
@@ -187,8 +224,8 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
 
     private void buildTrack(CompletableFuture<Void> future) {
         World world = fest.world();
-        Location origin = fest.origin().clone();
-        origin.setY(getTrackSurfaceY(world, origin.getBlockX(), origin.getBlockZ()) + 0.5);
+        Location origin = resolveTrackOrigin(fest.origin());
+        updateTrackOrigin(origin);
         buildTrackSection(future, world, origin, TRACK_DIAMETER, GATE_SIZE, CHECKPOINT_COUNT, 0);
     }
 
@@ -217,11 +254,22 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
             required.addAll(getRequiredChunks(createPath(lastLocation, target)));
 
         loadChunks(world, required, resolvedChunks -> {
-            int startLevel = lastLocation.getBlockY();
+            Location sectionStart = lastLocation.clone();
+
+            if (index == 0) {
+                sectionStart.setY(
+                        getTrackSurfaceY(world, sectionStart.getBlockX(), sectionStart.getBlockZ()) + 0.5
+                );
+
+                for (Location target : targets)
+                    target.setY(sectionStart.getY());
+            }
+
+            int startLevel = sectionStart.getBlockY();
 
             TrackPlan plan = null;
             for (Location target : targets) {
-                TrackPlan candidate = planTrack(world, lastLocation, target, startLevel);
+                TrackPlan candidate = planTrack(world, sectionStart, target, startLevel);
                 if (plan == null || candidate.maxCut() < plan.maxCut())
                     plan = candidate;
                 if (plan.maxCut() <= MAX_CUT_DEPTH)
@@ -236,6 +284,21 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
 
             List<TrackPoint> path = plan.path();
             int[] levels = plan.levels();
+
+            if (index == 0 && !path.isEmpty()) {
+                BlockPos first = path.getFirst().center();
+
+                Location actualOrigin = new Location(
+                        world,
+                        first.x() + 0.5,
+                        levels[0] + 0.5,
+                        first.z() + 0.5,
+                        sectionStart.getYaw(),
+                        sectionStart.getPitch()
+                );
+
+                updateTrackOrigin(actualOrigin);
+            }
 
             for (int i = 0; i < path.size(); i++) {
                 TrackPoint point = path.get(i);
@@ -260,6 +323,9 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
             Location newLocation = plan.target();
             newLocation.setY(endLevel);
             checkPoint.location().set(newLocation.getX(), endLevel, newLocation.getZ());
+
+            if(index == 0)
+                fest.origin().set(newLocation.getX(), newLocation.getY(), newLocation.getZ());
 
             blockTracker.save();
 
@@ -457,7 +523,7 @@ public class MountRace extends RaceGame<RaceGameArenaLayout> implements PlayerDa
         RaceGamePlayerData playerData = (RaceGamePlayerData) getOrCreatePlayerData(player.getUniqueId());
         int checkPoint = playerData.currentCheckPoint();
         if (checkPoint == 0)
-            vehicle.teleport(fest.origin(), TeleportFlag.EntityState.RETAIN_PASSENGERS);
+            vehicle.teleport(getTrackOrigin(), TeleportFlag.EntityState.RETAIN_PASSENGERS);
         else
             vehicle.teleport(checkPoints.get(checkPoint).location().toCenterLocation(), TeleportFlag.EntityState.RETAIN_PASSENGERS);
 
