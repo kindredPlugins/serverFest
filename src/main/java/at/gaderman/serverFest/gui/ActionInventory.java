@@ -38,18 +38,22 @@ public class ActionInventory implements InventoryHolder, Listener {
         initializeInventory(size, inventoryName);
     }
 
-    public ActionInventory(){ this.deferredInventoryName = null; }
+    public ActionInventory() {
+        this.deferredInventoryName = null;
+    }
 
-    public ActionInventory(Component inventoryName){ this.deferredInventoryName = inventoryName; }
+    public ActionInventory(Component inventoryName) {
+        this.deferredInventoryName = inventoryName;
+    }
 
-    protected int calculateSize(){
+    protected int calculateSize() {
         return 27;
     }
 
     protected void initializeInventory(int size, Component inventoryName) {
         if (inventory != null) return;
 
-        if(inventoryName == null)
+        if (inventoryName == null)
             this.inventory = Bukkit.createInventory(this, size);
 
         else
@@ -65,7 +69,7 @@ public class ActionInventory implements InventoryHolder, Listener {
                 .andThen(event -> ((Player) event.getWhoClicked()).playSound(event.getWhoClicked(), sound, volume, pitch)));
     }
 
-    public void removeInventoryAction(int slot){
+    public void removeInventoryAction(int slot) {
         inventoryActionsMap.remove(slot);
     }
 
@@ -77,20 +81,20 @@ public class ActionInventory implements InventoryHolder, Listener {
         return item;
     }
 
-    protected void fillWithFillItem(){
-        for(int i = 0; i < inventory.getSize(); i++)
+    protected void fillWithFillItem() {
+        for (int i = 0; i < inventory.getSize(); i++)
             inventory.setItem(i, getFillItem());
     }
 
-    protected void fillEmptyWithClearFill(){
-        for(int i = 0; i < inventory.getSize(); i++){
+    protected void fillEmptyWithClearFill() {
+        for (int i = 0; i < inventory.getSize(); i++) {
             ItemStack presentItem = inventory.getItem(i);
-            if(presentItem == null || presentItem.isEmpty())
+            if (presentItem == null || presentItem.isEmpty())
                 inventory.setItem(i, getFillItem().withType(Material.LIGHT_GRAY_STAINED_GLASS_PANE));
         }
     }
 
-    public ItemStack getBackItem(){
+    public ItemStack getBackItem() {
         ItemStack backItem = ItemStack.of(Material.ARROW);
         backItem.editMeta(meta -> {
             meta.itemName(Component.text("Back"));
@@ -105,19 +109,33 @@ public class ActionInventory implements InventoryHolder, Listener {
 
         if (Objects.equals(player.getOpenInventory().getTopInventory().getHolder(), this)) return;
 
-        if(inventory.getViewers().isEmpty())
+        if (inventory.getViewers().isEmpty())
             Bukkit.getPluginManager().registerEvents(this, ServerFest.getPlugin());
 
         player.openInventory(getInventory());
     }
 
-    protected void closeAction(){}
+    /**
+     * Called when any player closes the inventory completely unrelated to {@link closeAction()} and
+     * will trigger before it.
+     */
+    protected void onSingleClose() {
+    }
 
-    protected boolean canShiftIntoInv(){ return false; }
+    /**
+     * Called when all viewers have closed this inventory, at this point this object is already unregistered from
+     * the {@link HandlerList}.
+     */
+    protected void closeAction() {
+    }
+
+    protected boolean canShiftIntoInv() {
+        return false;
+    }
 
     @Override
     public @NotNull Inventory getInventory() {
-        if(inventory == null) initializeInventory(calculateSize(), deferredInventoryName);
+        if (inventory == null) initializeInventory(calculateSize(), deferredInventoryName);
         return inventory;
     }
 
@@ -125,6 +143,8 @@ public class ActionInventory implements InventoryHolder, Listener {
     public final void onClose(InventoryCloseEvent event) {
         if (event.getInventory().getHolder() == null) return;
         if (!event.getInventory().getHolder().equals(this)) return;
+
+        onSingleClose();
 
         if (inventory.getViewers().size() > 1) return;
 
@@ -140,7 +160,7 @@ public class ActionInventory implements InventoryHolder, Listener {
 
         if (!Objects.equals(Objects.requireNonNull(event.getClickedInventory()).getHolder(), this)) return;
 
-        if(event.getClick().isCreativeAction() && event.getWhoClicked().getGameMode() == GameMode.CREATIVE) return;
+        if (event.getClick().isCreativeAction() && event.getWhoClicked().getGameMode() == GameMode.CREATIVE) return;
 
         event.setCancelled(true);
         if (!inventoryActionsMap.containsKey(event.getSlot())) return;
@@ -157,14 +177,14 @@ public class ActionInventory implements InventoryHolder, Listener {
     }
 
     @EventHandler
-    public final void onShiftIntoInv(InventoryClickEvent event){
-        if(canShiftIntoInv() || !event.isShiftClick()) return;
+    public final void onShiftIntoInv(InventoryClickEvent event) {
+        if (canShiftIntoInv() || !event.isShiftClick()) return;
 
         if (event.getInventory().getHolder() == null) return;
         if (event.getClickedInventory() == null) return;
         if (!event.getInventory().getHolder().equals(this)) return;
 
-        if(!event.getClickedInventory().getHolder().equals(event.getView().getPlayer())) return;
+        if (!event.getClickedInventory().getHolder().equals(event.getView().getPlayer())) return;
         event.setCancelled(true);
     }
 }

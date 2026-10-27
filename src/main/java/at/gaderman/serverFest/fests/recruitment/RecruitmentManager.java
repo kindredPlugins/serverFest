@@ -1,6 +1,7 @@
 package at.gaderman.serverFest.fests.recruitment;
 
 import at.gaderman.serverFest.ServerFest;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
 
@@ -35,7 +36,8 @@ public class RecruitmentManager {
         }
 
         recruitmentQueue.add(recruitment);
-        ServerFest.getPlugin().getLogger().info("Fest " + recruitment.displayName() + " has been enlisted in the recruitment queue");
+        ServerFest.getPlugin().getLogger().info("Fest " + PlainTextComponentSerializer.plainText().serialize(recruitment.displayName())
+                + " has been enlisted in the recruitment queue");
     }
 
     protected void relinquishRecruitment(){

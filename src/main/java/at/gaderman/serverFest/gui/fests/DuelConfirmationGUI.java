@@ -2,6 +2,7 @@ package at.gaderman.serverFest.gui.fests;
 
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
+import at.gaderman.serverFest.fests.FestManager;
 import at.gaderman.serverFest.fests.FestType;
 import at.gaderman.serverFest.fests.duel.DuelQueueManager;
 import at.gaderman.serverFest.fests.game.GameType;
@@ -34,6 +35,8 @@ public class DuelConfirmationGUI extends ActionInventory {
     private boolean opponentAccepted;
 
     private @Nullable GameType gameType;
+
+    private boolean cancelled;
 
     public DuelConfirmationGUI(Player challenger, Player opponent) {
         super(27, Component.text("Duel", NamedTextColor.AQUA));
@@ -116,17 +119,31 @@ public class DuelConfirmationGUI extends ActionInventory {
             });
 
             challenger.getScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
+                if (!opponent.isConnected() || FestManager.getInstance().isPlayerParticipatingInAnyFest(opponent)) {
+                    challenger.playSound(challenger, Sound.ENTITY_VILLAGER_DEATH, 1f, 0.5f);
+                    challenger.sendMessage(Component.text("Duel cancelled", NamedTextColor.RED));
+                    return;
+                }
+
+                if(FestManager.getInstance().isPlayerParticipatingInAnyFest(challenger)){
+                    List.of(challenger, opponent).forEach(both -> {
+                        both.playSound(both.getLocation(), Sound.ENTITY_VILLAGER_DEATH, 1f, 0.5f);
+                        both.sendMessage(Component.text("Duel was cancelled due to participating in another fest", NamedTextColor.RED));
+                    });
+                    return;
+                }
+
                 List<GameType> chooseTypes = Arrays.stream(GameType.values()).collect(Collectors.toList());
                 GameType game = gameType;
 
-                while(game == null && !chooseTypes.isEmpty()){
+                while (game == null && !chooseTypes.isEmpty()) {
                     game = chooseTypes.remove((int) (Math.random() * chooseTypes.size()));
 
-                    if(ServerFest.arenaManager.requestArena(game, FestType.DUEL) == null)
+                    if (ServerFest.arenaManager.requestArena(game, FestType.DUEL) == null)
                         game = null;
                 }
 
-                if(game == null || ServerFest.arenaManager.requestArena(game, FestType.DUEL) == null){
+                if (game == null || ServerFest.arenaManager.requestArena(game, FestType.DUEL) == null) {
                     Component gameDisplay = game == null ? Component.text("any game")
                             : game.definition().iconName();
 
@@ -142,10 +159,22 @@ public class DuelConfirmationGUI extends ActionInventory {
                     return;
                 }
 
+                if (FestManager.getInstance().isPlayerParticipatingInAnyFest(challenger)
+                        || FestManager.getInstance().isPlayerParticipatingInAnyFest(opponent)) {
+                    List.of(challenger, opponent).forEach(both -> {
+                        both.playSound(both.getLocation(), Sound.ENTITY_VILLAGER_DEATH, 1f, 0.5f);
+                        both.sendMessage(Component.text("Duel was cancelled due to someone participating in another fest", NamedTextColor.RED));
+                    });
+                    return;
+                }
+
                 Fest fest = new Fest(FestType.DUEL, game, new ArrayList<>(List.of(challenger.getUniqueId(), opponent.getUniqueId())));
                 fest.start();
             }, () -> {
-
+                if (opponent.isConnected()) {
+                    opponent.playSound(challenger, Sound.ENTITY_VILLAGER_DEATH, 1f, 0.5f);
+                    opponent.sendMessage(Component.text("Duel cancelled", NamedTextColor.RED));
+                }
             }, 20);
         }
     }
@@ -191,11 +220,16 @@ public class DuelConfirmationGUI extends ActionInventory {
     }
 
     @Override
-    protected void closeAction() {
-        super.closeAction();
+    protected void onSingleClose() {
+        super.onSingleClose();
+
+        if(cancelled)
+            return;
 
         if (opponentAccepted && challengerAccepted)
             return;
+
+        cancelled = true;
 
         inventory.close();
         List.of(challenger, opponent).forEach(player -> {

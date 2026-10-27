@@ -2,6 +2,7 @@ package at.gaderman.serverFest.fests.duel;
 
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
+import at.gaderman.serverFest.fests.FestManager;
 import at.gaderman.serverFest.fests.FestType;
 import at.gaderman.serverFest.fests.game.GameType;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
@@ -96,6 +97,15 @@ public class DuelQueueManager implements Listener {
                         .append(Component.text(leaver.getName() + " left, you have been removed from the queue.", NamedTextColor.RED)));
                 remaining.playSound(remaining, Sound.ENTITY_ITEM_BREAK, 1f, 1f);
             }
+            return;
+        }
+
+        if(FestManager.getInstance().isPlayerParticipatingInAnyFest(challenger)
+                || FestManager.getInstance().isPlayerParticipatingInAnyFest(opponent)){
+            List.of(challenger, opponent).forEach(both -> {
+                both.playSound(both.getLocation(), Sound.ENTITY_VILLAGER_DEATH, 1f, 0.5f);
+                both.sendMessage(Component.text("Duel was cancelled due to participating in another fest", NamedTextColor.RED));
+            });
             return;
         }
 
