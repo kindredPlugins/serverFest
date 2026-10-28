@@ -86,7 +86,7 @@ public abstract class ScheduledFest {
         }
 
         //TODO: inspect this properly, make a fixed constant for time left, this way fests still actually occur one minute late, may adjust it to trigger one minute before
-        FestRecruitment.requestRecruitment(60, festType, instanceType);
+        FestRecruitment.requestRecruitment(60, festType, instanceType, minPlayers, maxPlayers);
     }
 
     /**
