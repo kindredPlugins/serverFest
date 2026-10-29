@@ -9,10 +9,13 @@ import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
+import java.util.logging.Level;
 
 /**
  * A fest scheduled around a specific point in time with a specific offset. Upon fest initialization will automatically
@@ -24,7 +27,8 @@ public class RecurringDateScheduled extends ScheduledFest {
     private ChronoUnit timeUnit;
     private long offset;
 
-    private ScheduledTask scheduledTask;
+    private volatile ScheduledTask scheduledTask;
+    private final AtomicInteger generation = new AtomicInteger();
 
     private RecurringDateScheduled(LocalDateTime timeStamp, ChronoUnit timeUnit, long offset) {
        this(FestType.CASUAL, null, 2, GeneralConfig.getInstance().maxPlayersPerFest(), timeStamp, timeUnit, offset);
@@ -60,47 +64,74 @@ public class RecurringDateScheduled extends ScheduledFest {
 
     @Override
     public void schedule() {
-        LocalDateTime nextTime = nextSchedule();
-
-        long offset = LocalDateTime.now().until(nextTime, ChronoUnit.SECONDS) * 20;
-        scheduledTask = Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
-            startUp();
-
-            Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
-                schedule();
-            }, 20);
-        }, Math.max(offset, 0));
-        //TODO: check if there is a possible issue where offset could go < 0, cause this is just a plaster
+        cancel();
+        if (offset <= 0) {
+            ServerFest.getPlugin().getLogger().warning("Recurring fest has an invalid offset, not scheduling it");
+            return;
+        }
+        scheduleNext(LocalDateTime.now(), generation.get());
     }
 
     /**
-     * Calculates the next time this fest will occur, using this is preferred over timestamp as this will accurately
-     * move timestamp to a position within the offset.
+     * Trys to publish a schedule, this will only wake up once every minute to check, since otherwise ticks could grow
+     * too large or be disruptet by server tps mismatch
      */
+    private void scheduleNext(LocalDateTime from, int chain) {
+        if (chain != generation.get()) return;
+
+        LocalDateTime target = occurrenceAtOrAfter(from);
+        long millis = Math.max(0, Duration.between(LocalDateTime.now(), target).toMillis());
+        long ticks = Math.clamp((long) Math.ceil(millis / 50.0), 1, 20 * 60);
+
+        scheduledTask = Bukkit.getGlobalRegionScheduler().runDelayed(ServerFest.getPlugin(), _ -> {
+            if (chain != generation.get()) return;
+
+            if (LocalDateTime.now().isBefore(target)) {
+                scheduleNext(target, chain);
+                return;
+            }
+
+            try {
+                startUp();
+            } catch (Exception e) {
+                ServerFest.getPlugin().getLogger().log(Level.SEVERE, "Failed to start recurring fest", e);
+            } finally {
+                LocalDateTime now = LocalDateTime.now();
+                LocalDateTime after = target.plusNanos(1);
+                scheduleNext(now.isAfter(after) ? now : after, chain);
+            }
+        }, ticks);
+    }
+
+    /** First occurrence that is not before {@code from}. Pure: does not modify timeStamp. */
+    private LocalDateTime occurrenceAtOrAfter(LocalDateTime from) {
+        if (!timeStamp.isBefore(from)) return timeStamp;
+
+        long steps = Math.max(0, timeUnit.between(timeStamp, from) / offset);
+        LocalDateTime candidate = timeStamp.plus(steps * offset, timeUnit);
+        while (candidate.isBefore(from)) {
+            steps++;
+            candidate = timeStamp.plus(steps * offset, timeUnit);
+        }
+        return candidate;
+    }
+
     @Override
     public LocalDateTime nextSchedule() {
-        LocalDateTime current = LocalDateTime.now();
-
-        // this would move a future repeating towards now, but maybe someone wants the repetition to only start after a specific date
-//        while (current.until(timeStamp, timeUnit) > offset)
-//            timeStamp = timeStamp.minus(offset, timeUnit);
-
-        while (timeStamp.isBefore(current))
-            timeStamp = timeStamp.plus(offset, timeUnit);
-
-        return timeStamp;
+        return occurrenceAtOrAfter(LocalDateTime.now());
     }
 
     @Override
     public void cancel() {
-        if (scheduledTask != null)
-            scheduledTask.cancel();
+        generation.incrementAndGet();
+        ScheduledTask task = scheduledTask;
+        if (task != null) task.cancel();
     }
 
     @Override
     protected void writeExtraConfig(ConfigurationSection config) {
         config.set("timeStamp", timeStamp.toString());
-        config.set("timeUnit", timeUnit().toString().toUpperCase());
+        config.set("timeUnit", timeUnit().name());
         config.set("offset", offset);
     }
 

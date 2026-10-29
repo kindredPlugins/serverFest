@@ -6,6 +6,7 @@ import at.gaderman.serverFest.config.GeneralConfig;
 import at.gaderman.serverFest.data.DataConfig;
 import at.gaderman.serverFest.data.player.PlayerDataManager;
 import at.gaderman.serverFest.fests.arenas.ArenaInstance;
+import at.gaderman.serverFest.fests.arenas.ArenaState;
 import at.gaderman.serverFest.fests.game.FestGame;
 import at.gaderman.serverFest.fests.game.GameType;
 import at.gaderman.serverFest.fests.game.triggers.TriggerListener;
@@ -55,7 +56,7 @@ public class Fest {
         this.arenaInstance = ServerFest.arenaManager.requestArena(gameType, festType);
         this.game = gameType.createNewInstance(this, arenaInstance);
 
-        if(arenaInstance == null){
+        if (arenaInstance == null) {
             ServerFest.getPlugin().getLogger().severe("A fest has been forcefully started without checking for an empty arena slot first!");
             throw new RuntimeException("A fest has been forcefully started without checking for an empty arena slot first!");
         }
@@ -96,6 +97,10 @@ public class Fest {
 
     public Location origin() {
         return origin.clone();
+    }
+
+    public ArenaInstance arenaInstance() {
+        return arenaInstance;
     }
 
     //endregion
@@ -187,8 +192,13 @@ public class Fest {
         if (maxTimeTask != null)
             maxTimeTask.cancel();
 
+        if (arenaInstance.arenaState() == ArenaState.ACTIVE)
+            arenaInstance.resetToReady();
+
         participants().forEach(SaveStateManagement::restorePlayerState);
-        triggerListener.unregister();
+
+        if (triggerListener != null)
+            triggerListener.unregister();
         FestManager.getInstance().unregisterFest(this);
     }
 

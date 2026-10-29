@@ -140,6 +140,7 @@ public class FestRecruitment {
             });
 
             RecruitmentManager.getInstance().relinquishRecruitment();
+            fest.arenaInstance().resetToReady();
             return;
         }
 
