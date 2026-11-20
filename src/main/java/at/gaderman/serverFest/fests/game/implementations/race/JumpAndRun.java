@@ -12,6 +12,7 @@ import at.gaderman.serverFest.fests.game.implementations.race.jump.JumpPattern;
 import at.gaderman.serverFest.fests.game.implementations.race.jump.JumpPatterns;
 import at.gaderman.serverFest.fests.game.triggers.damage.PlayerDamageTrigger;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -49,7 +50,7 @@ public class JumpAndRun extends RaceGame<RaceGameArenaLayout> implements PlayerD
     @Override
     public Location determineOrigin() {
         Location origin = super.determineOrigin();
-        origin.setY(origin.getWorld().getMaxHeight() - AVERAGE_JUMPS_PER_CHECKPOINT * CHECKPOINT_COUNT * 2);
+        origin.setY(origin.getWorld().getMaxHeight() - AVERAGE_JUMPS_PER_CHECKPOINT * CHECKPOINT_COUNT * 1.5);
         return origin;
     }
 
@@ -66,14 +67,19 @@ public class JumpAndRun extends RaceGame<RaceGameArenaLayout> implements PlayerD
 
         for (int x = -1; x <= 1; x++)
             for (int z = -1; z <= 1; z++)
-                context.set(context.offset(origin, x, 0, z), Material.QUARTZ_BLOCK);
+                blockTracker.setBlock(context.offset(origin, x, -1, z), Material.QUARTZ_BLOCK);
 
-        Location cursor = origin.clone();
+        blockTracker.save();
+
+        Location cursor = origin.clone().add(0, -1, 1);
         JumpPattern previous = null;
 
         for (int section = 0; section <= CHECKPOINT_COUNT; section++) {
-            context.set(cursor, Material.GOLD_BLOCK);
-            context.set(context.offset(cursor, 0, 1, 0), Material.LIGHT_WEIGHTED_PRESSURE_PLATE);
+            if (section > 0) {
+                context.set(cursor, Material.GOLD_BLOCK);
+                context.set(context.offset(cursor, 0, 1, 0), Material.LIGHT_WEIGHTED_PRESSURE_PLATE);
+            }
+
             checkPoints.add(new CheckPoint(context.offset(cursor, 0, 1, 0), 1, 3));
 
             if (section == CHECKPOINT_COUNT) break;
@@ -129,6 +135,10 @@ public class JumpAndRun extends RaceGame<RaceGameArenaLayout> implements PlayerD
                 participant.playSound(participant, Sound.ENTITY_GENERIC_HURT, 1f, 1f);
             }, null, 1, 1);
         });
+    }
+
+    protected Component startTitle() {
+        return Component.text("Jump!", NamedTextColor.AQUA);
     }
 
     @Override

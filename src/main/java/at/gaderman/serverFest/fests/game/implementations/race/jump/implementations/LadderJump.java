@@ -17,7 +17,8 @@ public final class LadderJump implements JumpPattern {
     /**
      * Distance from the start block to the ladder. Tune this after playtesting.
      */
-    private static final int REACH = 5;
+    private static final int REACH = 4;
+     private static final int MIN_REACH = 3;
 
     private final int wallHeight;
     private final int difficulty;
@@ -34,9 +35,10 @@ public final class LadderJump implements JumpPattern {
 
     @Override
     public Location build(Location start, JumpContext ctx) {
+        int reach = Math.max(MIN_REACH, ctx.reach(REACH));
         int dx = ctx.fitX(start, ctx.random().nextInt(3) - 1);
 
-        Location top = ctx.offset(start, dx, 1, REACH + 1);
+        Location top = ctx.offset(start, dx, 1, reach + (this.equals(SINGLE) ? 0 : 1));
 
         for (int i = 0; i < wallHeight; i++) {
             Location wall = ctx.offset(top, 0, -i, 0);

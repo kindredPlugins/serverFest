@@ -12,6 +12,7 @@ import at.gaderman.serverFest.fests.game.interfaces.FestPlayerData;
 import at.gaderman.serverFest.fests.game.interfaces.InvisiblePlayersGame;
 import at.gaderman.serverFest.fests.game.triggers.inventory.PlayerInventoryClickTrigger;
 import at.gaderman.serverFest.fests.game.triggers.prefabs.NoBlockManipulationPrefab;
+import at.gaderman.serverFest.fests.game.triggers.prefabs.NoFoodLevelChangePrefab;
 import at.gaderman.serverFest.fests.game.triggers.prefabs.NoItemInventoryManipulation;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
@@ -33,8 +34,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-public abstract class RaceGame<T extends ArenaLayout> extends FestGame<T> implements NoBlockManipulationPrefab, NoItemInventoryManipulation, PlayerInventoryClickTrigger,
-        InvisiblePlayersGame {
+public abstract class RaceGame<T extends ArenaLayout> extends FestGame<T> implements NoBlockManipulationPrefab, NoItemInventoryManipulation, NoFoodLevelChangePrefab,
+        PlayerInventoryClickTrigger, InvisiblePlayersGame {
 
     protected List<CheckPoint> checkPoints;
 
@@ -65,6 +66,10 @@ public abstract class RaceGame<T extends ArenaLayout> extends FestGame<T> implem
         fest.participants().forEach(this::updateBossbar);
         activateCheckPointDetection();
         kickOff();
+    }
+
+    protected Component startTitle() {
+        return Component.text("Race!", NamedTextColor.GOLD);
     }
 
     protected abstract void kickOff();

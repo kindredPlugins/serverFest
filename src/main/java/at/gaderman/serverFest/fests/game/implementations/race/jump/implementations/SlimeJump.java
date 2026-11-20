@@ -5,8 +5,14 @@ import at.gaderman.serverFest.fests.game.implementations.race.jump.JumpPattern;
 import org.bukkit.Location;
 import org.bukkit.Material;
 
- /// Jump onto a slime block, get bounced, and land on a second platform. Essentially "two" blocks placed at once.
 public final class SlimeJump implements JumpPattern {
+
+    private static final int DEPTH = 5;
+
+    private static final int LANDING_DROP = 1;
+
+    private static final int FALL_REACH = 4;
+    private static final int BOUNCE_REACH = 4;
 
     @Override
     public int difficulty() {
@@ -15,14 +21,17 @@ public final class SlimeJump implements JumpPattern {
 
     @Override
     public Location build(Location start, JumpContext ctx) {
-        int slimeDx = ctx.fitX(start, ctx.random().nextInt(3) - 1);
-        Location slime = ctx.offset(start, slimeDx, 0, 3);
+        int fall = ctx.reach(FALL_REACH);
+        int bounce = ctx.reach(BOUNCE_REACH);
 
-        int sideways = ctx.fitX(slime, ctx.random().nextBoolean() ? 1 : -1);
-        Location landing = ctx.offset(slime, sideways, 0, 3);
+        Location pad = ctx.offset(start, ctx.fitX(start, ctx.random().nextInt(3) - 1), -DEPTH, fall);
+        ctx.set(pad, Material.SLIME_BLOCK);
 
-        ctx.set(slime, Material.SLIME_BLOCK);
-        ctx.set(landing, BASE_BLOCK);
-        return landing;
+        Location landing = ctx.offset(pad, ctx.fitX(pad, ctx.random().nextInt(3) - 1), DEPTH - LANDING_DROP, bounce);
+        for (int dx = -1; dx <= 1; dx++)
+            for (int dz = 0; dz <= 1; dz++)
+                ctx.set(ctx.offset(landing, dx, 0, dz), BASE_BLOCK);
+
+        return ctx.offset(landing, 0, 0, 1);
     }
 }

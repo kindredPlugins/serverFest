@@ -133,7 +133,7 @@ public abstract class FestGame<T extends ArenaLayout> {
     }
 
     protected Component startTitle() {
-        return Component.text("Race!", NamedTextColor.GOLD);
+        return Component.text("Start!", NamedTextColor.GOLD);
     }
 
     protected void onCountdownComplete() {

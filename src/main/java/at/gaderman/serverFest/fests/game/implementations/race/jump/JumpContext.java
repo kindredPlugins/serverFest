@@ -10,9 +10,14 @@ import java.util.function.BiConsumer;
 /// Helper for "context" when building and selecting jumps for {@link at.gaderman.serverFest.fests.game.implementations.race.JumpAndRun}
 public final class JumpContext {
 
+    private static final int MIN_REACH = 2;
+
     private final Random random;
     private final BiConsumer<Location, BlockData> sink;
     private final int minX, maxX, minY, maxY;
+
+    private int reaction;
+    private int pendingReaction;
 
     public JumpContext(Random random, BiConsumer<Location, BlockData> sink,
                        int minX, int maxX, int minY, int maxY) {
@@ -26,6 +31,31 @@ public final class JumpContext {
 
     public Random random() {
         return random;
+    }
+
+    public Location build(JumpPattern pattern, Location start) {
+        reaction = pendingReaction;
+        pendingReaction = 0;
+        return pattern.build(start, this);
+    }
+
+    /** Forget any reaction, e.g. at a checkpoint where the player gets a fresh start on a normal block. */
+    public void resetReaction() {
+        reaction = 0;
+        pendingReaction = 0;
+    }
+
+    /**
+     * Max reach for the current pattern: its own base value changed by what the previous pattern caused.
+     * Never below {@value #MIN_REACH}.
+     */
+    public int reach(int base) {
+        return Math.max(MIN_REACH, base + reaction);
+    }
+
+    /** Called by a pattern to change the reach of the NEXT one (negative = shorter, positive = longer). */
+    public void reactNext(int delta) {
+        pendingReaction = delta;
     }
 
     /** A new Location relative to base. Always use this instead of base.add(...), which mutates base. */

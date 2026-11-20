@@ -21,7 +21,7 @@ public final class SimpleJump implements JumpPattern {
         Random random = ctx.random();
 
         int dy = ctx.fitY(start, random.nextInt(3) - 1);
-        int reach = dy > 0 ? MAX_REACH - 1 : MAX_REACH;
+        int reach = Math.max(2, ctx.reach(MAX_REACH) - (dy > 0 ? 1 : 0));
 
         int dz = 2 + random.nextInt(reach - 1);
         int spare = reach - dz;
