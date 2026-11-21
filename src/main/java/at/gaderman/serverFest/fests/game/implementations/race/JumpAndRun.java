@@ -80,6 +80,8 @@ public class JumpAndRun extends RaceGame<RaceGameArenaLayout> implements PlayerD
                 context.set(context.offset(cursor, 0, 1, 0), Material.LIGHT_WEIGHTED_PRESSURE_PLATE);
             }
 
+            //TODO: final checkpoint should also feature a pad or be more highlighted, beacon?
+
             checkPoints.add(new CheckPoint(context.offset(cursor, 0, 1, 0), 1, 3));
 
             if (section == CHECKPOINT_COUNT) break;

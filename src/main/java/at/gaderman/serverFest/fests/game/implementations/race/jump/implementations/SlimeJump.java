@@ -12,7 +12,7 @@ public final class SlimeJump implements JumpPattern {
     private static final int LANDING_DROP = 1;
 
     private static final int FALL_REACH = 4;
-    private static final int BOUNCE_REACH = 4;
+    private static final int BOUNCE_REACH = 3;
 
     @Override
     public int difficulty() {
@@ -28,9 +28,7 @@ public final class SlimeJump implements JumpPattern {
         ctx.set(pad, Material.SLIME_BLOCK);
 
         Location landing = ctx.offset(pad, ctx.fitX(pad, ctx.random().nextInt(3) - 1), DEPTH - LANDING_DROP, bounce);
-        for (int dx = -1; dx <= 1; dx++)
-            for (int dz = 0; dz <= 1; dz++)
-                ctx.set(ctx.offset(landing, dx, 0, dz), BASE_BLOCK);
+        ctx.set(landing, BASE_BLOCK);
 
         return ctx.offset(landing, 0, 0, 1);
     }

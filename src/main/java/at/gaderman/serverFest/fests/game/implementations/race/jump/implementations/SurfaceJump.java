@@ -11,7 +11,7 @@ public final class SurfaceJump implements JumpPattern {
 
     private static final int BASE_REACH = 3;
 
-    public static final SurfaceJump ICE = new SurfaceJump(Material.PACKED_ICE, 0, 0);
+    public static final SurfaceJump ICE = new SurfaceJump(Material.PACKED_ICE, 0, 1);
     public static final SurfaceJump SOUL_SAND = new SurfaceJump(Material.SOUL_SAND, 0, -1);
     public static final SurfaceJump IRON_BARS = new SurfaceJump(Material.IRON_BARS, 0, -1);
 
@@ -29,7 +29,7 @@ public final class SurfaceJump implements JumpPattern {
 
     @Override
     public int difficulty() {
-        return 2;
+        return this == IRON_BARS ? 2 : 4;
     }
 
     @Override

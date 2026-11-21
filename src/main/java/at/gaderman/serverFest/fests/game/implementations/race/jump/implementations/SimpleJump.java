@@ -7,7 +7,7 @@ import org.bukkit.Location;
 import java.util.Random;
 
  /// Simple jump across a gap with slight vertical alteration
-public final class SimpleJump implements JumpPattern {
+public class SimpleJump implements JumpPattern {
 
     private static final int MAX_REACH = 4;
 

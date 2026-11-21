@@ -13,6 +13,7 @@ public final class JumpPatterns {
 
     private static final List<JumpPattern> ALL = List.of(
             new SimpleJump(),
+            new HeadHitterJump(),
             SurfaceJump.ICE,
             SurfaceJump.SOUL_SAND,
             SurfaceJump.FENCE,
