@@ -30,12 +30,22 @@ public class FixedDateScheduled extends ScheduledFest {
     }
 
     private FixedDateScheduled(FestType festType, @Nullable GameType gameType, int minPlayers, int maxPlayers, LocalDateTime timeStamp) {
-        super(festType, gameType, minPlayers, maxPlayers);
+        this(festType, gameType, minPlayers, maxPlayers, 0, timeStamp);
+    }
+
+    private FixedDateScheduled(FestType festType, @Nullable GameType gameType, int minPlayers, int maxPlayers,
+                               double winnerReward, LocalDateTime timeStamp) {
+        super(Settings.of(festType, gameType, minPlayers, maxPlayers, winnerReward));
         this.timeStamp = timeStamp;
     }
 
     private FixedDateScheduled(UUID uuid, FestType festType, @Nullable GameType gameType, int minPlayers, int maxPlayers, LocalDateTime timeStamp) {
-        super(uuid, festType, gameType, minPlayers, maxPlayers);
+        this(uuid, festType, gameType, minPlayers, maxPlayers, 0, timeStamp);
+    }
+
+    private FixedDateScheduled(UUID uuid, FestType festType, @Nullable GameType gameType, int minPlayers, int maxPlayers,
+                               double winnerReward, LocalDateTime timeStamp) {
+        super(new Settings(uuid, festType, gameType, minPlayers, maxPlayers, winnerReward));
         this.timeStamp = timeStamp;
     }
 
@@ -51,7 +61,17 @@ public class FixedDateScheduled extends ScheduledFest {
     }
 
     public static FixedDateScheduled create(FestType festType, @Nullable GameType gameType, int minPlayers, int maxPlayers, LocalDateTime timeStamp) {
-        return ScheduledFest.create(() -> new FixedDateScheduled(festType, gameType, minPlayers, maxPlayers, timeStamp));
+        return create(festType, gameType, minPlayers, maxPlayers, 0, timeStamp);
+    }
+
+    public static FixedDateScheduled create(FestType festType, @Nullable GameType gameType, int minPlayers,
+                                            int maxPlayers, double winnerReward, LocalDateTime timeStamp) {
+        return ScheduledFest.create(() -> new FixedDateScheduled(festType, gameType, minPlayers, maxPlayers, winnerReward, timeStamp));
+    }
+
+    public static FixedDateScheduled create(FestType festType, @Nullable GameType gameType, int minPlayers,
+                                            int maxPlayers, LocalDateTime timeStamp, double winnerReward) {
+        return create(festType, gameType, minPlayers, maxPlayers, winnerReward, timeStamp);
     }
 
     @Override
@@ -88,8 +108,14 @@ public class FixedDateScheduled extends ScheduledFest {
 
     public static FixedDateScheduled deserialize(ConfigurationSection config, UUID uuid, FestType festType,
                                                  @Nullable GameType gameType, int minPlayers, int maxPlayers) {
+        return deserialize(config, uuid, festType, gameType, minPlayers, maxPlayers, 0);
+    }
+
+    public static FixedDateScheduled deserialize(ConfigurationSection config, UUID uuid, FestType festType,
+                                                 @Nullable GameType gameType, int minPlayers, int maxPlayers,
+                                                 double winnerReward) {
         LocalDateTime timeStamp = LocalDateTime.parse(config.getString("timeStamp"));
-        return new FixedDateScheduled(uuid, festType, gameType, minPlayers, maxPlayers, timeStamp);
+        return new FixedDateScheduled(uuid, festType, gameType, minPlayers, maxPlayers, winnerReward, timeStamp);
     }
 
     public LocalDateTime timeStamp() {

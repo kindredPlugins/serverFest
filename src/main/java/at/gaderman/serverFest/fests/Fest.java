@@ -261,8 +261,9 @@ public class Fest {
             winners.forEach(winner -> {
                 economy.depositPlayer(winner, rewardSplit);
                 winner.sendMessage(ServerFest.CHAT_PREFIX
-                        .append(Component.text("Received "))
-                        .append(Component.text(economy.format(rewardSplit) + " " + economy.currencyNamePlural()))
+                        .append(Component.text("Received ", NamedTextColor.WHITE))
+                        .append(Component.text(economy.format(rewardSplit), NamedTextColor.GOLD))
+                        .append(Component.text(" as reward for winning", NamedTextColor.WHITE))
                 );
                 winner.playSound(winner, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f);
             });

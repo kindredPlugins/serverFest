@@ -27,7 +27,7 @@ public final class CornerJump implements JumpPattern {
         Location corner = ctx.offset(start, dx, 0, reach);
         Location end = ctx.offset(corner, 0, 0, LENGTH);
 
-        for (int i = -1; i < 4; i++) {
+        for (int i = 1; i < 4; i++) {
             ctx.set(ctx.offset(corner, 0, i, 1), MATERIAL);
         }
 

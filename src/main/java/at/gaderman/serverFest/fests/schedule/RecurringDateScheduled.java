@@ -35,14 +35,24 @@ public class RecurringDateScheduled extends ScheduledFest {
     }
 
     private RecurringDateScheduled(FestType festType, GameType gameType, int minPlayers, int maxPlayers, LocalDateTime timeStamp, ChronoUnit timeUnit, long offset) {
-        super(festType, gameType, minPlayers, maxPlayers);
+        this(festType, gameType, minPlayers, maxPlayers, 0, timeStamp, timeUnit, offset);
+    }
+
+    private RecurringDateScheduled(FestType festType, GameType gameType, int minPlayers, int maxPlayers,
+                                   double winnerReward, LocalDateTime timeStamp, ChronoUnit timeUnit, long offset) {
+        super(Settings.of(festType, gameType, minPlayers, maxPlayers, winnerReward));
         this.timeStamp = timeStamp;
         this.timeUnit = timeUnit;
         this.offset = offset;
     }
 
     private RecurringDateScheduled(UUID uuid, FestType festType, GameType gameType, int minPlayers, int maxPlayers, LocalDateTime timeStamp, ChronoUnit timeUnit, long offset) {
-        super(uuid, festType, gameType, minPlayers, maxPlayers);
+        this(uuid, festType, gameType, minPlayers, maxPlayers, 0, timeStamp, timeUnit, offset);
+    }
+
+    private RecurringDateScheduled(UUID uuid, FestType festType, GameType gameType, int minPlayers, int maxPlayers,
+                                   double winnerReward, LocalDateTime timeStamp, ChronoUnit timeUnit, long offset) {
+        super(new Settings(uuid, festType, gameType, minPlayers, maxPlayers, winnerReward));
         this.timeStamp = timeStamp;
         this.timeUnit = timeUnit;
         this.offset = offset;
@@ -59,7 +69,18 @@ public class RecurringDateScheduled extends ScheduledFest {
      * Creates a new instance of this object using {@link ScheduledFest#create(Supplier)}
      */
     public static RecurringDateScheduled create(FestType festType, GameType gameType, int minPlayers, int maxPlayers, LocalDateTime timeStamp, ChronoUnit timeUnit, long offset) {
-        return ScheduledFest.create(() -> new RecurringDateScheduled(festType, gameType, minPlayers, maxPlayers, timeStamp, timeUnit, offset));
+        return create(festType, gameType, minPlayers, maxPlayers, 0, timeStamp, timeUnit, offset);
+    }
+
+    public static RecurringDateScheduled create(FestType festType, GameType gameType, int minPlayers, int maxPlayers,
+                                                double winnerReward, LocalDateTime timeStamp, ChronoUnit timeUnit, long offset) {
+        return ScheduledFest.create(() -> new RecurringDateScheduled(festType, gameType, minPlayers, maxPlayers,
+                winnerReward, timeStamp, timeUnit, offset));
+    }
+
+    public static RecurringDateScheduled create(FestType festType, GameType gameType, int minPlayers, int maxPlayers,
+                                                LocalDateTime timeStamp, ChronoUnit timeUnit, long offset, double winnerReward) {
+        return create(festType, gameType, minPlayers, maxPlayers, winnerReward, timeStamp, timeUnit, offset);
     }
 
     @Override
@@ -137,11 +158,18 @@ public class RecurringDateScheduled extends ScheduledFest {
 
     public static RecurringDateScheduled deserialize(ConfigurationSection config, UUID uuid, FestType festType,
                                                      @Nullable GameType gameType, int minPlayers, int maxPlayers) {
+        return deserialize(config, uuid, festType, gameType, minPlayers, maxPlayers, 0);
+    }
+
+    public static RecurringDateScheduled deserialize(ConfigurationSection config, UUID uuid, FestType festType,
+                                                     @Nullable GameType gameType, int minPlayers, int maxPlayers,
+                                                     double winnerReward) {
         LocalDateTime timeStamp = LocalDateTime.parse(config.getString("timeStamp"));
         ChronoUnit timeUnit = ChronoUnit.valueOf(config.getString("timeUnit"));
         long offset = config.getLong("offset");
 
-        return new RecurringDateScheduled(uuid, festType, gameType, minPlayers, maxPlayers, timeStamp, timeUnit, offset);
+        return new RecurringDateScheduled(uuid, festType, gameType, minPlayers, maxPlayers,
+                winnerReward, timeStamp, timeUnit, offset);
     }
 
     public LocalDateTime timeStamp() {

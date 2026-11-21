@@ -43,6 +43,7 @@ public class FestCreationGUI extends ActionInventory {
     private static final int MIN_PLAYERS_SLOT = 11;
     private static final int MAX_PLAYERS_SLOT = 12;
 
+    private static final int REWARD_SLOT = 13;
     private static final int RECURRING_SLOT = 14;
     private static final int TIME_SLOT = 15;
     private static final int UNIT_SLOT = 16;
@@ -55,6 +56,7 @@ public class FestCreationGUI extends ActionInventory {
     private @Nullable GameType gameType;
     private int minPlayers = 2;
     private int maxPlayers = GeneralConfig.getInstance().maxPlayersPerFest();
+    private double winnerReward;
 
     private boolean recurring;
     private LocalDateTime time = LocalDateTime.now().plusMinutes(1).withSecond(0);
@@ -63,6 +65,8 @@ public class FestCreationGUI extends ActionInventory {
     private ChronoUnit unit = ChronoUnit.WEEKS;
     private int offset = 1;
     private final @Nullable ScheduledFest editingFest;
+
+    private boolean hasWinnerReward;
 
     public FestCreationGUI() {
         this(null);
@@ -85,7 +89,7 @@ public class FestCreationGUI extends ActionInventory {
      * 27 28 29 30 31 32 33 34 35
      * <p>
      * -  -  -  -  -  -  -  -  B
-     * F  G  Mi MX -  R  T  U  O
+     * F  G  Mi MX W  R  T  U  O
      * -  -  -  -  -  -  -  -  -
      * -  -  -  A  -  C  -  -  -
      */
@@ -95,6 +99,7 @@ public class FestCreationGUI extends ActionInventory {
         gameType = scheduledFest.gameType();
         minPlayers = scheduledFest.minPlayers();
         maxPlayers = scheduledFest.maxPlayers();
+        winnerReward = scheduledFest.winnerReward();
 
         if (scheduledFest instanceof RecurringDateScheduled recurringFest) {
             recurring = true;
@@ -110,6 +115,8 @@ public class FestCreationGUI extends ActionInventory {
     @Override
     protected void initializeInventory(int size, Component inventoryName) {
         super.initializeInventory(size, inventoryName);
+
+        this.hasWinnerReward = ServerFest.getPlugin().hasEconomy();
 
         for (int i = 0; i < size; i++)
             inventory.setItem(i, getFillItem());
@@ -189,6 +196,22 @@ public class FestCreationGUI extends ActionInventory {
             updateMaxPlayerCount();
         });
 
+        if (hasWinnerReward) {
+            defineInventoryAction(REWARD_SLOT, event -> {
+                if (!(event.getWhoClicked() instanceof Player player)) return;
+
+                int increment = event.isRightClick() ? -1 : 1;
+                if (event.isShiftClick()) increment *= 10;
+
+                double value = winnerReward + increment;
+                player.playSound(player, value >= 0 ? Sound.ENTITY_CHICKEN_EGG : Sound.ENTITY_ITEM_BREAK, 1, 1);
+
+                winnerReward = Math.max(value, 0);
+
+                updateWinnerReward();
+            });
+        }
+
         defineInventoryAction(RECURRING_SLOT, _ -> {
             recurring = !recurring;
             updateInventory();
@@ -230,16 +253,16 @@ public class FestCreationGUI extends ActionInventory {
         defineInventoryAction(ACCEPT_SLOT, event -> {
             if (editingFest == null) {
                 if (recurring) {
-                    RecurringDateScheduled.create(festType, gameType, minPlayers, maxPlayers, time, unit, offset);
+                    RecurringDateScheduled.create(festType, gameType, minPlayers, maxPlayers, time, unit, offset, winnerReward);
                 } else {
-                    FixedDateScheduled.create(festType, gameType, minPlayers, maxPlayers, time);
+                    FixedDateScheduled.create(festType, gameType, minPlayers, maxPlayers, time, winnerReward);
                 }
             } else {
                 FestCalendar.getInstance().removeFestEntry(editingFest.uuid());
                 if (recurring) {
-                    RecurringDateScheduled.create(festType, gameType, minPlayers, maxPlayers, time, unit, offset);
+                    RecurringDateScheduled.create(festType, gameType, minPlayers, maxPlayers, time, unit, offset, winnerReward);
                 } else {
-                    FixedDateScheduled.create(festType, gameType, minPlayers, maxPlayers, time);
+                    FixedDateScheduled.create(festType, gameType, minPlayers, maxPlayers, time, winnerReward);
                 }
 
                 if (event.getWhoClicked() instanceof Player player)
@@ -264,6 +287,10 @@ public class FestCreationGUI extends ActionInventory {
         updateGameType();
         updateMinPlayerCount();
         updateMaxPlayerCount();
+
+        if(hasWinnerReward)
+            updateWinnerReward();
+
         updateRecurring();
         updateTime();
         updateUnit();
@@ -361,6 +388,17 @@ public class FestCreationGUI extends ActionInventory {
 
         item.setAmount(Math.clamp(maxPlayers, 1, 99));
         inventory.setItem(MAX_PLAYERS_SLOT, item);
+    }
+
+    private void updateWinnerReward() {
+        inventory.setItem(REWARD_SLOT, ItemUtils.createBasicUIItem(Material.SUNFLOWER,
+                Component.text("Reward: ", NamedTextColor.GRAY)
+                        .append(Component.text(String.valueOf(winnerReward), NamedTextColor.GOLD)),
+                ItemUtils.applyDefaultLoreStyle(
+                        Component.text(ServerFest.getPlugin().getEconomy().currencyNamePlural(), NamedTextColor.YELLOW)
+                                .append(Component.text(" handed out to the winner(s)", NamedTextColor.WHITE))
+                )
+        ));
     }
 
     private void updateRecurring() {

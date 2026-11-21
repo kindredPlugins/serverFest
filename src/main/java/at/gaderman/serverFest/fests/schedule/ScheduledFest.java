@@ -27,30 +27,50 @@ public abstract class ScheduledFest {
     protected int maxPlayers;
     private double winnerReward;
 
+    public record Settings(UUID uuid, FestType festType, @Nullable GameType gameType,
+                           int minPlayers, int maxPlayers, double winnerReward) {
+        public Settings {
+            winnerReward = Math.max(winnerReward, 0);
+        }
+
+        public static Settings defaults() {
+            return new Settings(UUID.randomUUID(), FestType.CASUAL, null, 1,
+                    GeneralConfig.getInstance().maxPlayersPerFest(), 0);
+        }
+
+        public static Settings of(FestType festType, @Nullable GameType gameType,
+                                  int minPlayers, int maxPlayers, double winnerReward) {
+            return new Settings(UUID.randomUUID(), festType, gameType, minPlayers, maxPlayers, winnerReward);
+        }
+    }
+
     protected ScheduledFest() {
-        //TODO: min fest players should theoretically always be 2, the special case is a fest dev-test (/fest dev) which should allow 1 person as it is just for testing or a competition when everyone sleeps
-        this(UUID.randomUUID(), FestType.CASUAL, null, 1, GeneralConfig.getInstance().maxPlayersPerFest());
+        this(Settings.defaults());
     }
 
     protected ScheduledFest(@Nullable GameType gameType, int minPlayers, int maxPlayers) {
-        this(UUID.randomUUID(), FestType.CASUAL, gameType, minPlayers, maxPlayers);
+        this(new Settings(UUID.randomUUID(), FestType.CASUAL, gameType, minPlayers, maxPlayers, 0));
     }
 
     protected ScheduledFest(FestType festType, @Nullable GameType gameType, int minPlayers, int maxPlayers) {
-        this(UUID.randomUUID(), festType, gameType, minPlayers, maxPlayers);
+        this(Settings.of(festType, gameType, minPlayers, maxPlayers, 0));
     }
 
     protected ScheduledFest(UUID uuid, FestType festType, @Nullable GameType gameType, int minPlayers, int maxPlayers) {
-        this(uuid, festType, gameType, minPlayers, maxPlayers, 0);
+        this(new Settings(uuid, festType, gameType, minPlayers, maxPlayers, 0));
     }
 
     public ScheduledFest(UUID uuid, FestType festType, @Nullable GameType gameType, int minPlayers, int maxPlayers, double winnerReward) {
-        this.uuid = uuid;
-        this.festType = festType;
-        this.gameType = gameType;
-        this.minPlayers = minPlayers;
-        this.maxPlayers = maxPlayers;
-        this.winnerReward = winnerReward;
+        this(new Settings(uuid, festType, gameType, minPlayers, maxPlayers, winnerReward));
+    }
+
+    protected ScheduledFest(Settings settings) {
+        this.uuid = settings.uuid();
+        this.festType = settings.festType();
+        this.gameType = settings.gameType();
+        this.minPlayers = settings.minPlayers();
+        this.maxPlayers = settings.maxPlayers();
+        this.winnerReward = settings.winnerReward();
     }
 
     /**
@@ -92,7 +112,7 @@ public abstract class ScheduledFest {
         }
 
         //TODO: inspect this properly, make a fixed constant for time left, this way fests still actually occur one minute late, may adjust it to trigger one minute before
-        FestRecruitment.requestRecruitment(60, festType, instanceType, minPlayers, maxPlayers);
+        FestRecruitment.requestRecruitment(60, festType, instanceType, minPlayers, maxPlayers, winnerReward);
     }
 
     /**
@@ -106,6 +126,7 @@ public abstract class ScheduledFest {
             config.set("gameType", gameType.toString().toUpperCase());
         config.set("minPlayers", minPlayers);
         config.set("maxPlayers", maxPlayers);
+        config.set("winnerReward", winnerReward);
 
         ConfigurationSection scheduleSection = config.getConfigurationSection("schedule");
         if (scheduleSection == null)
@@ -137,6 +158,7 @@ public abstract class ScheduledFest {
         GameType gameType = gameTypeString == null ? null : GameType.valueOf(gameTypeString);
         int minPlayers = config.getInt("minPlayers", 2);
         int maxPlayers = config.getInt("maxPlayers", GeneralConfig.getInstance().maxPlayersPerFest());
+        double winnerReward = config.getDouble("winnerReward", 0);
 
         ConfigurationSection scheduleSection = config.getConfigurationSection("schedule");
 
@@ -145,9 +167,9 @@ public abstract class ScheduledFest {
 
         return switch (type) {
             case "fixedDate" ->
-                    FixedDateScheduled.deserialize(scheduleSection, uuid, festType, gameType, minPlayers, maxPlayers);
+                    FixedDateScheduled.deserialize(scheduleSection, uuid, festType, gameType, minPlayers, maxPlayers, winnerReward);
             case "recurring" ->
-                    RecurringDateScheduled.deserialize(scheduleSection, uuid, festType, gameType, minPlayers, maxPlayers);
+                    RecurringDateScheduled.deserialize(scheduleSection, uuid, festType, gameType, minPlayers, maxPlayers, winnerReward);
             default -> throw new IllegalArgumentException("Invalid scheduled fest type");
         };
     }
