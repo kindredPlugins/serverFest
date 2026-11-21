@@ -25,6 +25,7 @@ public abstract class ScheduledFest {
     private @Nullable GameType gameType;
     protected int minPlayers;
     protected int maxPlayers;
+    private double winnerReward;
 
     protected ScheduledFest() {
         //TODO: min fest players should theoretically always be 2, the special case is a fest dev-test (/fest dev) which should allow 1 person as it is just for testing or a competition when everyone sleeps
@@ -40,11 +41,16 @@ public abstract class ScheduledFest {
     }
 
     protected ScheduledFest(UUID uuid, FestType festType, @Nullable GameType gameType, int minPlayers, int maxPlayers) {
+        this(uuid, festType, gameType, minPlayers, maxPlayers, 0);
+    }
+
+    public ScheduledFest(UUID uuid, FestType festType, @Nullable GameType gameType, int minPlayers, int maxPlayers, double winnerReward) {
         this.uuid = uuid;
         this.festType = festType;
         this.gameType = gameType;
         this.minPlayers = minPlayers;
         this.maxPlayers = maxPlayers;
+        this.winnerReward = winnerReward;
     }
 
     /**
@@ -183,6 +189,15 @@ public abstract class ScheduledFest {
 
     public ScheduledFest setMaxPlayers(int maxPlayers) {
         this.maxPlayers = maxPlayers;
+        return this;
+    }
+
+    public double winnerReward(){
+        return winnerReward;
+    }
+
+    public ScheduledFest setWinnerReward(double value){
+        this.winnerReward = Math.max(value, 0);
         return this;
     }
 

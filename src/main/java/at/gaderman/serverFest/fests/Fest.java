@@ -14,6 +14,7 @@ import at.gaderman.serverFest.management.WorldManager;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.milkbowl.vault.economy.Economy;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerTeleportEvent;
@@ -39,6 +40,7 @@ public class Fest {
     private final UUID uuid;
     private final FestType festType;
     private final List<UUID> participantUUIDs;
+    private final double winnerReward;
     private final FestGame<?> game;
     private final ArenaInstance arenaInstance;
 
@@ -49,12 +51,19 @@ public class Fest {
     private ScheduledTask maxTimeTask;
 
     public Fest(FestType festType, @NotNull GameType gameType, List<UUID> participantUUIDs) {
+        this(festType, gameType, participantUUIDs, 0);
+    }
+
+    public Fest(FestType festType, @NotNull GameType gameType, List<UUID> participantUUIDs, double winnerReward) {
         this.uuid = UUID.randomUUID();
         this.festType = festType;
         this.participantUUIDs = participantUUIDs;
+        this.winnerReward = winnerReward;
 
         this.arenaInstance = ServerFest.arenaManager.requestArena(gameType, festType);
         this.game = gameType.createNewInstance(this, arenaInstance);
+        if(winnerReward > 0)
+            registerRewardCallback();
 
         if (arenaInstance == null) {
             ServerFest.getPlugin().getLogger().severe("A fest has been forcefully started without checking for an empty arena slot first!");
@@ -101,6 +110,10 @@ public class Fest {
 
     public ArenaInstance arenaInstance() {
         return arenaInstance;
+    }
+
+    public double winnerReward() {
+        return winnerReward;
     }
 
     //endregion
@@ -237,6 +250,23 @@ public class Fest {
                 .append(Component.text("ender pearl hit", NamedTextColor.LIGHT_PURPLE))
                 .append(Component.text(".", NamedTextColor.GRAY))
         );
+    }
+
+    private void registerRewardCallback() {
+        this.game.addWinnerCallback(winners -> {
+            Economy economy = ServerFest.getPlugin().getEconomy();
+            if (economy == null || winners.isEmpty()) return;
+
+            double rewardSplit = winnerReward / winners.size();
+            winners.forEach(winner -> {
+                economy.depositPlayer(winner, rewardSplit);
+                winner.sendMessage(ServerFest.CHAT_PREFIX
+                        .append(Component.text("Received "))
+                        .append(Component.text(economy.format(rewardSplit) + " " + economy.currencyNamePlural()))
+                );
+                winner.playSound(winner, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f);
+            });
+        });
     }
 
     private void scheduleMaxTimeTask() {

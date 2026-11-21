@@ -38,12 +38,14 @@ public abstract class FestGame<T extends ArenaLayout> {
 
     private boolean running;
     private final List<Player> winners = new ArrayList<>();
+    private List<Consumer<List<Player>>> winnerCallbacks = new ArrayList<>();
+
     private BossBar arenaBuildingBar;
     protected final ArenaBlockTracker blockTracker;
 
     private final Map<UUID, FestPlayerData> playerDataMap = new HashMap<>();
 
-    public FestGame(Fest fest, ArenaInstance arenaInstance) {
+    protected FestGame(Fest fest, ArenaInstance arenaInstance) {
         this.fest = fest;
         this.arenaInstance = arenaInstance;
         this.arenaLayout = (T) arenaInstance.arenaLayout();
@@ -57,6 +59,10 @@ public abstract class FestGame<T extends ArenaLayout> {
 
     public Location determineOrigin() {
         return arenaLayout.origin();
+    }
+
+    public void addWinnerCallback(Consumer<List<Player>> winnerCallback) {
+        this.winnerCallbacks.add(winnerCallback);
     }
 
     /**
@@ -146,6 +152,7 @@ public abstract class FestGame<T extends ArenaLayout> {
         this.winners.addAll(winners);
         running = false;
         onWinner(winners);
+        winnerCallbacks.forEach(callback -> callback.accept(winners));
         afterWinner(winners);
     }
 

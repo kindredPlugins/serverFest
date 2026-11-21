@@ -16,8 +16,11 @@ import at.gaderman.serverFest.utils.UpdateChecker;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
+import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.jetbrains.annotations.Nullable;
 
 public final class ServerFest extends JavaPlugin {
 
@@ -25,6 +28,7 @@ public final class ServerFest extends JavaPlugin {
     public static final Component CHAT_PREFIX = buildChatPrefix();
 
     public static ArenaManager arenaManager;
+    private Economy economy;
 
     public static ServerFest getPlugin() {
         return getPlugin(ServerFest.class);
@@ -53,6 +57,10 @@ public final class ServerFest extends JavaPlugin {
                 getLogger().warning("Could not register PlaceholderAPI expansion");
         }
 
+        if(setupEconomy()){
+            getLogger().info("Hook into Vault has been established");
+        }
+
         new UpdateChecker(this).check();
     }
 
@@ -62,6 +70,8 @@ public final class ServerFest extends JavaPlugin {
         getLogger().info("Stopping all ongoing fests...");
         FestManager.getInstance().getFests().forEach(Fest::stop);
     }
+
+    //region Chat Object Support
 
     private static boolean checkChatObjectSupport() {
         String version = Bukkit.getMinecraftVersion();
@@ -92,6 +102,8 @@ public final class ServerFest extends JavaPlugin {
         }
     }
 
+    //endregion
+
     private static Component buildChatPrefix() {
         Component icon = supportsChatObjects
                 ? MiniMessage.miniMessage()
@@ -106,6 +118,27 @@ public final class ServerFest extends JavaPlugin {
 
     public static Component withChatPrefix(Component component){
         return CHAT_PREFIX.append(component);
+    }
+
+    private boolean setupEconomy() {
+        if (getServer().getPluginManager().getPlugin("Vault") == null) {
+            return false;
+        }
+        RegisteredServiceProvider<Economy> rsp =
+                getServer().getServicesManager().getRegistration(Economy.class);
+        if (rsp == null) {
+            return false;
+        }
+        economy = rsp.getProvider();
+        return economy != null;
+    }
+
+    public @Nullable Economy getEconomy() {
+        return economy;
+    }
+
+    public boolean hasEconomy() {
+        return economy != null;
     }
 
 //    @EventHandler
