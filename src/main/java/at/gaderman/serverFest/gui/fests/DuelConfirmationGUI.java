@@ -13,9 +13,14 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.inventory.ClickType;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -24,9 +29,12 @@ import java.util.stream.Collectors;
 
 public class DuelConfirmationGUI extends ActionInventory {
 
-    private static final int GAMETYPE_SLOT = 13;
-    private static final int CHALLENGER_ACCEPT_SLOT = 20;
-    private static final int OPPONENT_ACCEPT_SLOT = 24;
+    private static final int GAMETYPE_SLOT = 4;
+    private static final int CHALLENGER_ACCEPT_SLOT = 11;
+    private static final int OPPONENT_ACCEPT_SLOT = 15;
+
+    private static final int GRID_START_SLOT = 27;
+    private static final int GRID_OPPONENT_OFFSET = 5;
 
     private final Player challenger;
     private final Player opponent;
@@ -38,8 +46,10 @@ public class DuelConfirmationGUI extends ActionInventory {
 
     private boolean cancelled;
 
+    //region Init
+
     public DuelConfirmationGUI(Player challenger, Player opponent) {
-        super(27, Component.text("Duel", NamedTextColor.AQUA));
+        super(54, Component.text("Duel", NamedTextColor.AQUA));
         this.challenger = challenger;
         this.opponent = opponent;
 
@@ -49,10 +59,10 @@ public class DuelConfirmationGUI extends ActionInventory {
     private void initInv() {
         fillWithFillItem();
 
-        inventory.setItem(4, duelIcon());
+        //inventory.setItem(4, duelIcon());
 
-        inventory.setItem(11, playerHead(challenger));
-        inventory.setItem(15, playerHead(opponent));
+        inventory.setItem(CHALLENGER_ACCEPT_SLOT - 9, playerHead(challenger));
+        inventory.setItem(OPPONENT_ACCEPT_SLOT - 9, playerHead(opponent));
 
         updateGameType();
         defineInventoryAction(GAMETYPE_SLOT, event -> {
@@ -104,7 +114,21 @@ public class DuelConfirmationGUI extends ActionInventory {
 
             updateAcceptance();
         });
+
+        for (int i = 18; i < 27; i++)
+            inventory.setItem(i, getFillItem().withType(Material.IRON_BARS));
+
+        for (int i = 0; i < 3; i++) {
+            int row = GRID_START_SLOT + 9 * i;
+
+            for (int j = 0; j < 3; j++) {
+                inventory.setItem(row + j, ItemStack.empty());
+                inventory.setItem(row + j + GRID_OPPONENT_OFFSET, ItemStack.empty());
+            }
+        }
     }
+
+    //endregion
 
     private void updateAcceptance() {
         inventory.setItem(CHALLENGER_ACCEPT_SLOT, obtainAcceptItem(challenger, challengerAccepted));
@@ -125,7 +149,7 @@ public class DuelConfirmationGUI extends ActionInventory {
                     return;
                 }
 
-                if(FestManager.getInstance().isPlayerParticipatingInAnyFest(challenger)){
+                if (FestManager.getInstance().isPlayerParticipatingInAnyFest(challenger)) {
                     List.of(challenger, opponent).forEach(both -> {
                         both.playSound(both.getLocation(), Sound.ENTITY_VILLAGER_DEATH, 1f, 0.5f);
                         both.sendMessage(Component.text("Duel was cancelled due to participating in another fest", NamedTextColor.RED));
@@ -179,6 +203,8 @@ public class DuelConfirmationGUI extends ActionInventory {
         }
     }
 
+    //region Items
+
     private ItemStack duelIcon() {
         ItemStack item = ItemStack.of(Material.IRON_SWORD);
         item.editMeta(meta -> {
@@ -219,11 +245,149 @@ public class DuelConfirmationGUI extends ActionInventory {
         return item;
     }
 
+    //endregion
+
+    //region Custom Events
+
+    @EventHandler
+    public void onInventoryClick(InventoryClickEvent event) {
+        if (event.getInventory().getHolder() != this) return;
+        event.setCancelled(true);
+
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+
+        ClickType click = event.getClick();
+        if (click != ClickType.LEFT && click != ClickType.RIGHT
+                && click != ClickType.SHIFT_LEFT && click != ClickType.SHIFT_RIGHT) return;
+
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || clicked.isEmpty()) return;
+
+        boolean shift = click.isShiftClick();
+        boolean right = click == ClickType.RIGHT;
+        int gridStart = GRID_START_SLOT + (challenger.getUniqueId().equals(player.getUniqueId()) ? 0 : GRID_OPPONENT_OFFSET);
+
+        if (event.getClickedInventory() == event.getView().getBottomInventory()) {
+            int available = countItem(player.getInventory(), clicked) - countItemInGrid(gridStart, clicked);
+            int wanted = Math.min(available, shift ? available : right ? (clicked.getAmount() + 1) / 2 : 1);
+
+            int placed = 0;
+            if (wanted > 0) {
+                ItemStack offer = clicked.clone();
+                offer.setAmount(wanted);
+                placed = placeItemInGrid(gridStart, offer);
+            }
+
+            if(placed > 0) resetAcceptance();
+            player.playSound(player, placed > 0 ? Sound.ENTITY_CHICKEN_EGG : Sound.ENTITY_ITEM_BREAK, 1f, 1f);
+        } else {
+            int rel = event.getSlot() - gridStart;
+            if (rel < 0 || rel / 9 > 2 || rel % 9 > 2) return;
+
+            int removed = shift
+                    ? removeFromGrid(gridStart, clicked)
+                    : removeFromSlot(event.getSlot(), right ? (clicked.getAmount() + 1) / 2 : 1);
+
+            if (removed > 0){
+                player.playSound(player, Sound.ENTITY_CHICKEN_EGG, 1f, 1.25f);
+
+                resetAcceptance();
+            }
+        }
+    }
+
+    private void resetAcceptance(){
+        if(challengerAccepted || opponentAccepted)
+            List.of(challenger, opponent).forEach(both -> both.playSound(both, Sound.BLOCK_LEVER_CLICK, 1f, 1f));
+
+        challengerAccepted = false;
+        opponentAccepted = false;
+        updateAcceptance();
+    }
+
+    private int removeFromSlot(int slot, int amount) {
+        ItemStack at = inventory.getItem(slot);
+        if (at == null || at.isEmpty()) return 0;
+
+        int removed = Math.min(amount, at.getAmount());
+        if (removed >= at.getAmount()) {
+            inventory.setItem(slot, null);
+        } else {
+            at.setAmount(at.getAmount() - removed);
+            inventory.setItem(slot, at);
+        }
+        return removed;
+    }
+
+    private int removeFromGrid(int gridStart, ItemStack template) {
+        int removed = 0;
+        for (int i = 0; i < 9; i++) {
+            int slot = gridStart + (i / 3) * 9 + (i % 3);
+            ItemStack at = inventory.getItem(slot);
+            if (at != null && !at.isEmpty() && template.isSimilar(at))
+                removed += removeFromSlot(slot, at.getAmount());
+        }
+        return removed;
+    }
+
+    private int countItem(Inventory inv, ItemStack item) {
+        int sum = 0;
+        for (ItemStack stack : inv.getStorageContents())
+            if (stack != null && item.isSimilar(stack)) sum += stack.getAmount();
+        return sum;
+    }
+
+    /// Counts how often the item is already present in the bet grid
+    private int countItemInGrid(int gridStart, @NonNull ItemStack item) {
+        int sum = 0;
+
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) {
+                ItemStack itemAt = inventory.getItem(gridStart + row * 9 + col);
+                if (itemAt != null && item.isSimilar(itemAt))
+                    sum += itemAt.getAmount();
+            }
+        }
+
+        return sum;
+    }
+
+    /// Places as much of the given item as possible within the grid
+    ///
+    /// @return Amount of items successfully placed
+    private int placeItemInGrid(int gridStart, ItemStack item) {
+        int left = item.getAmount();
+
+        // 2 iterations, 0 - fill existing 1 - fill empty
+        for (int iteration = 0; iteration < 2 && left > 0; iteration++) {
+            for (int i = 0; i < 9 && left > 0; i++) {
+                int index = gridStart + (i / 3) * 9 + (i % 3);
+                ItemStack at = inventory.getItem(index);
+
+                if (iteration == 0 && at != null && !at.isEmpty() && item.isSimilar(at)) {
+                    int add = Math.min(at.getMaxStackSize() - at.getAmount(), left);
+                    if (add > 0) {
+                        at.setAmount(at.getAmount() + add);
+                        inventory.setItem(index, at);
+                        left -= add;
+                    }
+                } else if (iteration == 1 && (at == null || at.isEmpty())) {
+                    int add = Math.min(item.getMaxStackSize(), left);
+                    ItemStack placed = item.clone();
+                    placed.setAmount(add);
+                    inventory.setItem(index, placed);
+                    left -= add;
+                }
+            }
+        }
+        return item.getAmount() - left;
+    }
+
     @Override
     protected void onSingleClose() {
         super.onSingleClose();
 
-        if(cancelled)
+        if (cancelled)
             return;
 
         if (opponentAccepted && challengerAccepted)
@@ -237,4 +401,6 @@ public class DuelConfirmationGUI extends ActionInventory {
             player.playSound(player, Sound.ENTITY_WITHER_HURT, 1f, 2f);
         });
     }
+
+    //endregion
 }

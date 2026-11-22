@@ -116,7 +116,7 @@ public class ActionInventory implements InventoryHolder, Listener {
     }
 
     /**
-     * Called when any player closes the inventory completely unrelated to {@link closeAction()} and
+     * Called when any player closes the inventory completely unrelated to {@link #closeAction()} and
      * will trigger before it.
      */
     protected void onSingleClose() {
