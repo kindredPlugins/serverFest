@@ -36,6 +36,8 @@ public class SaveStateManagement {
     public static final NamespacedKey SAVE_LOCATION = new NamespacedKey(ServerFest.getPlugin(), "saveLocation");
     public static final NamespacedKey SAVE_VELOCITY = new NamespacedKey(ServerFest.getPlugin(), "saveVelocity");
 
+    //region PlayerSave
+
     /**
      * Completely saves data and stats of a player by encoding it in their ender chest
      */
@@ -164,6 +166,8 @@ public class SaveStateManagement {
         player.saveData();
     }
 
+    //endregion
+
     private static ItemStack transferToContainer(ItemStack[] contents) {
         ItemStack container = ItemStack.of(Material.CHEST);
         container.editMeta(meta -> {
@@ -200,7 +204,7 @@ public class SaveStateManagement {
 
         player.getActivePotionEffects().forEach(effect -> {
             PotionEffect hiddenEffect = effect.getHiddenPotionEffect();
-            if(hiddenEffect != null) {
+            if (hiddenEffect != null) {
                 PotionEffect newEffect = new PotionEffect(hiddenEffect.getType(), hiddenEffect.getDuration(), hiddenEffect.getAmplifier(), hiddenEffect.isAmbient(), hiddenEffect.hasParticles(), hiddenEffect.hasIcon());
                 builder.addCustomEffect(newEffect);
             }
@@ -262,12 +266,14 @@ public class SaveStateManagement {
         }
     }
 
-    public static void updateSaveLocation(@NotNull Player player, @NotNull Location newLocation){
+    public static void updateSaveLocation(@NotNull Player player, @NotNull Location newLocation) {
         PersistentDataContainer pdc = player.getPersistentDataContainer();
         pdc.set(SAVED_STATE, PersistentDataType.STRING, ServerFest.getPlugin().getPluginMeta().getVersion());
 
         pdc.set(SAVE_LOCATION, PersistentDataType.STRING, serializeLocation(newLocation));
     }
+
+    //endregion
 
     public static class SaveListener implements Listener {
 

@@ -1,6 +1,7 @@
 package at.gaderman.serverFest.command;
 
 import at.gaderman.serverFest.ServerFest;
+import at.gaderman.serverFest.config.GeneralConfig;
 import at.gaderman.serverFest.config.PermissionProvider;
 import at.gaderman.serverFest.data.player.PlayerDataManager;
 import at.gaderman.serverFest.fests.Fest;
@@ -155,7 +156,7 @@ public class FestCommand implements CommandExecutor, TabCompleter {
 
                         GameType gameType = GameType.valueOf(args[1].toUpperCase());
                         sendScheduleMessage(sender);
-                        var recruitment = FestRecruitment.requestRecruitment(isDev ? 10 : 60, FestType.CASUAL, gameType, 1, 1);
+                        var recruitment = FestRecruitment.requestRecruitment(isDev ? 10 : 60, FestType.CASUAL, gameType, 1, isDev ? 1 : GeneralConfig.getInstance().maxPlayersPerFest());
                         if (isPlayer && isDev) recruitment.addParticipant((Player) sender);
                     } catch (IllegalArgumentException exception) {
                         sender.sendMessage(Component.text("Invalid gameType " + args[1], NamedTextColor.RED));
@@ -204,11 +205,12 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                         return true;
                     }
 
-//                    if (opponent.equals(player)) {
-//                        player.sendMessage(Component.text("You cannot duel yourself!", NamedTextColor.RED));
-//                        player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
-//                        return true;
-//                    }
+                    //TODO: make sure this stays on for public release!
+                    if (opponent.equals(player)) {
+                        player.sendMessage(Component.text("You cannot duel yourself!", NamedTextColor.RED));
+                        player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
+                        return true;
+                    }
 
                     if (FestManager.getInstance().isPlayerParticipatingInAnyFest(opponent)) {
                         player.sendMessage(Component.text("This player is already participating in another fest!", NamedTextColor.RED));

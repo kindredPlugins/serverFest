@@ -4,6 +4,7 @@ import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.Fest;
 import at.gaderman.serverFest.fests.FestManager;
 import at.gaderman.serverFest.fests.FestType;
+import at.gaderman.serverFest.fests.duel.DuelBet;
 import at.gaderman.serverFest.fests.duel.DuelQueueManager;
 import at.gaderman.serverFest.fests.game.GameType;
 import at.gaderman.serverFest.gui.ActionInventory;
@@ -157,6 +158,8 @@ public class DuelConfirmationGUI extends ActionInventory {
                     return;
                 }
 
+                DuelBet duelBet = collectBet();
+
                 List<GameType> chooseTypes = Arrays.stream(GameType.values()).collect(Collectors.toList());
                 GameType game = gameType;
 
@@ -179,7 +182,7 @@ public class DuelConfirmationGUI extends ActionInventory {
                         );
                     });
 
-                    DuelQueueManager.getInstance().enqueue(challenger, opponent, gameType);
+                    DuelQueueManager.getInstance().enqueue(challenger, opponent, gameType, duelBet);
                     return;
                 }
 
@@ -192,7 +195,7 @@ public class DuelConfirmationGUI extends ActionInventory {
                     return;
                 }
 
-                Fest fest = new Fest(FestType.DUEL, game, new ArrayList<>(List.of(challenger.getUniqueId(), opponent.getUniqueId())));
+                Fest fest = Fest.ofDuel(game, new ArrayList<>(List.of(challenger.getUniqueId(), opponent.getUniqueId())), duelBet);
                 fest.start();
             }, () -> {
                 if (opponent.isConnected()) {
@@ -381,6 +384,28 @@ public class DuelConfirmationGUI extends ActionInventory {
             }
         }
         return item.getAmount() - left;
+    }
+
+    //TODO: we need two lists on DuelBet and rather remove items here already, what if player leaves during duel, operations will become tremendous
+    /// collects all items from the grids and set bet currency into a {@link DuelBet}
+    private DuelBet collectBet(){
+        List<ItemStack> items = new ArrayList<>();
+
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                int index = GRID_START_SLOT + i * 9 + j;
+
+                ItemStack chItem = inventory.getItem(index);
+                if(chItem != null && !chItem.isEmpty())
+                    items.add(chItem.clone());
+
+                ItemStack opItem = inventory.getItem(index + GRID_OPPONENT_OFFSET);
+                if(opItem != null && !opItem.isEmpty())
+                    items.add(opItem.clone());
+            }
+        }
+
+        return new DuelBet(items, 0);
     }
 
     @Override

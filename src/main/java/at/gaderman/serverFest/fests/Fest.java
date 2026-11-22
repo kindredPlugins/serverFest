@@ -7,6 +7,7 @@ import at.gaderman.serverFest.data.DataConfig;
 import at.gaderman.serverFest.data.player.PlayerDataManager;
 import at.gaderman.serverFest.fests.arenas.ArenaInstance;
 import at.gaderman.serverFest.fests.arenas.ArenaState;
+import at.gaderman.serverFest.fests.duel.DuelBet;
 import at.gaderman.serverFest.fests.game.FestGame;
 import at.gaderman.serverFest.fests.game.GameType;
 import at.gaderman.serverFest.fests.game.triggers.TriggerListener;
@@ -19,6 +20,7 @@ import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,6 +43,8 @@ public class Fest {
     private final FestType festType;
     private final List<UUID> participantUUIDs;
     private final double winnerReward;
+    private final @Nullable DuelBet duelBet;
+
     private final FestGame<?> game;
     private final ArenaInstance arenaInstance;
 
@@ -55,14 +59,23 @@ public class Fest {
     }
 
     public Fest(FestType festType, @NotNull GameType gameType, List<UUID> participantUUIDs, double winnerReward) {
+        this(festType, gameType, participantUUIDs, winnerReward, null);
+    }
+
+    public static Fest ofDuel(@NotNull GameType gameType, @NotNull List<UUID> participantUUIDs, DuelBet duelBet) {
+        return new Fest(FestType.DUEL, gameType, participantUUIDs, 0, duelBet);
+    }
+
+    private Fest(FestType festType, @NotNull GameType gameType, List<UUID> participantUUIDs, double winnerReward, @Nullable DuelBet duelBet) {
         this.uuid = UUID.randomUUID();
         this.festType = festType;
         this.participantUUIDs = participantUUIDs;
         this.winnerReward = winnerReward;
+        this.duelBet = duelBet;
 
         this.arenaInstance = ServerFest.arenaManager.requestArena(gameType, festType);
         this.game = gameType.createNewInstance(this, arenaInstance);
-        if(winnerReward > 0)
+        if (winnerReward > 0)
             registerRewardCallback();
 
         if (arenaInstance == null) {
@@ -209,6 +222,11 @@ public class Fest {
             arenaInstance.resetToReady();
 
         participants().forEach(SaveStateManagement::restorePlayerState);
+
+        if(duelBet != null && !game.getWinners().isEmpty()) {
+            Player winner = game.getWinners().getFirst();
+            duelBet.payOut(winner);
+        }
 
         if (triggerListener != null)
             triggerListener.unregister();

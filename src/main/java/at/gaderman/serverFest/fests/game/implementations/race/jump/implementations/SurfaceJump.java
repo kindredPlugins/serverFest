@@ -15,6 +15,7 @@ public final class SurfaceJump implements JumpPattern {
     public static final SurfaceJump SOUL_SAND = new SurfaceJump(Material.SOUL_SAND, 0, -1);
     public static final SurfaceJump IRON_BARS = new SurfaceJump(Material.IRON_BARS, 0, -1);
 
+    //TODO: soul sand onto iron bars is an illegal combo which is not possible even for adjusted range of 3 (if both have reach modifier it should combine them?)
     public static final SurfaceJump FENCE = new SurfaceJump(Material.OAK_FENCE, -1, 0);
 
     private final Material material;

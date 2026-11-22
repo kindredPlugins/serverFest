@@ -42,8 +42,8 @@ public class DuelQueueManager implements Listener {
 
     // region API
 
-    public void enqueue(Player player1, Player player2, @Nullable GameType gameType) {
-        Duel duel = new Duel(player1, player2, gameType);
+    public void enqueue(Player player1, Player player2, @Nullable GameType gameType, DuelBet duelBet) {
+        Duel duel = new Duel(player1, player2, gameType, duelBet);
 
         synchronized (queue) {
             queue.add(duel);
@@ -109,7 +109,7 @@ public class DuelQueueManager implements Listener {
             return;
         }
 
-        Fest fest = new Fest(FestType.DUEL, gameType, new ArrayList<>(List.of(challenger.getUniqueId(), opponent.getUniqueId())));
+        Fest fest = Fest.ofDuel(gameType, new ArrayList<>(List.of(challenger.getUniqueId(), opponent.getUniqueId())), duel.duelBet);
         fest.start();
     }
 
@@ -218,6 +218,7 @@ public class DuelQueueManager implements Listener {
         final Player player2;
         @Nullable
         final GameType gameType;
+        final DuelBet duelBet;
         volatile boolean found;
 
         /**
@@ -226,10 +227,11 @@ public class DuelQueueManager implements Listener {
         final AtomicBoolean closed = new AtomicBoolean(false);
         final List<ScheduledTask> tasks = new CopyOnWriteArrayList<>();
 
-        Duel(Player player1, Player player2, @Nullable GameType gameType) {
+        Duel(Player player1, Player player2, @Nullable GameType gameType, DuelBet duelBet) {
             this.player1 = player1;
             this.player2 = player2;
             this.gameType = gameType;
+            this.duelBet = duelBet;
         }
 
         void cancelTasks() {

@@ -57,6 +57,13 @@ public abstract class FestGame<T extends ArenaLayout> {
      */
     public abstract @NotNull GameType gameType();
 
+    /**
+     * Returns all winners, note that this will obviously be empty during the game and is intended for later lookups
+     */
+    public List<Player> getWinners() {
+        return winners;
+    }
+
     public Location determineOrigin() {
         return arenaLayout.origin();
     }
