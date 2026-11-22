@@ -30,6 +30,6 @@ public final class SlimeJump implements JumpPattern {
         Location landing = ctx.offset(pad, ctx.fitX(pad, ctx.random().nextInt(3) - 1), DEPTH - LANDING_DROP, bounce);
         ctx.set(landing, BASE_BLOCK);
 
-        return ctx.offset(landing, 0, 0, 1);
+        return ctx.offset(landing, 0, 0, 0);
     }
 }

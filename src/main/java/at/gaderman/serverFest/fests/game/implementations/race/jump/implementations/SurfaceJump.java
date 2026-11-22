@@ -9,7 +9,7 @@ import org.bukkit.Material;
 /// Similar to a SimpleJump but uses a different material to influence the jump
 public final class SurfaceJump implements JumpPattern {
 
-    private static final int BASE_REACH = 3;
+    private static final int BASE_REACH = 4;
 
     public static final SurfaceJump ICE = new SurfaceJump(Material.PACKED_ICE, 0, 1);
     public static final SurfaceJump SOUL_SAND = new SurfaceJump(Material.SOUL_SAND, 0, -1);
@@ -35,7 +35,7 @@ public final class SurfaceJump implements JumpPattern {
     @Override
     public Location build(Location start, JumpContext ctx) {
         int reach = ctx.reach(BASE_REACH);
-        int dz = 2 + ctx.random().nextInt(2);
+        int dz = 2 + ctx.random().nextInt(reach - 1);
         int dx = ctx.fitX(start, ctx.random().nextInt(3) - 1);
         int dy = ctx.fitY(start, drop);
 

@@ -10,7 +10,7 @@ import java.util.function.BiConsumer;
 /// Helper for "context" when building and selecting jumps for {@link at.gaderman.serverFest.fests.game.implementations.race.JumpAndRun}
 public final class JumpContext {
 
-    private static final int MIN_REACH = 2;
+    private static final int MIN_REACH = 3;
 
     private final Random random;
     private final BiConsumer<Location, BlockData> sink;
