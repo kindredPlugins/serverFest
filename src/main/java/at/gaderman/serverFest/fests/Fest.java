@@ -19,6 +19,7 @@ import net.milkbowl.vault.economy.Economy;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -54,16 +55,8 @@ public class Fest {
     private TriggerListener triggerListener;
     private ScheduledTask maxTimeTask;
 
-    public Fest(FestType festType, @NotNull GameType gameType, List<UUID> participantUUIDs) {
-        this(festType, gameType, participantUUIDs, 0);
-    }
-
-    public Fest(FestType festType, @NotNull GameType gameType, List<UUID> participantUUIDs, double winnerReward) {
+    private Fest(FestType festType, @NotNull GameType gameType, List<UUID> participantUUIDs, double winnerReward) {
         this(festType, gameType, participantUUIDs, winnerReward, null);
-    }
-
-    public static Fest ofDuel(@NotNull GameType gameType, @NotNull List<UUID> participantUUIDs, DuelBet duelBet) {
-        return new Fest(FestType.DUEL, gameType, participantUUIDs, 0, duelBet);
     }
 
     private Fest(FestType festType, @NotNull GameType gameType, List<UUID> participantUUIDs, double winnerReward, @Nullable DuelBet duelBet) {
@@ -84,6 +77,24 @@ public class Fest {
         }
 
         arenaInstance.activateArena();
+    }
+
+    public static Fest of(FestType festType, @NotNull GameType gameType, List<UUID> participantUUIDs){
+        return of(festType, gameType, participantUUIDs, 0);
+    }
+
+    public static Fest of(FestType festType, @NotNull GameType gameType, List<UUID> participantUUIDs, double winnerReward){
+        if(festType == FestType.DUEL)
+            throw new IllegalArgumentException("A duel fest needs extra parameters and cannot be created here, use #ofDuel() instead");
+
+        return new Fest(festType, gameType, participantUUIDs, winnerReward);
+    }
+
+    public static Fest ofDuel(@NotNull GameType gameType, @NotNull List<UUID> participantUUIDs, DuelBet duelBet) {
+        if(participantUUIDs.size() != 2)
+            throw new IllegalArgumentException("A duel must have exactly 2 participants");
+
+        return new Fest(FestType.DUEL, gameType, participantUUIDs, 0, duelBet);
     }
 
     //endregion
@@ -194,7 +205,7 @@ public class Fest {
 
         CompletableFuture<?>[] teleports = participants().stream()
                 .map(player -> {
-                    SaveStateManagement.savePlayerState(player);
+                    SaveStateManagement.savePlayerState(player, duelBet);
 
                     player.eject();
                     player.leaveVehicle();
@@ -221,12 +232,15 @@ public class Fest {
         if (arenaInstance.arenaState() == ArenaState.ACTIVE)
             arenaInstance.resetToReady();
 
-        participants().forEach(SaveStateManagement::restorePlayerState);
+        if(duelBet == null)
+            participants().forEach(SaveStateManagement::restorePlayerState);
 
-        if(duelBet != null && !game.getWinners().isEmpty()) {
-            Player winner = game.getWinners().getFirst();
-            duelBet.payOut(winner);
-        }
+        else participants().forEach(participant -> {
+            SaveStateManagement.restorePlayerState(participant, false);
+            if(game.getWinners().contains(participant)){
+                duelBet.payOut(participant);
+            }
+        });
 
         if (triggerListener != null)
             triggerListener.unregister();
@@ -246,7 +260,7 @@ public class Fest {
                 )
         );
 
-        SaveStateManagement.restorePlayerState(player);
+        SaveStateManagement.restorePlayerState(player, false);
 
         if (participantUUIDs.isEmpty()) {
             ServerFest.getPlugin().getLogger().info("Terminating fest " + uuid + " as all players left the fest.");

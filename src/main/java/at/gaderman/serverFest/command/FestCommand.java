@@ -206,11 +206,11 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                     }
 
                     //TODO: make sure this stays on for public release!
-                    if (opponent.equals(player)) {
-                        player.sendMessage(Component.text("You cannot duel yourself!", NamedTextColor.RED));
-                        player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
-                        return true;
-                    }
+//                    if (opponent.equals(player)) {
+//                        player.sendMessage(Component.text("You cannot duel yourself!", NamedTextColor.RED));
+//                        player.playSound(player, Sound.ENTITY_VILLAGER_NO, 1, 1);
+//                        return true;
+//                    }
 
                     if (FestManager.getInstance().isPlayerParticipatingInAnyFest(opponent)) {
                         player.sendMessage(Component.text("This player is already participating in another fest!", NamedTextColor.RED));

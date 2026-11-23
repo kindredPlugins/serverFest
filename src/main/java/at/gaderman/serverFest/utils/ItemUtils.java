@@ -13,6 +13,7 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.profile.PlayerTextures;
@@ -187,4 +188,80 @@ public class ItemUtils {
 
         return component;
     }
+
+    //region Item removal
+
+    private static final class Need {
+        final ItemStack template;
+        int amount;
+
+        Need(ItemStack template, int amount) {
+            this.template = template;
+            this.amount = amount;
+        }
+    }
+
+    /**
+     * Removes exactly the given items from the player's inventory, across however many stacks they are spread over.
+     * All or nothing: if the player doesn't own everything, nothing is removed.
+     *
+     * @return true if everything was removed, false if the player is missing something (inventory untouched)
+     */
+    public static boolean removeExactly(Player player, List<ItemStack> items) {
+        PlayerInventory inventory = player.getInventory();
+
+        List<Need> needs = new ArrayList<>();
+        for (ItemStack item : items) {
+            if (item == null || item.isEmpty()) continue;
+
+            Need existing = null;
+            for (Need need : needs) {
+                if (need.template.isSimilar(item)) {
+                    existing = need;
+                    break;
+                }
+            }
+
+            if (existing != null) existing.amount += item.getAmount();
+            else needs.add(new Need(item.asOne(), item.getAmount()));
+        }
+
+        for (Need need : needs) {
+            if (count(inventory, need.template) < need.amount) return false;
+        }
+
+        for (Need need : needs) {
+            int left = need.amount;
+
+            for (int slot = 0; slot < inventory.getSize() && left > 0; slot++) {
+                ItemStack stack = inventory.getItem(slot);
+                if (stack == null || stack.isEmpty() || !need.template.isSimilar(stack)) continue;
+
+                int take = Math.min(left, stack.getAmount());
+                left -= take;
+
+                if (take == stack.getAmount()) {
+                    inventory.setItem(slot, null);
+                } else {
+                    stack.setAmount(stack.getAmount() - take);
+                    inventory.setItem(slot, stack);
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /** How many of this item type the player carries in total, whatever the stack layout. */
+    public static int count(PlayerInventory inventory, ItemStack template) {
+        int sum = 0;
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            ItemStack stack = inventory.getItem(slot);
+            if (stack != null && !stack.isEmpty() && template.isSimilar(stack))
+                sum += stack.getAmount();
+        }
+        return sum;
+    }
+
+    //endregion
 }

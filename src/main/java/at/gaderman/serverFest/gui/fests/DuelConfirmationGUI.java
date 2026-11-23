@@ -389,7 +389,8 @@ public class DuelConfirmationGUI extends ActionInventory {
     //TODO: we need two lists on DuelBet and rather remove items here already, what if player leaves during duel, operations will become tremendous
     /// collects all items from the grids and set bet currency into a {@link DuelBet}
     private DuelBet collectBet(){
-        List<ItemStack> items = new ArrayList<>();
+        List<ItemStack> challengerItems = new ArrayList<>();
+        List<ItemStack> opponentItems = new ArrayList<>();
 
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
@@ -397,15 +398,15 @@ public class DuelConfirmationGUI extends ActionInventory {
 
                 ItemStack chItem = inventory.getItem(index);
                 if(chItem != null && !chItem.isEmpty())
-                    items.add(chItem.clone());
+                    challengerItems.add(chItem.clone());
 
                 ItemStack opItem = inventory.getItem(index + GRID_OPPONENT_OFFSET);
                 if(opItem != null && !opItem.isEmpty())
-                    items.add(opItem.clone());
+                    opponentItems.add(opItem.clone());
             }
         }
 
-        return new DuelBet(items, 0);
+        return new DuelBet(challenger, opponent, challengerItems, opponentItems, 0, 0);
     }
 
     @Override

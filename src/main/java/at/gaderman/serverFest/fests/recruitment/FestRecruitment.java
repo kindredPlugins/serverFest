@@ -106,7 +106,7 @@ public class FestRecruitment {
             return;
         }
 
-        fest = new Fest(festType, gameType, participants, winnerReward);
+        fest = Fest.of(festType, gameType, participants, winnerReward);
 
         Bukkit.getGlobalRegionScheduler().runAtFixedRate(ServerFest.getPlugin(), task -> {
             if (remainingTime <= 0) {
