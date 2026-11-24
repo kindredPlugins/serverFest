@@ -48,6 +48,11 @@ public class JumpAndRun extends RaceGame<RaceGameArenaLayout> implements PlayerD
     }
 
     @Override
+    protected CheckPointValidation checkPointValidationType() {
+        return CheckPointValidation.BOX_CHECK;
+    }
+
+    @Override
     public Location determineOrigin() {
         Location origin = super.determineOrigin();
         origin.setY(origin.getWorld().getMaxHeight() - AVERAGE_JUMPS_PER_CHECKPOINT * CHECKPOINT_COUNT * 1.5);
@@ -75,16 +80,18 @@ public class JumpAndRun extends RaceGame<RaceGameArenaLayout> implements PlayerD
         JumpPattern previous = null;
 
         for (int section = 0; section <= CHECKPOINT_COUNT; section++) {
-            if (section > 0) {
-                context.set(cursor, Material.GOLD_BLOCK);
-                context.set(context.offset(cursor, 0, 1, 0), Material.LIGHT_WEIGHTED_PRESSURE_PLATE);
-            }
+            boolean finalCheckPoint = section == CHECKPOINT_COUNT;
 
-            //TODO: final checkpoint should also feature a pad or be more highlighted, beacon?
+            if (section > 0) {
+                context.set(cursor, finalCheckPoint ? Material.BEACON : Material.GOLD_BLOCK);
+
+                if(!finalCheckPoint)
+                    context.set(context.offset(cursor, 0, 1, 0), Material.LIGHT_WEIGHTED_PRESSURE_PLATE);
+            }
 
             checkPoints.add(new CheckPoint(context.offset(cursor, 0, 1, 0), 1, 3));
 
-            if (section == CHECKPOINT_COUNT) break;
+            if (finalCheckPoint) break;
 
             int jumps = AVERAGE_JUMPS_PER_CHECKPOINT
                     + random.nextInt(CHECKPOINT_VARIANCE * 2 + 1) - CHECKPOINT_VARIANCE;
