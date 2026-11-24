@@ -11,6 +11,8 @@ import at.gaderman.serverFest.gui.ActionInventory;
 import at.gaderman.serverFest.utils.ItemUtils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -26,6 +28,7 @@ import org.jspecify.annotations.NonNull;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 public class DuelConfirmationGUI extends ActionInventory {
@@ -36,6 +39,8 @@ public class DuelConfirmationGUI extends ActionInventory {
 
     private static final int GRID_START_SLOT = 27;
     private static final int GRID_OPPONENT_OFFSET = 5;
+    private static final int CHALLENGER_CURRENCY_SLOT = GRID_START_SLOT + 9 + 3;
+    private static final int OPPONENT_CURRENCY_SLOT = CHALLENGER_CURRENCY_SLOT + GRID_OPPONENT_OFFSET;
 
     private final Player challenger;
     private final Player opponent;
@@ -44,6 +49,9 @@ public class DuelConfirmationGUI extends ActionInventory {
     private boolean opponentAccepted;
 
     private @Nullable GameType gameType;
+
+    private double challengerCurrencyBet;
+    private double opponentCurrencyBet;
 
     private boolean cancelled;
 
@@ -126,6 +134,46 @@ public class DuelConfirmationGUI extends ActionInventory {
                 inventory.setItem(row + j, ItemStack.empty());
                 inventory.setItem(row + j + GRID_OPPONENT_OFFSET, ItemStack.empty());
             }
+        }
+
+        Economy economy = ServerFest.getPlugin().getEconomy();
+        if(economy != null){
+            inventory.setItem(CHALLENGER_CURRENCY_SLOT, createCurrencyBetItem(challenger, 0));
+            inventory.setItem(OPPONENT_CURRENCY_SLOT, createCurrencyBetItem(opponent, 0));
+
+            BiConsumer<InventoryClickEvent, Boolean> betChanger = (event, isChallenger) -> {
+                if(!(event.getWhoClicked() instanceof Player player)) return;
+
+                if(isChallenger && !player.equals(challenger)) return;
+                if(!isChallenger && !player.equals(opponent)) return;
+
+                int increment = event.isLeftClick() ? 1 : -1;
+                if(event.isShiftClick()) increment *= 10;
+
+                double bet = isChallenger ? challengerCurrencyBet : opponentCurrencyBet;
+
+                double value = Math.max(bet + increment, 0);
+                if(bet <= 0 && value <= 0){
+                    player.playSound(player, Sound.ENTITY_ITEM_BREAK, 1f, 1f);
+                    return;
+                }
+
+                if(!economy.has(player, value)){
+                    player.playSound(player, Sound.ENTITY_ITEM_BREAK, 1f, 0.5f);
+                    value = Math.max(0, economy.getBalance(player));
+                }else {
+                    player.playSound(player, Sound.BLOCK_NETHER_GOLD_ORE_BREAK, 1f, 1f);
+                }
+
+                if(isChallenger) challengerCurrencyBet = value;
+                else opponentCurrencyBet = value;
+
+                inventory.setItem(isChallenger ? CHALLENGER_CURRENCY_SLOT : OPPONENT_CURRENCY_SLOT, createCurrencyBetItem(player, value));
+                resetAcceptance();
+            };
+
+            defineInventoryAction(CHALLENGER_CURRENCY_SLOT, event -> betChanger.accept(event, true));
+            defineInventoryAction(OPPONENT_CURRENCY_SLOT, event -> betChanger.accept(event, false));
         }
     }
 
@@ -220,7 +268,7 @@ public class DuelConfirmationGUI extends ActionInventory {
     private ItemStack playerHead(Player player) {
         ItemStack item = ItemUtils.getHeadOfPlayer(player);
         item.editMeta(meta -> {
-            meta.customName(Component.text(player.getName(), NamedTextColor.YELLOW));
+            meta.customName(Component.text(player.getName(), NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
         });
         return item;
     }
@@ -244,6 +292,24 @@ public class DuelConfirmationGUI extends ActionInventory {
                     ? Component.text(player.getName() + " has confirmed", NamedTextColor.YELLOW)
                     : Component.text("Click to confirm " + player.getName(), NamedTextColor.YELLOW)
             ));
+        });
+        return item;
+    }
+
+    private ItemStack createCurrencyBetItem(Player player, double amount){
+        Economy economy = ServerFest.getPlugin().getEconomy();
+        if(economy == null)
+            return getFillItem();
+
+        ItemStack item = ItemStack.of(Material.SUNFLOWER, (int) Math.ceil(Math.clamp(amount, 1, 99)));
+        item.editMeta(meta -> {
+            meta.itemName(Component.text("Bet: ", NamedTextColor.GRAY)
+                    .append(Component.text(economy.format(amount), NamedTextColor.GOLD))
+            );
+            meta.lore(ItemUtils.applyDefaultLoreStyle(Component.text("Bet of ", NamedTextColor.DARK_GRAY)
+                    .append(player.name())));
+
+            meta.setEnchantmentGlintOverride(amount > 0);
         });
         return item;
     }
@@ -386,7 +452,6 @@ public class DuelConfirmationGUI extends ActionInventory {
         return item.getAmount() - left;
     }
 
-    //TODO: we need two lists on DuelBet and rather remove items here already, what if player leaves during duel, operations will become tremendous
     /// collects all items from the grids and set bet currency into a {@link DuelBet}
     private DuelBet collectBet(){
         List<ItemStack> challengerItems = new ArrayList<>();
@@ -406,7 +471,7 @@ public class DuelConfirmationGUI extends ActionInventory {
             }
         }
 
-        return new DuelBet(challenger, opponent, challengerItems, opponentItems, 0, 0);
+        return new DuelBet(challenger, opponent, challengerItems, opponentItems, challengerCurrencyBet, opponentCurrencyBet);
     }
 
     @Override

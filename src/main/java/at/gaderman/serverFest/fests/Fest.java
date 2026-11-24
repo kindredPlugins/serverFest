@@ -232,9 +232,11 @@ public class Fest {
         if (arenaInstance.arenaState() == ArenaState.ACTIVE)
             arenaInstance.resetToReady();
 
+        //TODO: edge case if the server terminates before the fest is stopped duel bet is not paid out even if someone already won, seems acceptable
         if(duelBet == null)
             participants().forEach(SaveStateManagement::restorePlayerState);
 
+        //TODO: edge case, what if player is offline while bet is paid out?
         else participants().forEach(participant -> {
             SaveStateManagement.restorePlayerState(participant, false);
             if(game.getWinners().contains(participant)){

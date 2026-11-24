@@ -35,6 +35,7 @@ public class SaveStateManagement {
     public static final NamespacedKey SAVED_STATE = new NamespacedKey(ServerFest.getPlugin(), "saved_state");
     public static final NamespacedKey SAVE_LOCATION = new NamespacedKey(ServerFest.getPlugin(), "saveLocation");
     public static final NamespacedKey SAVE_VELOCITY = new NamespacedKey(ServerFest.getPlugin(), "saveVelocity");
+    public static final NamespacedKey SAVE_BET_CURRENCY = new NamespacedKey(ServerFest.getPlugin(), "saveBetCurrency");
 
     private static final int ENDER_CHEST_SLOT = 0;
     private static final int FIRST_INV_SLOT = 1;
@@ -74,8 +75,11 @@ public class SaveStateManagement {
             //TODO: potential leak when player is neither opponent nor challenger? cannot throw exception here or save is interrupted!!!
 
             Economy economy = ServerFest.getPlugin().getEconomy();
-            if (economy != null)
-                economy.withdrawPlayer(player, isChallenger ? duelBet.challengerCurrencyBet() : duelBet.opponentCurrencyBet());
+            if (economy != null) {
+                double withdrawal = isChallenger ? duelBet.challengerCurrencyBet() : duelBet.opponentCurrencyBet();
+                player.getPersistentDataContainer().set(SAVE_BET_CURRENCY, PersistentDataType.DOUBLE, withdrawal);
+                economy.withdrawPlayer(player, withdrawal);
+            }
 
             List<ItemStack> bet = isChallenger ? duelBet.challengerItems() : duelBet.opponentItems();
             ItemUtils.removeExactly(player, bet);
@@ -185,7 +189,13 @@ public class SaveStateManagement {
                 var contents = Arrays.stream(betContents).filter(Objects::nonNull).toList();
                 player.give(contents, true).drops().forEach(drop -> drop.setOwner(player.getUniqueId()));
             }
+
+            double currencyBet = pdc.getOrDefault(SAVE_BET_CURRENCY, PersistentDataType.DOUBLE, 0.0);
+            Economy economy = ServerFest.getPlugin().getEconomy();
+            if(economy != null && currencyBet > 0)
+                economy.depositPlayer(player, currencyBet);
         }
+        pdc.remove(SAVE_BET_CURRENCY);
 
         ItemStack metaDataItem = enderChest.getItem(PLAYER_DATA_SLOT);
         if (metaDataItem != null) {
