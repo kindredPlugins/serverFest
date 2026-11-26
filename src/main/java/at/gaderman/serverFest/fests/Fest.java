@@ -19,7 +19,6 @@ import net.milkbowl.vault.economy.Economy;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerTeleportEvent;
-import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -79,19 +78,19 @@ public class Fest {
         arenaInstance.activateArena();
     }
 
-    public static Fest of(FestType festType, @NotNull GameType gameType, List<UUID> participantUUIDs){
+    public static Fest of(FestType festType, @NotNull GameType gameType, List<UUID> participantUUIDs) {
         return of(festType, gameType, participantUUIDs, 0);
     }
 
-    public static Fest of(FestType festType, @NotNull GameType gameType, List<UUID> participantUUIDs, double winnerReward){
-        if(festType == FestType.DUEL)
+    public static Fest of(FestType festType, @NotNull GameType gameType, List<UUID> participantUUIDs, double winnerReward) {
+        if (festType == FestType.DUEL)
             throw new IllegalArgumentException("A duel fest needs extra parameters and cannot be created here, use #ofDuel() instead");
 
         return new Fest(festType, gameType, participantUUIDs, winnerReward);
     }
 
     public static Fest ofDuel(@NotNull GameType gameType, @NotNull List<UUID> participantUUIDs, DuelBet duelBet) {
-        if(participantUUIDs.size() != 2)
+        if (participantUUIDs.size() != 2)
             throw new IllegalArgumentException("A duel must have exactly 2 participants");
 
         return new Fest(FestType.DUEL, gameType, participantUUIDs, 0, duelBet);
@@ -147,6 +146,19 @@ public class Fest {
     public void start() {
         if (participantUUIDs.isEmpty()) {
             ServerFest.getPlugin().getLogger().info("Fest with id " + uuid + " failed due to no participants");
+            return;
+        }
+
+        if (duelBet != null && !duelBet.checkIfStillValid()) {
+            ServerFest.getPlugin().getLogger().info("Duel with id " + uuid + " failed due to one participant trying to duplicate items.");
+
+            participants().forEach(participant -> {
+                participant.sendMessage(ServerFest.CHAT_PREFIX.append(
+                        Component.text("The duel bet could not be collected, someone is trying to glitch items/currency!", NamedTextColor.RED)
+                ));
+                participant.playSound(participant, Sound.ENTITY_WITHER_DEATH, 1f, 0.5f);
+                participant.getWorld().strikeLightningEffect(participant.getLocation());
+            });
             return;
         }
 
@@ -235,12 +247,12 @@ public class Fest {
             arenaInstance.resetToReady();
 
         //TODO: edge case if the server terminates before the fest is stopped duel bet is not paid out even if someone already won, seems acceptable
-        if(duelBet == null)
+        if (duelBet == null)
             participants().forEach(SaveStateManagement::restorePlayerState);
 
         else participants().forEach(participant -> {
             SaveStateManagement.restorePlayerState(participant, false);
-            if(game.getWinners().contains(participant)){
+            if (game.getWinners().contains(participant)) {
                 duelBet.payOut(participant);
             }
         });
@@ -264,7 +276,7 @@ public class Fest {
         );
 
         SaveStateManagement.restorePlayerState(player, false);
-        if(duelBet != null && game.getWinners().contains(player)){
+        if (duelBet != null && game.getWinners().contains(player)) {
             duelBet.payOut(player);
             player.saveData();
         }

@@ -3,7 +3,7 @@ package at.gaderman.serverFest.fests;
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.duel.DuelBet;
 import at.gaderman.serverFest.fests.game.data.PlayerMetaData;
-import at.gaderman.serverFest.utils.ItemUtils;
+import at.gaderman.serverFest.utils.ItemRemoval;
 import io.papermc.paper.datacomponent.DataComponentTypes;
 import io.papermc.paper.datacomponent.item.PotionContents;
 import net.kyori.adventure.text.Component;
@@ -82,7 +82,7 @@ public class SaveStateManagement {
             }
 
             List<ItemStack> bet = isChallenger ? duelBet.challengerItems() : duelBet.opponentItems();
-            ItemUtils.removeExactly(player, bet);
+            ItemRemoval.removeExactly(player, bet);
 
             ItemStack betContainer = transferToContainer(Arrays.copyOfRange(bet.toArray(new ItemStack[0]), 0, 27));
             enderChest.setItem(BET_SLOT, betContainer);

@@ -337,7 +337,7 @@ public class DuelConfirmationGUI extends ActionInventory {
         int gridStart = GRID_START_SLOT + (challenger.getUniqueId().equals(player.getUniqueId()) ? 0 : GRID_OPPONENT_OFFSET);
 
         if (event.getClickedInventory() == event.getView().getBottomInventory()) {
-            int available = countItem(player.getInventory(), clicked) - countItemInGrid(gridStart, clicked);
+            int available = ItemUtils.countItems(player.getInventory(), clicked) - countItemInGrid(gridStart, clicked);
             int wanted = Math.min(available, shift ? available : right ? (clicked.getAmount() + 1) / 2 : 1);
 
             int placed = 0;
@@ -397,13 +397,6 @@ public class DuelConfirmationGUI extends ActionInventory {
                 removed += removeFromSlot(slot, at.getAmount());
         }
         return removed;
-    }
-
-    private int countItem(Inventory inv, ItemStack item) {
-        int sum = 0;
-        for (ItemStack stack : inv.getStorageContents())
-            if (stack != null && item.isSimilar(stack)) sum += stack.getAmount();
-        return sum;
     }
 
     /// Counts how often the item is already present in the bet grid

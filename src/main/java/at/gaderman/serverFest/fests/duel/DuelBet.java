@@ -2,16 +2,20 @@ package at.gaderman.serverFest.fests.duel;
 
 import at.gaderman.serverFest.ServerFest;
 import at.gaderman.serverFest.fests.SaveStateManagement;
+import at.gaderman.serverFest.utils.ItemRemoval;
+import at.gaderman.serverFest.utils.ItemUtils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Sound;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -59,5 +63,19 @@ public record DuelBet(Player challenger, Player opponent,
                     .append(Component.text(" for winning a duel.", NamedTextColor.WHITE))
             );
         }
+    }
+
+    public boolean checkIfStillValid(){
+        Economy economy = ServerFest.getPlugin().getEconomy();
+        if(economy != null){
+            if(challengerCurrencyBet > 0 && !economy.has(challenger, challengerCurrencyBet))
+                return false;
+
+            if(opponentCurrencyBet > 0 && !economy.has(opponent, opponentCurrencyBet))
+                return false;
+        }
+
+        return ItemRemoval.hasAll(challenger, challengerItems)
+                && ItemRemoval.hasAll(opponent, opponentItems);
     }
 }
