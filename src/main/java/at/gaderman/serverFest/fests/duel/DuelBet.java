@@ -6,11 +6,14 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Sound;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /// Holds the necessary temporary data when a duel involves a bet
 /// The collection and payout is handled by {@link SaveStateManagement} which holds it for
@@ -29,10 +32,16 @@ public record DuelBet(Player challenger, Player opponent,
         items.addAll(opponentItems);
 
         if (!items.isEmpty()) {
-            //TODO: leftovers are not dropped yet again
-            player.give(items, true).drops().forEach(drop -> {
-                drop.setOwner(player.getUniqueId());
-            });
+            //TODO: this is called when the player goes offline too, so we essentially stack up items which is "fine" but not the best solution
+            Map<Integer, ItemStack> left = player.getInventory().addItem(items.toArray(ItemStack[]::new));
+
+            for (ItemStack rest : left.values()) {
+                Item item = player.getWorld().dropItem(player.getLocation(), rest);
+                item.setOwner(player.getUniqueId());
+                item.setGravity(false);
+                item.setVelocity(new Vector(0, 0, 0));
+                item.setUnlimitedLifetime(true);
+            }
             player.sendMessage(ServerFest.CHAT_PREFIX
                     .append(Component.text("Your ", NamedTextColor.WHITE))
                     .append(Component.text("bet ", NamedTextColor.GOLD))

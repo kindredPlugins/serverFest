@@ -150,6 +150,8 @@ public class Fest {
             return;
         }
 
+        //TODO: if duelBet given check if players fulfill the requirements, maybe something changed!! no duplication
+
         ServerFest.getPlugin().getLogger().info("Started fest with id " + uuid);
 
         this.triggerListener = new TriggerListener(this);
@@ -236,7 +238,6 @@ public class Fest {
         if(duelBet == null)
             participants().forEach(SaveStateManagement::restorePlayerState);
 
-        //TODO: edge case, what if player is offline while bet is paid out?
         else participants().forEach(participant -> {
             SaveStateManagement.restorePlayerState(participant, false);
             if(game.getWinners().contains(participant)){
@@ -263,6 +264,10 @@ public class Fest {
         );
 
         SaveStateManagement.restorePlayerState(player, false);
+        if(duelBet != null && game.getWinners().contains(player)){
+            duelBet.payOut(player);
+            player.saveData();
+        }
 
         if (participantUUIDs.isEmpty()) {
             ServerFest.getPlugin().getLogger().info("Terminating fest " + uuid + " as all players left the fest.");

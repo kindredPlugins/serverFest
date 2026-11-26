@@ -332,7 +332,7 @@ public abstract class FestGame<T extends ArenaLayout> {
         getOrCreatePlayerData(player.getUniqueId()).reset();
 
         //last player wins
-        if (fest.participantUUIDs().size() == 1)
+        if (running && fest.participantUUIDs().size() == 1)
             declareWinner(fest.participants());
     }
 
