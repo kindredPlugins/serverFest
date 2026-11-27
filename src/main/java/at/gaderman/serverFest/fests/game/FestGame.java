@@ -256,6 +256,7 @@ public abstract class FestGame<T extends ArenaLayout> {
      * Game-specific winner side effects run after the shared announcement has been sent.
      */
     protected void afterWinner(List<Player> winners) {
+        fest.participants().forEach(participant -> participant.playSound(participant, Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 1f, 1f));
     }
 
     protected final void sendCountdownTitle(long timeLeft) {

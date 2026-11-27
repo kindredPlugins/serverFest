@@ -68,13 +68,17 @@ public final class JumpContext {
     }
 
     public void set(Location pos, BlockData data) {
-        sink.accept(pos.clone(), data); // cloned so later mutation of pos can never move a recorded block
+        sink.accept(pos.clone(), data.clone()); // cloned so later mutation of pos can never move a recorded block
     }
 
     /** Mirrors dx when it would leave the lane. */
     public int fitX(Location from, int dx) {
-        int target = from.getBlockX() + dx;
-        return target < minX || target > maxX ? -dx : dx;
+        int x = from.getBlockX();
+
+        if (x + dx >= minX && x + dx <= maxX)
+            return dx;
+
+        return x - dx >= minX && x - dx <= maxX ? -dx : 0;
     }
 
     /** Mirrors dy when it would leave the allowed height range. */

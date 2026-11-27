@@ -13,13 +13,12 @@ import at.gaderman.serverFest.fests.game.implementations.race.jump.JumpPatterns;
 import at.gaderman.serverFest.fests.game.triggers.damage.PlayerDamageTrigger;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.Sound;
-import org.bukkit.World;
+import org.bukkit.*;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.inventory.meta.FireworkMeta;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
@@ -83,9 +82,10 @@ public class JumpAndRun extends RaceGame<RaceGameArenaLayout> implements PlayerD
             boolean finalCheckPoint = section == CHECKPOINT_COUNT;
 
             if (section > 0) {
+                context.resetReaction();
                 context.set(cursor, finalCheckPoint ? Material.BEACON : Material.GOLD_BLOCK);
 
-                if(!finalCheckPoint)
+                if (!finalCheckPoint)
                     context.set(context.offset(cursor, 0, 1, 0), Material.LIGHT_WEIGHTED_PRESSURE_PLATE);
             }
 
@@ -99,7 +99,7 @@ public class JumpAndRun extends RaceGame<RaceGameArenaLayout> implements PlayerD
 
             while (budget > 0) {
                 JumpPattern pattern = JumpPatterns.pick(budget, section, previous, random);
-                cursor = pattern.build(cursor, context);
+                cursor = context.build(pattern, cursor);
                 budget -= pattern.difficulty();
                 previous = pattern;
             }
@@ -153,6 +153,32 @@ public class JumpAndRun extends RaceGame<RaceGameArenaLayout> implements PlayerD
     @Override
     protected void onPassCheckPoint(Player player, int checkPoint) {
         player.playSound(player, Sound.ENTITY_PLAYER_LEVELUP, 1f, 0.85f);
+    }
+
+    @Override
+    protected void configureWinnerFirework(Firework firework) {
+        FireworkMeta meta = firework.getFireworkMeta();
+        meta.clearEffects();
+        meta.addEffect(FireworkEffect.builder()
+                .withColor(Color.AQUA)
+                .withFade(Color.BLUE)
+                .withFlicker()
+                .withTrail()
+                .with(FireworkEffect.Type.BALL_LARGE)
+                .build());
+        firework.setFireworkMeta(meta);
+        firework.setTicksToDetonate(5);
+        firework.teleport(firework.getLocation().toCenterLocation());
+    }
+
+    @Override
+    protected Sound winnerCelebrationSound() {
+        return Sound.MUSIC_DISC_RELIC;
+    }
+
+    @Override
+    protected void afterWinner(List<Player> winners) {
+        super.afterWinner(winners);
     }
 
     @Override

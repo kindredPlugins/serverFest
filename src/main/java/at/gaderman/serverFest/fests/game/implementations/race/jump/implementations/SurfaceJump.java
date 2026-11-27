@@ -36,9 +36,13 @@ public final class SurfaceJump implements JumpPattern {
     @Override
     public Location build(Location start, JumpContext ctx) {
         int reach = ctx.reach(BASE_REACH);
-        int dz = 2 + ctx.random().nextInt(reach - 1);
+
+        int dz = 2 + ctx.random().nextInt(Math.max(reach - 2, 1)) + 1;
         int dx = ctx.fitX(start, ctx.random().nextInt(3) - 1);
         int dy = ctx.fitY(start, drop);
+
+        if(dx + dz < reach - 1 && dy < 1 && ctx.random().nextBoolean())
+            dy++;
 
         Location end = ctx.offset(start, dx, dy, dz);
         ctx.set(end, material);

@@ -171,6 +171,7 @@ public class Fest {
 
         world = WorldManager.getInstance().loadOrCreateFestWorld();
         GameRuleCompat.SPAWN_MOBS.set(world, false);
+        GameRuleCompat.SNOW_ACCUMULATION.set(world, 0);
 
         this.origin = adjustLocationToCenterOfChunk(game.determineOrigin());
 

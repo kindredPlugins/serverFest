@@ -6,7 +6,7 @@ import org.bukkit.Location;
 
 import java.util.Random;
 
- /// Simple jump across a gap with slight vertical alteration
+/// Simple jump across a gap with slight vertical alteration
 public class SimpleJump implements JumpPattern {
 
     private static final int MAX_REACH = 4;
@@ -23,9 +23,9 @@ public class SimpleJump implements JumpPattern {
         int dy = ctx.fitY(start, random.nextInt(3) - 1);
         int reach = Math.max(2, ctx.reach(MAX_REACH) - (dy > 0 ? 1 : 0));
 
-        int dz = 2 + random.nextInt(reach - 1);
+        int dz = 3 + random.nextInt(Math.max(reach - 2, 1));
         int spare = reach - dz;
-        int dx = ctx.fitX(start, random.nextInt(spare * 2 + 1) - spare);
+        int dx = ctx.fitX(start, random.nextInt(Math.max(spare * 2 + 1, 1)) - spare);
 
         Location end = ctx.offset(start, dx, dy, dz);
         ctx.set(end, BASE_BLOCK);
