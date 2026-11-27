@@ -279,6 +279,7 @@ public class DuelConfirmationGUI extends ActionInventory {
             meta.itemName(gameType == null ? Component.text("Random Game", NamedTextColor.RED)
                     : gameType.definition().iconName());
             meta.lore(ItemUtils.applyDefaultLoreStyle(Component.text("Click to change", NamedTextColor.GOLD)));
+            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         });
         inventory.setItem(GAMETYPE_SLOT, item);
     }
@@ -338,7 +339,7 @@ public class DuelConfirmationGUI extends ActionInventory {
 
         if (event.getClickedInventory() == event.getView().getBottomInventory()) {
             int available = ItemUtils.countItems(player.getInventory(), clicked) - countItemInGrid(gridStart, clicked);
-            int wanted = Math.min(available, shift ? available : right ? (clicked.getAmount() + 1) / 2 : 1);
+            int wanted = Math.min(available, shift ? clicked.getAmount() : right ? (clicked.getAmount() + 1) / 2 : 1);
 
             int placed = 0;
             if (wanted > 0) {
@@ -353,9 +354,8 @@ public class DuelConfirmationGUI extends ActionInventory {
             int rel = event.getSlot() - gridStart;
             if (rel < 0 || rel / 9 > 2 || rel % 9 > 2) return;
 
-            int removed = shift
-                    ? removeFromGrid(gridStart, clicked)
-                    : removeFromSlot(event.getSlot(), right ? (clicked.getAmount() + 1) / 2 : 1);
+            int amount = shift ? clicked.getAmount() : right ? (clicked.getAmount() + 1) / 2 : 1;
+            int removed = removeFromSlot(event.getSlot(), amount);
 
             if (removed > 0){
                 player.playSound(player, Sound.ENTITY_CHICKEN_EGG, 1f, 1.25f);
