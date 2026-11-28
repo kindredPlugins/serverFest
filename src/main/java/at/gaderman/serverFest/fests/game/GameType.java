@@ -5,6 +5,7 @@ import at.gaderman.serverFest.fests.arenas.ArenaDefinition;
 import at.gaderman.serverFest.fests.arenas.ArenaInstance;
 import at.gaderman.serverFest.fests.game.definition.*;
 import at.gaderman.serverFest.fests.game.implementations.race.ElytraRace;
+import at.gaderman.serverFest.fests.game.implementations.race.JumpAndRun;
 import at.gaderman.serverFest.fests.game.implementations.race.MountRace;
 import at.gaderman.serverFest.fests.game.implementations.race.arena.ElytraRaceArenaDefinition;
 import at.gaderman.serverFest.fests.game.implementations.race.arena.MountRaceArenaDefinition;
@@ -15,7 +16,8 @@ public enum GameType {
     ELYTRA_RACE(new ElytraRaceDefinition()),
     MOUNT_RACE(new MountRaceDefinition()),
     TARGET_PRACTICE(new TargetPracticeDefinition()),
-    PVP_TOURNAMENT(new PVPTournamentDefinition());
+    PVP_TOURNAMENT(new PVPTournamentDefinition()),
+    JUMP_AND_RUN(new JumpAndRunDefinition());
 
     private final GameDefinition definition;
 
@@ -29,6 +31,7 @@ public enum GameType {
             case MOUNT_RACE -> new MountRace(fest, arenaInstance);
             case TARGET_PRACTICE -> new TargetPractice(fest, arenaInstance);
             case PVP_TOURNAMENT -> new PVPTournament(fest, arenaInstance);
+            case JUMP_AND_RUN -> new JumpAndRun(fest, arenaInstance);
         };
     }
 
@@ -40,7 +43,7 @@ public enum GameType {
         return switch (this) {
             case ELYTRA_RACE -> new ElytraRaceArenaDefinition();
             case MOUNT_RACE -> new MountRaceArenaDefinition();
-            case TARGET_PRACTICE, PVP_TOURNAMENT -> new ArenaDefinition();
+            case TARGET_PRACTICE, PVP_TOURNAMENT, JUMP_AND_RUN -> new ArenaDefinition();
         };
     }
 }

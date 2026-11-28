@@ -33,24 +33,24 @@ public class ArenaInstance {
         this.state = ArenaState.WAITING;
     }
 
-    public int id(){
+    public int id() {
         return this.id;
     }
 
-    public GameType gameType(){
+    public GameType gameType() {
         return this.gameType;
     }
 
-    public ArenaState arenaState(){
+    public ArenaState arenaState() {
         return this.state;
     }
 
-    public ArenaLayout arenaLayout(){
+    public ArenaLayout arenaLayout() {
         return this.arenaLayout;
     }
 
-    public CompletableFuture<Void> generateArena(){
-        if(state == ArenaState.GENERATING || state == ArenaState.READY || state == ArenaState.ACTIVE)
+    public CompletableFuture<Void> generateArena() {
+        if (state == ArenaState.GENERATING || state == ArenaState.READY || state == ArenaState.ACTIVE)
             return CompletableFuture.completedFuture(null);
 
         Logger logger = ServerFest.getPlugin().getLogger();
@@ -71,7 +71,7 @@ public class ArenaInstance {
 
         CompletableFuture<Void> future = new CompletableFuture<>();
         Bukkit.getGlobalRegionScheduler().runAtFixedRate(ServerFest.getPlugin(), task -> {
-            if(chunksToGenerate.isEmpty()){
+            if (chunksToGenerate.isEmpty()) {
                 task.cancel();
 
                 logger.info("Arena generation finished for " + gameType.name() + " at [" + origin.x() + " | " + origin.z() + "]");
@@ -81,7 +81,7 @@ public class ArenaInstance {
                 return;
             }
 
-            if(!generationBatchFinished)
+            if (!generationBatchFinished)
                 return;
 
             //logger.info("Current tick times: " + Arrays.toString(Bukkit.getTickTimes()));
@@ -93,22 +93,26 @@ public class ArenaInstance {
         return future;
     }
 
-    public boolean activateArena(){
-        if(state != ArenaState.READY)
+    public boolean activateArena() {
+        if (state != ArenaState.READY)
             return false;
 
         state = ArenaState.ACTIVE;
         return true;
     }
 
-    public void markAsReset(){
+    public void markAsReset() {
         state = ArenaState.RESET;
     }
 
-    public void resetToReady(){
+    public void resetToReady() {
         arenaDefinition = gameType.getArenaDefinition();
         arenaLayout = arenaDefinition.generateLayout(origin);
         state = ArenaState.WAITING;
+
+        if (Bukkit.isStopping())
+            return;
+
         generateArena();
 
         origin.getChunk().addPluginChunkTicket(ServerFest.getPlugin());

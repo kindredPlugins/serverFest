@@ -11,8 +11,10 @@ import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.profile.PlayerTextures;
@@ -27,17 +29,17 @@ import java.util.stream.Collectors;
 
 public class ItemUtils {
 
-    public static List<Component> applyDefaultLoreStyle(Component ...lore){
+    public static List<Component> applyDefaultLoreStyle(Component... lore) {
         return applyDefaultLoreStyle(Arrays.stream(lore).collect(Collectors.toList()));
     }
 
-    public static List<Component> applyDefaultLoreStyle(List<Component> lore){
+    public static List<Component> applyDefaultLoreStyle(List<Component> lore) {
         return lore.stream()
                 .map(line -> line.colorIfAbsent(NamedTextColor.WHITE).decoration(TextDecoration.ITALIC, false))
                 .collect(Collectors.toList());
     }
 
-    public static ItemStack getHeadOfPlayer(Player player){
+    public static ItemStack getHeadOfPlayer(Player player) {
         ItemStack head = ItemStack.of(Material.PLAYER_HEAD);
         head.editMeta(meta -> {
             SkullMeta skullMeta = ((SkullMeta) meta);
@@ -62,7 +64,7 @@ public class ItemUtils {
         return head;
     }
 
-    public static ItemStack dyeLeatherArmor(ItemStack armor, Color color){
+    public static ItemStack dyeLeatherArmor(ItemStack armor, Color color) {
         armor.editMeta(meta -> {
             LeatherArmorMeta leatherMeta = (LeatherArmorMeta) meta;
             leatherMeta.setColor(color);
@@ -70,7 +72,7 @@ public class ItemUtils {
         return armor;
     }
 
-    public static ItemStack createWithBasicName(Material material, Component name){
+    public static ItemStack createWithBasicName(Material material, Component name) {
         ItemStack item = ItemStack.of(material);
         item.editMeta(meta -> {
             meta.itemName(name);
@@ -79,7 +81,7 @@ public class ItemUtils {
         return item;
     }
 
-    public static ItemStack createBasicUIItem(Material material, Component name, List<Component> lore){
+    public static ItemStack createBasicUIItem(Material material, Component name, List<Component> lore) {
         ItemStack item = createWithBasicName(material, name);
         item.editMeta(meta -> meta.lore(applyDefaultLoreStyle(lore)));
         return item;
@@ -171,7 +173,7 @@ public class ItemUtils {
         );
     }
 
-    public static Component padWithHyphens(Component text, Component hyphenFormat){
+    public static Component padWithHyphens(Component text, Component hyphenFormat) {
         final int LINE_CHARS = 53;
         String plainText = PlainTextComponentSerializer.plainText().serialize(text);
         int hyphenCount = Math.max((LINE_CHARS - (plainText.length() + 2)) / 2, 0);
@@ -187,4 +189,21 @@ public class ItemUtils {
 
         return component;
     }
+
+    //region Items
+
+    /**
+     * How many of this item type the player carries in total, whatever the stack layout.
+     */
+    public static int countItems(Inventory inventory, ItemStack template) {
+        int sum = 0;
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            ItemStack stack = inventory.getItem(slot);
+            if (stack != null && !stack.isEmpty() && template.isSimilar(stack))
+                sum += stack.getAmount();
+        }
+        return sum;
+    }
+
+    //endregion
 }

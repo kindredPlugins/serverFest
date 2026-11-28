@@ -12,6 +12,7 @@ import at.gaderman.serverFest.fests.game.triggers.interact.PlayerInteractTrigger
 import at.gaderman.serverFest.fests.game.triggers.inventory.PlayerDropItemTrigger;
 import at.gaderman.serverFest.fests.game.triggers.inventory.PlayerInventoryClickTrigger;
 import at.gaderman.serverFest.fests.game.triggers.inventory.PlayerPickupItemTrigger;
+import at.gaderman.serverFest.fests.game.triggers.passive.FoodLevelChangeTrigger;
 import at.gaderman.serverFest.fests.game.triggers.projectiles.PlayerProjectileHitTrigger;
 import com.destroystokyo.paper.event.player.PlayerAdvancementCriterionGrantEvent;
 import org.bukkit.Bukkit;
@@ -224,6 +225,24 @@ public class TriggerListener implements Listener {
             return;
 
         playerPickupItemTrigger.onPlayerPickupItem(event, player, event.getItem());
+    }
+
+    //endregion
+
+    //region Passive
+
+    @EventHandler
+    public void onFoodLevelChange(FoodLevelChangeEvent event) {
+        if (!(fest.game() instanceof FoodLevelChangeTrigger foodLevelChangeTrigger))
+            return;
+
+        if (!(event.getEntity() instanceof Player player))
+            return;
+
+        if (!fest.participantUUIDs().contains(player.getUniqueId()))
+            return;
+
+        foodLevelChangeTrigger.onFoodLevelChange(event, player);
     }
 
     //endregion

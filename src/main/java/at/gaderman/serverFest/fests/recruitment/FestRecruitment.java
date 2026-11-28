@@ -36,6 +36,7 @@ public class FestRecruitment {
     private final GameType gameType;
     private final int minPlayers;
     private final int maxPlayers;
+    private final double winnerReward;
 
     private final List<UUID> participants;
     private Fest fest;
@@ -43,12 +44,18 @@ public class FestRecruitment {
     private final List<Player> notifiedPlayers = new ArrayList<>();
 
     private FestRecruitment(int remainingTime, FestType festType, GameType gameType, int minPlayers, int maxPlayers) {
+        this(remainingTime, festType, gameType, minPlayers, maxPlayers, 0);
+    }
+
+    private FestRecruitment(int remainingTime, FestType festType, GameType gameType, int minPlayers,
+                            int maxPlayers, double winnerReward) {
         this.remainingTime = Math.max(remainingTime, 10);
         this.festType = festType;
         this.gameType = gameType;
         this.participants = new ArrayList<>();
         this.minPlayers = minPlayers;
         this.maxPlayers = maxPlayers;
+        this.winnerReward = Math.max(winnerReward, 0);
     }
 
     /**
@@ -62,10 +69,16 @@ public class FestRecruitment {
      * Creates a new FestRecruitment instance and instantly requests it at the {@link RecruitmentManager}
      */
     public static FestRecruitment requestRecruitment(int remainingTime, FestType festType, @Nullable GameType gameType, int minPlayers, int maxPlayers) {
+        return requestRecruitment(remainingTime, festType, gameType, minPlayers, maxPlayers, 0);
+    }
+
+    public static FestRecruitment requestRecruitment(int remainingTime, FestType festType, @Nullable GameType gameType,
+                                                     int minPlayers, int maxPlayers, double winnerReward) {
         if (gameType == null)
             gameType = GameType.values()[(int) (Math.random() * GameType.values().length)];
 
-        var recruitment = new FestRecruitment(remainingTime, festType, gameType, minPlayers, Math.clamp(maxPlayers, 1, GeneralConfig.getInstance().maxPlayersPerFest()));
+        var recruitment = new FestRecruitment(remainingTime, festType, gameType, minPlayers,
+                Math.clamp(maxPlayers, 1, GeneralConfig.getInstance().maxPlayersPerFest()), winnerReward);
         RecruitmentManager.getInstance().requestRecruitment(recruitment);
         return recruitment;
     }
@@ -93,7 +106,7 @@ public class FestRecruitment {
             return;
         }
 
-        fest = new Fest(festType, gameType, participants);
+        fest = Fest.of(festType, gameType, participants, winnerReward);
 
         Bukkit.getGlobalRegionScheduler().runAtFixedRate(ServerFest.getPlugin(), task -> {
             if (remainingTime <= 0) {

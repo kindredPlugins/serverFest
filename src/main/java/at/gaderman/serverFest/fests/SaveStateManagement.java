@@ -1,11 +1,14 @@
 package at.gaderman.serverFest.fests;
 
 import at.gaderman.serverFest.ServerFest;
+import at.gaderman.serverFest.fests.duel.DuelBet;
 import at.gaderman.serverFest.fests.game.data.PlayerMetaData;
+import at.gaderman.serverFest.utils.ItemRemoval;
 import io.papermc.paper.datacomponent.DataComponentTypes;
 import io.papermc.paper.datacomponent.item.PotionContents;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.milkbowl.vault.economy.Economy;
 import org.bukkit.*;
 import org.bukkit.block.Chest;
 import org.bukkit.entity.Item;
@@ -25,21 +28,34 @@ import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 public class SaveStateManagement {
 
     public static final NamespacedKey SAVED_STATE = new NamespacedKey(ServerFest.getPlugin(), "saved_state");
     public static final NamespacedKey SAVE_LOCATION = new NamespacedKey(ServerFest.getPlugin(), "saveLocation");
     public static final NamespacedKey SAVE_VELOCITY = new NamespacedKey(ServerFest.getPlugin(), "saveVelocity");
+    public static final NamespacedKey SAVE_BET_CURRENCY = new NamespacedKey(ServerFest.getPlugin(), "saveBetCurrency");
+
+    private static final int ENDER_CHEST_SLOT = 0;
+    private static final int FIRST_INV_SLOT = 1;
+    private static final int SECOND_INV_SLOT = 2;
+    private static final int PLAYER_DATA_SLOT = 3;
+    private static final int EFFECTS_SLOT = 4;
+    private static final int BET_SLOT = 9;
+
+    //region PlayerSave
+
+    /// @see #savePlayerState(Player, DuelBet)
+    public static void savePlayerState(Player player) {
+        savePlayerState(player, null);
+    }
 
     /**
      * Completely saves data and stats of a player by encoding it in their ender chest
+     * Can be passed a {@link DuelBet} which saves and separates the bet
      */
-    public static void savePlayerState(Player player) {
+    public static void savePlayerState(Player player, @Nullable DuelBet duelBet) {
         player.saveData();
 
         Inventory enderChest = player.getEnderChest();
@@ -47,10 +63,29 @@ public class SaveStateManagement {
 
         ItemStack enderContainer = transferToContainer(enderChestContent);
         enderContainer.editMeta(meta -> meta.itemName(Component.text("Ender Chest Content", NamedTextColor.DARK_GREEN)));
-        enderChest.setItem(0, enderContainer);
+        enderChest.setItem(ENDER_CHEST_SLOT, enderContainer);
 
         for (int i = 1; i < enderChest.getSize(); i++) {
             enderChest.setItem(i, ItemStack.empty());
+        }
+
+        if (duelBet != null) {
+            boolean isChallenger = duelBet.challenger().equals(player);
+
+            //TODO: potential leak when player is neither opponent nor challenger? cannot throw exception here or save is interrupted!!!
+
+            Economy economy = ServerFest.getPlugin().getEconomy();
+            if (economy != null) {
+                double withdrawal = isChallenger ? duelBet.challengerCurrencyBet() : duelBet.opponentCurrencyBet();
+                player.getPersistentDataContainer().set(SAVE_BET_CURRENCY, PersistentDataType.DOUBLE, withdrawal);
+                economy.withdrawPlayer(player, withdrawal);
+            }
+
+            List<ItemStack> bet = isChallenger ? duelBet.challengerItems() : duelBet.opponentItems();
+            ItemRemoval.removeExactly(player, bet);
+
+            ItemStack betContainer = transferToContainer(Arrays.copyOfRange(bet.toArray(new ItemStack[0]), 0, 27));
+            enderChest.setItem(BET_SLOT, betContainer);
         }
 
         ItemStack[] invContents = player.getInventory().getContents();
@@ -82,17 +117,15 @@ public class SaveStateManagement {
         ItemStack secondInvContainer = transferToContainer(secondContents);
         secondInvContainer.editMeta(meta -> meta.itemName(Component.text("Inventory Contents 2", NamedTextColor.AQUA)));
 
-        //TODO: handle in-hand and crafting items
-
-        enderChest.setItem(1, firstInvContainer);
-        enderChest.setItem(2, secondInvContainer);
+        enderChest.setItem(FIRST_INV_SLOT, firstInvContainer);
+        enderChest.setItem(SECOND_INV_SLOT, secondInvContainer);
 
         player.getInventory().clear();
 
-        enderChest.setItem(3, PlayerMetaData.createPlayerDataItem(player));
+        enderChest.setItem(PLAYER_DATA_SLOT, PlayerMetaData.createPlayerDataItem(player));
         PlayerMetaData.resetPlayer(player);
 
-        enderChest.setItem(4, transferEffectsToPotion(player));
+        enderChest.setItem(EFFECTS_SLOT, transferEffectsToPotion(player));
         player.clearActivePotionEffects();
 
         PersistentDataContainer pdc = player.getPersistentDataContainer();
@@ -102,10 +135,14 @@ public class SaveStateManagement {
         pdc.set(SAVE_VELOCITY, PersistentDataType.STRING, serializeVelocity(player.getVelocity()));
     }
 
+    public static void restorePlayerState(Player player) {
+        restorePlayerState(player, true);
+    }
+
     /**
      * Restores the saved data of a player by reading their ender chest and PDC
      */
-    public static void restorePlayerState(Player player) {
+    public static void restorePlayerState(Player player, boolean recoverBet) {
         PersistentDataContainer pdc = player.getPersistentDataContainer();
         if (pdc.has(SAVE_LOCATION, PersistentDataType.STRING)) {
             Location saveLoc = deserializeLocation(pdc.get(SAVE_LOCATION, PersistentDataType.STRING));
@@ -124,8 +161,8 @@ public class SaveStateManagement {
 
         Inventory enderChest = player.getEnderChest();
 
-        ItemStack firstInvContainer = enderChest.getItem(1);
-        ItemStack secondInvContainer = enderChest.getItem(2);
+        ItemStack firstInvContainer = enderChest.getItem(FIRST_INV_SLOT);
+        ItemStack secondInvContainer = enderChest.getItem(SECOND_INV_SLOT);
 
         ItemStack[] firstContents = retrieveContentsFromContainer(firstInvContainer);
         ItemStack[] secondContents = retrieveContentsFromContainer(secondInvContainer);
@@ -146,23 +183,39 @@ public class SaveStateManagement {
             });
         }
 
-        ItemStack metaDataItem = enderChest.getItem(3);
+        if (recoverBet) {
+            ItemStack[] betContents = retrieveContentsFromContainer(enderChest.getItem(BET_SLOT));
+            if (betContents.length > 0) {
+                var contents = Arrays.stream(betContents).filter(Objects::nonNull).toList();
+                player.give(contents, true).drops().forEach(drop -> drop.setOwner(player.getUniqueId()));
+            }
+
+            double currencyBet = pdc.getOrDefault(SAVE_BET_CURRENCY, PersistentDataType.DOUBLE, 0.0);
+            Economy economy = ServerFest.getPlugin().getEconomy();
+            if(economy != null && currencyBet > 0)
+                economy.depositPlayer(player, currencyBet);
+        }
+        pdc.remove(SAVE_BET_CURRENCY);
+
+        ItemStack metaDataItem = enderChest.getItem(PLAYER_DATA_SLOT);
         if (metaDataItem != null) {
             PlayerMetaData.applyToPlayer(player, metaDataItem);
             player.teleportAsync(player.getLocation()).thenRun(() -> PlayerMetaData.applyToPlayer(player, metaDataItem));
         }
 
-        ItemStack effectsPotion = enderChest.getItem(4);
+        ItemStack effectsPotion = enderChest.getItem(EFFECTS_SLOT);
         if (effectsPotion != null) {
             transferEffectsFromPotion(effectsPotion, player);
         }
 
-        ItemStack enderContainer = enderChest.getItem(0);
+        ItemStack enderContainer = enderChest.getItem(ENDER_CHEST_SLOT);
         player.getEnderChest().setContents(retrieveContentsFromContainer(enderContainer));
 
         pdc.remove(SAVED_STATE);
         player.saveData();
     }
+
+    //endregion
 
     private static ItemStack transferToContainer(ItemStack[] contents) {
         ItemStack container = ItemStack.of(Material.CHEST);
@@ -200,7 +253,7 @@ public class SaveStateManagement {
 
         player.getActivePotionEffects().forEach(effect -> {
             PotionEffect hiddenEffect = effect.getHiddenPotionEffect();
-            if(hiddenEffect != null) {
+            if (hiddenEffect != null) {
                 PotionEffect newEffect = new PotionEffect(hiddenEffect.getType(), hiddenEffect.getDuration(), hiddenEffect.getAmplifier(), hiddenEffect.isAmbient(), hiddenEffect.hasParticles(), hiddenEffect.hasIcon());
                 builder.addCustomEffect(newEffect);
             }
@@ -262,12 +315,14 @@ public class SaveStateManagement {
         }
     }
 
-    public static void updateSaveLocation(@NotNull Player player, @NotNull Location newLocation){
+    public static void updateSaveLocation(@NotNull Player player, @NotNull Location newLocation) {
         PersistentDataContainer pdc = player.getPersistentDataContainer();
         pdc.set(SAVED_STATE, PersistentDataType.STRING, ServerFest.getPlugin().getPluginMeta().getVersion());
 
         pdc.set(SAVE_LOCATION, PersistentDataType.STRING, serializeLocation(newLocation));
     }
+
+    //endregion
 
     public static class SaveListener implements Listener {
 

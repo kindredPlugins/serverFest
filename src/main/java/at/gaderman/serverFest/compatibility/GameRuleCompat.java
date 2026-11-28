@@ -18,8 +18,11 @@ public final class GameRuleCompat {
             resolve("ADVANCE_TIME", "DO_DAYLIGHT_CYCLE", "doDaylightCycle");
     public static final Rule<Boolean> KEEP_INVENTORY =
             resolve("KEEP_INVENTORY", "KEEP_INVENTORY", "keepInventory");
+    public static final Rule<Integer> SNOW_ACCUMULATION =
+            resolve("MAX_SNOW_ACCUMULATION_HEIGHT", "SNOW_ACCUMULATION_HEIGHT", "snowAccumulationHeight");
 
-    private GameRuleCompat() {}
+    private GameRuleCompat() {
+    }
 
     public static final class Rule<T> {
         private final String name;
@@ -34,7 +37,9 @@ public final class GameRuleCompat {
             return handle != null;
         }
 
-        /** @return true if the rule exists on this server and was applied */
+        /**
+         * @return true if the rule exists on this server and was applied
+         */
         public boolean set(World world, T value) {
             if (handle == null) return false;
             return world.setGameRule(handle, value);

@@ -7,6 +7,7 @@ import at.gaderman.serverFest.data.DataConfig;
 import at.gaderman.serverFest.data.player.PlayerDataManager;
 import at.gaderman.serverFest.fests.arenas.ArenaInstance;
 import at.gaderman.serverFest.fests.arenas.ArenaState;
+import at.gaderman.serverFest.fests.duel.DuelBet;
 import at.gaderman.serverFest.fests.game.FestGame;
 import at.gaderman.serverFest.fests.game.GameType;
 import at.gaderman.serverFest.fests.game.triggers.TriggerListener;
@@ -14,10 +15,12 @@ import at.gaderman.serverFest.management.WorldManager;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.milkbowl.vault.economy.Economy;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,6 +42,9 @@ public class Fest {
     private final UUID uuid;
     private final FestType festType;
     private final List<UUID> participantUUIDs;
+    private final double winnerReward;
+    private final @Nullable DuelBet duelBet;
+
     private final FestGame<?> game;
     private final ArenaInstance arenaInstance;
 
@@ -48,13 +54,21 @@ public class Fest {
     private TriggerListener triggerListener;
     private ScheduledTask maxTimeTask;
 
-    public Fest(FestType festType, @NotNull GameType gameType, List<UUID> participantUUIDs) {
+    private Fest(FestType festType, @NotNull GameType gameType, List<UUID> participantUUIDs, double winnerReward) {
+        this(festType, gameType, participantUUIDs, winnerReward, null);
+    }
+
+    private Fest(FestType festType, @NotNull GameType gameType, List<UUID> participantUUIDs, double winnerReward, @Nullable DuelBet duelBet) {
         this.uuid = UUID.randomUUID();
         this.festType = festType;
         this.participantUUIDs = participantUUIDs;
+        this.winnerReward = winnerReward;
+        this.duelBet = duelBet;
 
         this.arenaInstance = ServerFest.arenaManager.requestArena(gameType, festType);
         this.game = gameType.createNewInstance(this, arenaInstance);
+        if (winnerReward > 0)
+            registerRewardCallback();
 
         if (arenaInstance == null) {
             ServerFest.getPlugin().getLogger().severe("A fest has been forcefully started without checking for an empty arena slot first!");
@@ -62,6 +76,24 @@ public class Fest {
         }
 
         arenaInstance.activateArena();
+    }
+
+    public static Fest of(FestType festType, @NotNull GameType gameType, List<UUID> participantUUIDs) {
+        return of(festType, gameType, participantUUIDs, 0);
+    }
+
+    public static Fest of(FestType festType, @NotNull GameType gameType, List<UUID> participantUUIDs, double winnerReward) {
+        if (festType == FestType.DUEL)
+            throw new IllegalArgumentException("A duel fest needs extra parameters and cannot be created here, use #ofDuel() instead");
+
+        return new Fest(festType, gameType, participantUUIDs, winnerReward);
+    }
+
+    public static Fest ofDuel(@NotNull GameType gameType, @NotNull List<UUID> participantUUIDs, DuelBet duelBet) {
+        if (participantUUIDs.size() != 2)
+            throw new IllegalArgumentException("A duel must have exactly 2 participants");
+
+        return new Fest(FestType.DUEL, gameType, participantUUIDs, 0, duelBet);
     }
 
     //endregion
@@ -103,6 +135,10 @@ public class Fest {
         return arenaInstance;
     }
 
+    public double winnerReward() {
+        return winnerReward;
+    }
+
     //endregion
 
     //region Methods
@@ -113,6 +149,21 @@ public class Fest {
             return;
         }
 
+        if (duelBet != null && !duelBet.checkIfStillValid()) {
+            ServerFest.getPlugin().getLogger().info("Duel with id " + uuid + " failed due to one participant trying to duplicate items.");
+
+            participants().forEach(participant -> {
+                participant.sendMessage(ServerFest.CHAT_PREFIX.append(
+                        Component.text("The duel bet could not be collected, someone is trying to glitch items/currency!", NamedTextColor.RED)
+                ));
+                participant.playSound(participant, Sound.ENTITY_WITHER_DEATH, 1f, 0.5f);
+                participant.getWorld().strikeLightningEffect(participant.getLocation());
+            });
+            return;
+        }
+
+        //TODO: if duelBet given check if players fulfill the requirements, maybe something changed!! no duplication
+
         ServerFest.getPlugin().getLogger().info("Started fest with id " + uuid);
 
         this.triggerListener = new TriggerListener(this);
@@ -120,6 +171,7 @@ public class Fest {
 
         world = WorldManager.getInstance().loadOrCreateFestWorld();
         GameRuleCompat.SPAWN_MOBS.set(world, false);
+        GameRuleCompat.SNOW_ACCUMULATION.set(world, 0);
 
         this.origin = adjustLocationToCenterOfChunk(game.determineOrigin());
 
@@ -168,7 +220,7 @@ public class Fest {
 
         CompletableFuture<?>[] teleports = participants().stream()
                 .map(player -> {
-                    SaveStateManagement.savePlayerState(player);
+                    SaveStateManagement.savePlayerState(player, duelBet);
 
                     player.eject();
                     player.leaveVehicle();
@@ -195,7 +247,16 @@ public class Fest {
         if (arenaInstance.arenaState() == ArenaState.ACTIVE)
             arenaInstance.resetToReady();
 
-        participants().forEach(SaveStateManagement::restorePlayerState);
+        //TODO: edge case if the server terminates before the fest is stopped duel bet is not paid out even if someone already won, seems acceptable
+        if (duelBet == null)
+            participants().forEach(SaveStateManagement::restorePlayerState);
+
+        else participants().forEach(participant -> {
+            SaveStateManagement.restorePlayerState(participant, false);
+            if (game.getWinners().contains(participant)) {
+                duelBet.payOut(participant);
+            }
+        });
 
         if (triggerListener != null)
             triggerListener.unregister();
@@ -215,7 +276,11 @@ public class Fest {
                 )
         );
 
-        SaveStateManagement.restorePlayerState(player);
+        SaveStateManagement.restorePlayerState(player, false);
+        if (duelBet != null && game.getWinners().contains(player)) {
+            duelBet.payOut(player);
+            player.saveData();
+        }
 
         if (participantUUIDs.isEmpty()) {
             ServerFest.getPlugin().getLogger().info("Terminating fest " + uuid + " as all players left the fest.");
@@ -237,6 +302,24 @@ public class Fest {
                 .append(Component.text("ender pearl hit", NamedTextColor.LIGHT_PURPLE))
                 .append(Component.text(".", NamedTextColor.GRAY))
         );
+    }
+
+    private void registerRewardCallback() {
+        this.game.addWinnerCallback(winners -> {
+            Economy economy = ServerFest.getPlugin().getEconomy();
+            if (economy == null || winners.isEmpty()) return;
+
+            double rewardSplit = winnerReward / winners.size();
+            winners.forEach(winner -> {
+                economy.depositPlayer(winner, rewardSplit);
+                winner.sendMessage(ServerFest.CHAT_PREFIX
+                        .append(Component.text("Received ", NamedTextColor.WHITE))
+                        .append(Component.text(economy.format(rewardSplit), NamedTextColor.GOLD))
+                        .append(Component.text(" as reward for winning", NamedTextColor.WHITE))
+                );
+                winner.playSound(winner, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f);
+            });
+        });
     }
 
     private void scheduleMaxTimeTask() {

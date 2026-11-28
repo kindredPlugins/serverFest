@@ -1,6 +1,7 @@
 package at.gaderman.serverFest.command;
 
 import at.gaderman.serverFest.ServerFest;
+import at.gaderman.serverFest.config.GeneralConfig;
 import at.gaderman.serverFest.config.PermissionProvider;
 import at.gaderman.serverFest.data.player.PlayerDataManager;
 import at.gaderman.serverFest.fests.Fest;
@@ -46,9 +47,8 @@ public class FestCommand implements CommandExecutor, TabCompleter {
                         if (!checkAndInformNoManager(sender))
                             return true;
 
-                        //TODO: add only sender as participant and do not let others join
                         sendScheduleMessage(sender);
-                        var recruitment = FestRecruitment.requestRecruitment(10, FestType.CASUAL, null);
+                        var recruitment = FestRecruitment.requestRecruitment(10, FestType.CASUAL, null, 1, 1);
                         if (isPlayer) recruitment.addParticipant((Player) sender);
                         return true;
                     }
@@ -156,7 +156,7 @@ public class FestCommand implements CommandExecutor, TabCompleter {
 
                         GameType gameType = GameType.valueOf(args[1].toUpperCase());
                         sendScheduleMessage(sender);
-                        var recruitment = FestRecruitment.requestRecruitment(isDev ? 10 : 60, FestType.CASUAL, gameType);
+                        var recruitment = FestRecruitment.requestRecruitment(isDev ? 10 : 60, FestType.CASUAL, gameType, 1, isDev ? 1 : GeneralConfig.getInstance().maxPlayersPerFest());
                         if (isPlayer && isDev) recruitment.addParticipant((Player) sender);
                     } catch (IllegalArgumentException exception) {
                         sender.sendMessage(Component.text("Invalid gameType " + args[1], NamedTextColor.RED));

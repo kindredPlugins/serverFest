@@ -38,12 +38,14 @@ public abstract class FestGame<T extends ArenaLayout> {
 
     private boolean running;
     private final List<Player> winners = new ArrayList<>();
+    private List<Consumer<List<Player>>> winnerCallbacks = new ArrayList<>();
+
     private BossBar arenaBuildingBar;
     protected final ArenaBlockTracker blockTracker;
 
     private final Map<UUID, FestPlayerData> playerDataMap = new HashMap<>();
 
-    public FestGame(Fest fest, ArenaInstance arenaInstance) {
+    protected FestGame(Fest fest, ArenaInstance arenaInstance) {
         this.fest = fest;
         this.arenaInstance = arenaInstance;
         this.arenaLayout = (T) arenaInstance.arenaLayout();
@@ -55,8 +57,19 @@ public abstract class FestGame<T extends ArenaLayout> {
      */
     public abstract @NotNull GameType gameType();
 
+    /**
+     * Returns all winners, note that this will obviously be empty during the game and is intended for later lookups
+     */
+    public List<Player> getWinners() {
+        return winners;
+    }
+
     public Location determineOrigin() {
         return arenaLayout.origin();
+    }
+
+    public void addWinnerCallback(Consumer<List<Player>> winnerCallback) {
+        this.winnerCallbacks.add(winnerCallback);
     }
 
     /**
@@ -133,7 +146,7 @@ public abstract class FestGame<T extends ArenaLayout> {
     }
 
     protected Component startTitle() {
-        return Component.text("Race!", NamedTextColor.GOLD);
+        return Component.text("Start!", NamedTextColor.GOLD);
     }
 
     protected void onCountdownComplete() {
@@ -146,6 +159,7 @@ public abstract class FestGame<T extends ArenaLayout> {
         this.winners.addAll(winners);
         running = false;
         onWinner(winners);
+        winnerCallbacks.forEach(callback -> callback.accept(winners));
         afterWinner(winners);
     }
 
@@ -242,6 +256,7 @@ public abstract class FestGame<T extends ArenaLayout> {
      * Game-specific winner side effects run after the shared announcement has been sent.
      */
     protected void afterWinner(List<Player> winners) {
+        fest.participants().forEach(participant -> participant.playSound(participant, Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 1f, 1f));
     }
 
     protected final void sendCountdownTitle(long timeLeft) {
@@ -318,7 +333,7 @@ public abstract class FestGame<T extends ArenaLayout> {
         getOrCreatePlayerData(player.getUniqueId()).reset();
 
         //last player wins
-        if (fest.participantUUIDs().size() == 1)
+        if (running && fest.participantUUIDs().size() == 1)
             declareWinner(fest.participants());
     }
 
